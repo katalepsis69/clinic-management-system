@@ -51,8 +51,20 @@
   };
   localStorage.setItem('chat_session_id', state.chatSessionId);
 
+  // Helper: Escape HTML to prevent DOM XSS vulnerabilities
+  function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // Helper: Toast Notifications
   function showToast(message, type = 'info') {
+
     const container = document.getElementById('toastContainer');
     if (!container) return;
 
@@ -438,11 +450,11 @@
       list.innerHTML = data.map(app => `
         <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
           <div>
-            <span class="font-bold text-slate-800 block">${app.time_slot} - ${app.patient_name}</span>
-            <span class="text-slate-500 text-[11px]">${app.reason || 'General Consultation'}</span>
+            <span class="font-bold text-slate-800 block">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
+            <span class="text-slate-500 text-[11px]">${escapeHTML(app.reason || 'General Consultation')}</span>
           </div>
           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase">
-            ${app.status}
+            ${escapeHTML(app.status)}
           </span>
         </div>
       `).join('');
@@ -472,12 +484,12 @@
           rxList.innerHTML = emr.prescriptions.map(rx => `
             <div class="p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm">
               <div class="flex justify-between font-semibold text-slate-800">
-                <span>Dx: ${rx.diagnosis}</span>
-                <span class="text-[10px] text-slate-400">${rx.created_at}</span>
+                <span>Dx: ${escapeHTML(rx.diagnosis)}</span>
+                <span class="text-[10px] text-slate-400">${escapeHTML(rx.created_at)}</span>
               </div>
-              <p class="text-slate-500 text-[11px] my-1">${rx.notes || ''}</p>
+              <p class="text-slate-500 text-[11px] my-1">${escapeHTML(rx.notes || '')}</p>
               <div class="text-[10px] text-purple-700 bg-purple-50 p-1.5 rounded">
-                ${rx.medications ? rx.medications.map(m => `&bull; ${m.drug_name || m.name} ${m.dosage || ''}`).join('<br>') : ''}
+                ${rx.medications ? rx.medications.map(m => `&bull; ${escapeHTML(m.drug_name || m.name || '')} ${escapeHTML(m.dosage || '')}`).join('<br>') : ''}
               </div>
             </div>
           `).join('');
@@ -674,19 +686,24 @@
       const resBox = document.getElementById('feedbackSentimentResult');
       if (resBox) {
         resBox.classList.remove('hidden');
-        const badgeColor = data.sentiment_label === 'positive' ? 'bg-emerald-100 text-emerald-800' :
-          data.sentiment_label === 'negative' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-800';
+        const sent = data.sentiment || data;
+        const sentLabel = sent.sentiment_label || 'neutral';
+        const sentScore = (sent.sentiment_score ?? 0).toFixed(3);
+        const isCritical = Boolean(sent.flagged_critical || sent.is_critical);
+
+        const badgeColor = sentLabel === 'positive' ? 'bg-emerald-100 text-emerald-800' :
+          sentLabel === 'negative' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-800';
 
         resBox.innerHTML = `
           <div class="flex justify-between items-center mb-1">
             <span class="font-bold text-slate-800">VADER Sentiment Analysis</span>
             <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${badgeColor}">
-              ${data.sentiment_label}
+              ${escapeHTML(sentLabel)}
             </span>
           </div>
           <div class="text-[11px] text-slate-600">
-            Compound Score: <strong>${data.sentiment_score.toFixed(3)}</strong>
-            ${data.is_critical ? '<span class="ml-2 text-red-600 font-bold">⚠️ CRITICAL ALERT</span>' : ''}
+            Compound Score: <strong>${sentScore}</strong>
+            ${isCritical ? '<span class="ml-2 text-red-600 font-bold">⚠️ CRITICAL ALERT</span>' : ''}
           </div>
         `;
       }
@@ -706,55 +723,68 @@
       const avgRating = document.getElementById('statAvgRating');
       const totalRev = document.getElementById('statTotalReviews');
 
+      const total = data.total ?? data.total_feedbacks ?? 0;
+      const avg = data.avg_rating ?? data.average_rating ?? 5.0;
+
+      // Handle both router schema { positive_pct, negative_pct } and legacy distribution object
+      const posPct = data.positive_pct !== undefined ? data.positive_pct :
+        (data.sentiment_distribution ? (data.sentiment_distribution.positive / (total || 1)) * 100 : 0);
+      const negPct = data.negative_pct !== undefined ? data.negative_pct :
+        (data.sentiment_distribution ? (data.sentiment_distribution.negative / (total || 1)) * 100 : 0);
+      const neuPct = Math.max(0, Math.round(100 - posPct - negPct));
+
+      const nss = Math.round(posPct - negPct);
+
       if (nssEl) {
-        const nss = data.net_sentiment_score || 0;
         nssEl.textContent = (nss >= 0 ? '+' : '') + nss.toFixed(1);
         nssEl.className = `text-4xl font-black ${nss >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
       }
       if (nssStatus) {
-        const nss = data.net_sentiment_score || 0;
         nssStatus.textContent = nss >= 50 ? 'Excellent Experience' : nss >= 0 ? 'Good / Neutral' : 'Requires Attention';
       }
-      if (avgRating) avgRating.textContent = (data.average_rating || 0).toFixed(1);
-      if (totalRev) totalRev.textContent = data.total_feedbacks || 0;
+      if (avgRating) avgRating.textContent = Number(avg).toFixed(1);
+      if (totalRev) totalRev.textContent = total;
 
       // Distribution bars
-      const dist = data.sentiment_distribution || { positive: 0, neutral: 0, negative: 0 };
-      const total = (dist.positive + dist.neutral + dist.negative) || 1;
+      document.getElementById('distPositivePercent').textContent = `${Math.round(posPct)}%`;
+      document.getElementById('barPositive').style.width = `${Math.round(posPct)}%`;
 
-      const pPct = Math.round((dist.positive / total) * 100);
-      const nPct = Math.round((dist.neutral / total) * 100);
-      const negPct = Math.round((dist.negative / total) * 100);
+      document.getElementById('distNeutralPercent').textContent = `${neuPct}%`;
+      document.getElementById('barNeutral').style.width = `${neuPct}%`;
 
-      document.getElementById('distPositivePercent').textContent = `${pPct}% (${dist.positive})`;
-      document.getElementById('barPositive').style.width = `${pPct}%`;
+      document.getElementById('distNegativePercent').textContent = `${Math.round(negPct)}%`;
+      document.getElementById('barNegative').style.width = `${Math.round(negPct)}%`;
 
-      document.getElementById('distNeutralPercent').textContent = `${nPct}% (${dist.neutral})`;
-      document.getElementById('barNeutral').style.width = `${nPct}%`;
+      // Critical alerts: check data.critical_alerts or filter from data.items
+      const rawAlerts = data.critical_alerts ||
+        (data.items ? data.items.filter(i => i.flagged_critical) : []);
+      const criticalCount = data.critical_count !== undefined ? data.critical_count : rawAlerts.length;
 
-      document.getElementById('distNegativePercent').textContent = `${negPct}% (${dist.negative})`;
-      document.getElementById('barNegative').style.width = `${negPct}%`;
-
-      // Critical alerts
-      const alerts = data.critical_alerts || [];
       const badge = document.getElementById('criticalAlertsBadge');
-      if (badge) badge.textContent = `${alerts.length} Active`;
+      if (badge) badge.textContent = `${criticalCount} Active`;
 
       const list = document.getElementById('criticalAlertsList');
       if (list) {
-        if (alerts.length === 0) {
+        if (rawAlerts.length === 0) {
           list.innerHTML = '<p class="text-slate-400 py-6 text-center">No critical negative complaints detected.</p>';
         } else {
-          list.innerHTML = alerts.map(a => `
-            <div class="p-3 rounded-xl bg-red-50 border border-red-200 text-xs">
-              <div class="flex justify-between items-center text-red-700 font-bold mb-1">
-                <span>Rating: ${a.rating} ★ &bull; Score: ${a.sentiment_score ? a.sentiment_score.toFixed(2) : '-'}</span>
-                <span class="text-[10px] bg-red-200 text-red-900 px-2 py-0.5 rounded-full font-bold">URGENT</span>
+          list.innerHTML = rawAlerts.map(a => {
+            const r = a.rating ?? 1;
+            const score = a.sentiment_score !== undefined ? a.sentiment_score.toFixed(2) : '-';
+            const comment = escapeHTML(a.comment ?? a.comment_text ?? '');
+            const pId = a.patient_id ? `Patient ID: #${a.patient_id} &bull; ` : '';
+            const dt = escapeHTML(a.created_at || '');
+            return `
+              <div class="p-3 rounded-xl bg-red-50 border border-red-200 text-xs">
+                <div class="flex justify-between items-center text-red-700 font-bold mb-1">
+                  <span>Rating: ${r} ★ &bull; Score: ${score}</span>
+                  <span class="text-[10px] bg-red-200 text-red-900 px-2 py-0.5 rounded-full font-bold">URGENT</span>
+                </div>
+                <p class="text-slate-800">"${comment}"</p>
+                <span class="text-[10px] text-slate-500 mt-1 block">${pId}${dt}</span>
               </div>
-              <p class="text-slate-800">"${a.comment_text}"</p>
-              <span class="text-[10px] text-slate-500 mt-1 block">Patient ID: #${a.patient_id} &bull; ${a.created_at || ''}</span>
-            </div>
-          `).join('');
+            `;
+          }).join('');
         }
       }
     } catch (err) {
@@ -803,6 +833,8 @@
 
     const isMe = msg.role === 'patient' || (state.user && msg.sender === state.user.full_name);
     const isBot = msg.is_bot_reply || msg.role === 'bot' || msg.sender === 'Clinic Assistant Bot';
+    const safeText = escapeHTML(msg.message || msg.message_text || '');
+    const safeSender = escapeHTML(msg.sender || msg.sender_name || 'Staff');
 
     const div = document.createElement('div');
     div.className = `flex items-start gap-2 ${isMe && !isBot ? 'justify-end' : 'justify-start'}`;
@@ -812,13 +844,13 @@
         <span class="text-base">🤖</span>
         <div class="bg-emerald-50 text-emerald-950 border border-emerald-200 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
           <span class="text-[10px] font-bold text-emerald-700 block mb-0.5">Clinic Virtual Bot</span>
-          ${msg.message || msg.message_text}
+          ${safeText}
         </div>
       `;
     } else if (isMe) {
       div.innerHTML = `
         <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] leading-relaxed">
-          ${msg.message || msg.message_text}
+          ${safeText}
         </div>
         <span class="text-base">👤</span>
       `;
@@ -826,8 +858,8 @@
       div.innerHTML = `
         <span class="text-base">📋</span>
         <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
-          <span class="text-[10px] font-bold text-slate-600 block mb-0.5">${msg.sender || 'Staff'}</span>
-          ${msg.message || msg.message_text}
+          <span class="text-[10px] font-bold text-slate-600 block mb-0.5">${safeSender}</span>
+          ${safeText}
         </div>
       `;
     }

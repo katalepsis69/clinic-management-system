@@ -161,6 +161,14 @@
 
     // Queue State & Updates
     let lastServing = null;
+    let lastChimedTicket = null;
+
+    function notifyNewServing(ticket) {
+      if (ticket && ticket !== 'None' && ticket !== lastChimedTicket) {
+        lastChimedTicket = ticket;
+        playChime();
+      }
+    }
 
     function renderQueue(data) {
       const current = data.currently_serving || 'None';
@@ -180,21 +188,19 @@
       if (countEl) countEl.textContent = waitCount;
       if (estEl) estEl.textContent = waitMins + ' mins';
 
-      // Chime if new patient called
-      if (current !== 'None' && current !== lastServing) {
-        if (lastServing !== null) {
-          playChime();
-        }
-        lastServing = current;
+      // Chime once if new patient called (guaranteed deduplication via notifyNewServing)
+      if (current !== 'None' && lastServing !== null && current !== lastServing) {
+        notifyNewServing(current);
       }
+      lastServing = current;
 
       if (listEl) {
         if (waiting.length === 0) {
-          listEl.innerHTML = '<span class=\"text-xs text-slate-500\">No patients waiting in queue.</span>';
+          listEl.innerHTML = '<span class="text-xs text-slate-500">No patients waiting in queue.</span>';
         } else {
           listEl.innerHTML = waiting.map((t, idx) => `
-            <div class=\"px-3.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold font-mono text-emerald-300 flex items-center gap-2\">
-              <span class=\"text-[10px] text-slate-400 font-sans\">#${idx + 1}</span>
+            <div class="px-3.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold font-mono text-emerald-300 flex items-center gap-2">
+              <span class="text-[10px] text-slate-400 font-sans">#${idx + 1}</span>
               <span>${t}</span>
             </div>
           `).join('');
@@ -230,8 +236,8 @@
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.event === 'PATIENT_CALLED') {
-            playChime();
+          if (data.event === 'PATIENT_CALLED' && data.ticket_number) {
+            notifyNewServing(data.ticket_number);
           }
           fetchQueueStatus();
         } catch (e) {
