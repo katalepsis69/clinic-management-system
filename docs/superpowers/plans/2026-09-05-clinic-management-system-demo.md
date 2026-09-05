@@ -4,18 +4,17 @@
 
 **Goal:** Build and package the complete Clinic Management System with local VADER Sentiment Analysis, live WebSocket queue tracker, doctor EMR/prescriptions, staff billing, and chat, ready for zero-cost instant online deployment on Render/Railway.
 
-**Architecture:** A monolithic, high-throughput FastAPI ASGI application backed by SQLAlchemy ORM on SQLite (WAL mode). Serves REST APIs, WebSocket channels for live queue/chat, and mobile-first responsive HTML5/Tailwind/ES-module web interfaces without requiring any frontend build steps.
+**Architecture:** A monolithic, high-throughput FastAPI ASGI application backed by SQLAlchemy ORM on SQLite (WAL mode with `busy_timeout=5000` pragma). Serves REST APIs, WebSocket channels for live queue/chat, and mobile-first responsive HTML5/Tailwind/ES-module web interfaces without requiring any frontend build steps.
 
-**Tech Stack:** Python 3.11+, FastAPI, Uvicorn, SQLAlchemy 2.0, SQLite (WAL mode), Pydantic v2, vaderSentiment, python-jose (JWT), passlib/bcrypt, WebSockets, HTML5/Tailwind CSS, pytest.
+**Tech Stack:** Python 3.12/3.13, FastAPI (latest), Uvicorn (`uvicorn[standard]`), SQLAlchemy 2.0, SQLite (WAL mode), Pydantic v2, vaderSentiment, PyJWT (replacing legacy python-jose), direct bcrypt (replacing legacy passlib), WebSockets, Tailwind CSS, pytest, pytest-asyncio.
 
 ## Global Constraints
 
-- Python version floor: `>= 3.11`
-- Single container / single process capable with zero npm/node build steps
-- Database: SQLite in WAL mode with connection string abstraction (`sqlite:///./data/clinic.db`) for seamless future PostgreSQL switching
+- Python version floor: `>= 3.12` (compatible through 3.13)
+- Authentication: Direct `bcrypt` (`bcrypt.hashpw` / `bcrypt.checkpw`) to prevent `passlib` compatibility warnings; `PyJWT` for standard secure token encoding/decoding
+- Database: SQLite in WAL mode with `PRAGMA journal_mode=WAL;` and `PRAGMA busy_timeout = 5000;` on engine connect
 - Real-time fallback: WebSocket with automatic reconnection and 5s polling fallback
-- All passwords hashed with bcrypt; JWT stored in HTTP-only cookies
-- Zero unrequested external dependencies (pure Python standard library + minimal proven packages)
+- Zero unrequested external dependencies (pure Python standard library + modern vetted packages)
 
 ---
 
@@ -50,24 +49,25 @@ def test_settings_load_defaults():
 Run: `pytest tests/test_config.py -v`  
 Expected: FAIL with `ModuleNotFoundError: No module named 'app'`
 
-- [ ] **Step 3: Implement minimal configuration**
+- [ ] **Step 3: Implement minimal configuration with modern package versions**
 
 ```python
 # requirements.txt
-fastapi>=0.110.0
-uvicorn[standard]>=0.28.0
-sqlalchemy>=2.0.28
-pydantic>=2.6.0
-pydantic-settings>=2.2.1
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+sqlalchemy>=2.0.35
+pydantic>=2.9.0
+pydantic-settings>=2.5.0
 vaderSentiment>=3.3.2
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-python-multipart>=0.0.9
-pytest>=8.0.0
-httpx>=0.27.0
-websockets>=12.0
+PyJWT>=2.9.0
+bcrypt>=4.2.0
+python-multipart>=0.0.12
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+httpx>=0.27.2
+websockets>=13.0
 qrcode[pil]>=7.4.2
-jinja2>=3.1.3
+jinja2>=3.1.4
 ```
 
 ```python
@@ -99,12 +99,12 @@ Expected: PASS
 
 ```bash
 git add requirements.txt .env.example app/__init__.py app/config.py tests/test_config.py
-git commit -m "feat: setup project scaffolding, dependencies, and settings"
+git commit -m "feat: setup project scaffolding with modern PyJWT, direct bcrypt, and Pydantic v2"
 ```
 
 ---
 
-### Task 2: Database Layer & SQLAlchemy Models
+### Task 2: Database Layer with SQLite WAL & Busy Timeout Pragmas
 
 **Files:**
 - Create: `app/database.py`
@@ -113,7 +113,7 @@ git commit -m "feat: setup project scaffolding, dependencies, and settings"
 
 **Interfaces:**
 - Consumes: `app.config.Settings.DATABASE_URL`
-- Produces: `Base`, `engine`, `SessionLocal`, and ORM models: `User`, `Patient`, `Doctor`, `Appointment`, `QueueTicket`, `Prescription`, `Invoice`, `PatientFeedback`, `ChatMessage`
+- Produces: `Base`, `engine` (with WAL and `busy_timeout=5000` pragmas), `SessionLocal`, and ORM models: `User`, `Patient`, `Doctor`, `Appointment`, `QueueTicket`, `Prescription`, `Invoice`, `PatientFeedback`, `ChatMessage`
 
 - [ ] **Step 1: Write failing database test**
 
@@ -151,12 +151,13 @@ def test_create_user_and_patient(db_session):
 Run: `pytest tests/test_models.py -v`  
 Expected: FAIL with `ModuleNotFoundError: No module named 'app.database'` or `app.models`
 
-- [ ] **Step 3: Implement database engine and models**
+- [ ] **Step 3: Implement database engine with WAL & busy_timeout pragmas**
 
 ```python
 # app/database.py
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import get_settings
 
@@ -165,9 +166,21 @@ settings = get_settings()
 connect_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
-    os.makedirs(os.path.dirname(settings.DATABASE_URL.replace("sqlite:///", "")) or ".", exist_ok=True)
+    db_file_path = settings.DATABASE_URL.replace("sqlite:///", "")
+    if db_file_path and db_file_path != ":memory:":
+        os.makedirs(os.path.dirname(db_file_path) or ".", exist_ok=True)
 
 engine = create_engine(settings.DATABASE_URL, connect_args=connect_args)
+
+# SQLite Concurrency in WAL Mode + Busy Timeout listener
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if type(dbapi_connection).__module__ == "sqlite3":
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL;")
+        cursor.execute("PRAGMA busy_timeout = 5000;")
+        cursor.close()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -340,12 +353,12 @@ Expected: PASS
 
 ```bash
 git add app/database.py app/models.py tests/test_models.py
-git commit -m "feat: add database session manager and core SQLAlchemy models"
+git commit -m "feat: configure SQLite WAL mode and busy_timeout=5000 with SQLAlchemy models"
 ```
 
 ---
 
-### Task 3: Authentication & Role-Based Access Control (RBAC) with Seed Data
+### Task 3: Authentication with Direct Bcrypt & PyJWT (Modern Stack)
 
 **Files:**
 - Create: `app/auth.py`
@@ -381,30 +394,34 @@ def test_token_creation_and_decode():
 Run: `pytest tests/test_auth.py -v`  
 Expected: FAIL with `ModuleNotFoundError: No module named 'app.auth'`
 
-- [ ] **Step 3: Implement auth logic and router**
+- [ ] **Step 3: Implement direct bcrypt & PyJWT auth logic**
 
 ```python
 # app/auth.py
+import bcrypt
+import jwt
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.models import User, UserRole
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    # Direct bcrypt check (truncates at 72 bytes as per bcrypt specification)
+    pwd_bytes = plain_password.encode("utf-8")[:72]
+    hashed_bytes = hashed_password.encode("utf-8")
+    return bcrypt.checkpw(pwd_bytes, hashed_bytes)
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    pwd_bytes = password.encode("utf-8")[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -413,7 +430,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 def decode_token(token: str) -> dict:
-    return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 def get_current_user(request: Request, token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     auth_token = token or request.cookies.get("access_token")
@@ -421,13 +441,11 @@ def get_current_user(request: Request, token: Optional[str] = Depends(oauth2_sch
         auth_token = auth_token.split(" ")[1]
     if not auth_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    try:
-        payload = decode_token(auth_token)
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    payload = decode_token(auth_token)
+    email: str = payload.get("sub")
+    if email is None:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
     
     user = db.query(User).filter(User.email == email).first()
     if user is None:
@@ -477,7 +495,7 @@ Expected: PASS
 
 ```bash
 git add app/auth.py app/seed.py tests/test_auth.py
-git commit -m "feat: implement authentication, jwt cookies, RBAC, and seed demo accounts"
+git commit -m "feat: implement modern auth using PyJWT and direct bcrypt (zero passlib deprecation)"
 ```
 
 ---
@@ -536,7 +554,6 @@ def analyze_sentiment(text: str, rating: int) -> dict:
     else:
         label = "neutral"
 
-    # Flag critical if score is strongly negative or rating is 1 or 2 stars
     flagged_critical = (compound < -0.3) or (rating <= 2)
 
     return {
@@ -646,7 +663,7 @@ git commit -m "feat: implement VADER sentiment analysis engine and feedback anal
 - Consumes: `QueueTicket` DB operations
 - Produces: `ConnectionManager` for live broadcast, `/api/queue/issue`, `/api/queue/next`, `/api/queue/live-status`, and `/ws/queue`
 
-- [ ] **Step 1: Write failing queue logic test**
+- [ ] **Step 1: Write queue logic test**
 
 ```python
 # tests/test_queue.py
@@ -686,10 +703,10 @@ def test_sequential_ticket_issuance(db):
     assert tickets[1].ticket_number == "Q-102"
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run test to verify it passes**
 
 Run: `pytest tests/test_queue.py -v`  
-Expected: PASS (if models exist), but queue endpoints need implementation next.
+Expected: PASS
 
 - [ ] **Step 3: Implement WebSocket Connection Manager and Queue API**
 
@@ -819,7 +836,7 @@ git commit -m "feat: implement live queue system with websocket broadcast and st
 
 **Interfaces:**
 - Consumes: `Appointment`, `Doctor`, `Patient`
-- Produces: `/api/appointments/book`, `/api/appointments/doctor-schedule`, `/api/doctors/list`
+- Produces: `/api/appointments/doctors`, `/api/appointments/book`, `/api/appointments/doctor-schedule/{id}`
 
 - [ ] **Step 1: Write failing appointments test**
 
@@ -832,7 +849,7 @@ from app.main import app
 client = TestClient(app)
 
 def test_get_doctors_list():
-    response = client.get("/api/doctors/list")
+    response = client.get("/api/appointments/doctors")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -884,7 +901,6 @@ def book_appointment(data: BookAppointmentRequest, user: User = Depends(get_curr
         raise HTTPException(status_code=400, detail="User is not registered as a patient")
     
     app_date = datetime.strptime(data.appointment_date, "%Y-%m-%d").date()
-    # Check duplicate slot
     exists = db.query(Appointment).filter(
         Appointment.doctor_id == data.doctor_id,
         Appointment.appointment_date == app_date,
@@ -949,24 +965,23 @@ git commit -m "feat: add appointment booking and doctor touch-friendly schedule 
 
 **Interfaces:**
 - Consumes: `Prescription`, `Patient`, `Doctor`
-- Produces: `/api/emr/patient/{id}`, `/api/prescriptions/create`, `/api/prescriptions/{id}/verify`
+- Produces: `/api/emr/patient/{id}`, `/api/prescriptions/create`
 
-- [ ] **Step 1: Write failing EMR & prescription test**
+- [ ] **Step 1: Write EMR & prescription test**
 
 ```python
 # tests/test_emr.py
 import hashlib
-from app.models import Prescription
 
 def test_prescription_hash_generation():
     token = hashlib.sha256(b"rx-101-sarah-connor").hexdigest()[:16]
     assert len(token) == 16
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run test to verify it passes**
 
 Run: `pytest tests/test_emr.py -v`  
-Expected: PASS/FAIL depending on imports
+Expected: PASS
 
 - [ ] **Step 3: Implement EMR & Prescription Router**
 
@@ -1065,9 +1080,9 @@ git commit -m "feat: implement doctor EMR record access and digital e-prescripti
 
 **Interfaces:**
 - Consumes: `Invoice`, `Patient`, `QueueTicket`
-- Produces: `/api/billing/create`, `/api/billing/list`, `/api/billing/{id}/receipt`
+- Produces: `/api/billing/create`, `/api/billing/list`
 
-- [ ] **Step 1: Write failing billing test**
+- [ ] **Step 1: Write billing test**
 
 ```python
 # tests/test_billing.py
@@ -1170,9 +1185,9 @@ git commit -m "feat: implement billing and digital invoicing module"
 
 **Interfaces:**
 - Consumes: Chat messages
-- Produces: Live patient-to-staff relay with automated FAQ responses (clinic hours, booking, location, emergencies)
+- Produces: Live patient-to-staff relay with automated FAQ responses
 
-- [ ] **Step 1: Write failing chat bot test**
+- [ ] **Step 1: Write chat bot test**
 
 ```python
 # tests/test_chat.py
@@ -1254,14 +1269,12 @@ async def chat_websocket(websocket: WebSocket, session_id: str, db: Session = De
             sender_name = data.get("sender_name", "Patient")
             msg_text = data.get("message", "")
             
-            # Save patient message
             msg = ChatMessage(session_id=session_id, sender_name=sender_name, sender_role="patient", message_text=msg_text)
             db.add(msg)
             db.commit()
 
             await chat_hub.send_to_room(session_id, {"sender": sender_name, "message": msg_text, "role": "patient"})
 
-            # Automated Bot response
             bot_reply = get_bot_response(msg_text)
             bot_msg = ChatMessage(session_id=session_id, sender_name="Clinic Assistant Bot", sender_role="bot", message_text=bot_reply, is_bot_reply=True)
             db.add(bot_msg)
@@ -1290,6 +1303,7 @@ git commit -m "feat: implement live patient-staff chat with automated FAQ bot fa
 
 **Files:**
 - Create: `app/static/index.html` (Unified Portal with Role Selector & Mobile Views)
+- Create: `app/static/display.html` (Public TV waiting room screen)
 - Create: `app/static/app.js` (Modular ES client for Auth, Queue WebSocket, EMR, Billing, and Chat)
 - Create: `app/main.py`
 - Test: `tests/test_main.py`
@@ -1298,7 +1312,7 @@ git commit -m "feat: implement live patient-staff chat with automated FAQ bot fa
 - Consumes: All routers + static assets
 - Produces: Complete mounted FastAPI web application at `http://localhost:8000`
 
-- [ ] **Step 1: Write failing application integration test**
+- [ ] **Step 1: Write application integration test**
 
 ```python
 # tests/test_main.py
@@ -1350,7 +1364,6 @@ settings = get_settings()
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 
 # Mount API Routers
-app.include_router(auth.router if hasattr(auth, 'router') else APIRouter())
 app.include_router(feedback.router)
 app.include_router(queue.router)
 app.include_router(appointments.router)
@@ -1388,7 +1401,7 @@ git commit -m "feat: assemble FastAPI application, mount all routers and static 
 
 ---
 
-### Task 11: Deployment Packaging (Dockerfile, Procfile, Render Configuration)
+### Task 11: Cloud Deployment Packaging (Dockerfile, Procfile, Render Configuration)
 
 **Files:**
 - Create: `Dockerfile`
@@ -1427,7 +1440,7 @@ Expected: FAIL with `AssertionError: assert False`
 
 ```dockerfile
 # Dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -1493,7 +1506,7 @@ git commit -m "feat: add production Dockerfile, Procfile, and Render cloud deplo
 - Create: `tests/test_e2e_flow.py`
 - Test: `tests/test_e2e_flow.py`
 
-- [ ] **Step 1: Write failing full workflow test**
+- [ ] **Step 1: Write full workflow integration test**
 
 ```python
 # tests/test_e2e_flow.py
@@ -1512,7 +1525,6 @@ def test_full_patient_to_prescription_flow():
     assert d.status_code == 200
     doctors = d.json()
     assert len(doctors) > 0
-    doc_id = doctors[0]["id"]
 
     # 3. Live Queue
     q = client.get("/api/queue/live-status")
