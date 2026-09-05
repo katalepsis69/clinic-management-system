@@ -1,0 +1,58 @@
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+
+# Git and IDE
+.git
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+
+# Testing & Coverage
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# Linting & Type checking
+.mypy_cache/
+.ruff_cache/
+
+# Local database & temporary data
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+*.db
+
+# Documentation & Superpowers artifacts
+.superpowers/
+*.md
