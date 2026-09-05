@@ -51,6 +51,7 @@ class Patient(Base):
     user = relationship("User", back_populates="patient")
     appointments = relationship("Appointment", back_populates="patient")
     queue_tickets = relationship("QueueTicket", back_populates="patient")
+    invoices = relationship("Invoice", back_populates="patient")
 
 class Doctor(Base):
     __tablename__ = "doctors"
@@ -122,6 +123,9 @@ class Invoice(Base):
     payment_method = Column(String(30), default="cash")
     payment_status = Column(String(20), default="paid")
     paid_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    patient = relationship("Patient", back_populates="invoices")
+    queue_ticket = relationship("QueueTicket")
 
 class PatientFeedback(Base):
     __tablename__ = "patient_feedback"
