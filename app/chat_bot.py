@@ -1,10 +1,10 @@
 """Automated FAQ Rule-Based Bot Engine."""
 
 FAQ_RULES = [
+    (["emergency", "urgent", "ambulance", "severe", "critical", "911"], "For severe life-threatening emergencies, please call 911 or proceed immediately to the nearest hospital Emergency Room."),
     (["hours", "opening", "open", "time", "schedule"], "Our clinic is open Monday to Saturday from 8:00 AM to 6:00 PM. Emergency walk-ins are accepted anytime during open hours."),
     (["book", "appointment", "reserve", "slot"], "You can book an appointment in the Patient Portal under 'Book Appointment'. Choose your doctor and preferred time slot!"),
     (["location", "address", "where", "directions"], "We are located at 123 Healthcare Blvd, Suite 400, Medical Arts Tower. Parking is available on Level B1."),
-    (["emergency", "urgent", "ambulance", "severe"], "For severe life-threatening emergencies, please call 911 or proceed immediately to the nearest hospital Emergency Room."),
     (["doctor", "specialist", "cardiologist", "physician"], "We have specialists in Cardiology, Pediatrics, General Medicine, and Orthopedics. View their profiles in the booking tab.")
 ]
 

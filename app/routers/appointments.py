@@ -56,6 +56,10 @@ def book_appointment(
             status_code=400, detail="Invalid date format, expected YYYY-MM-DD"
         )
 
+    doctor = db.query(Doctor).filter(Doctor.id == data.doctor_id).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
     exists = (
         db.query(Appointment)
         .filter(

@@ -1,4 +1,5 @@
-from pydantic_settings import BaseSettings
+from functools import lru_cache
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     APP_NAME: str = "Clinic Management System"
@@ -8,9 +9,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./data/clinic.db"
     DEMO_MODE: bool = True
 
-    class Config:
-        env_file = ".env"
-        extra = "allow"
+    model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
+@lru_cache()
 def get_settings() -> Settings:
     return Settings()
+

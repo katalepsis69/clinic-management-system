@@ -3,7 +3,7 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.models import Invoice, Patient, User, UserRole
@@ -15,10 +15,10 @@ router = APIRouter(prefix="/api/billing", tags=["Billing & Digital Invoicing"])
 class CreateInvoiceRequest(BaseModel):
     patient_id: int
     queue_ticket_id: Optional[int] = None
-    consultation_fee: float = 0.0
-    medication_fee: float = 0.0
-    other_fees: float = 0.0
-    discount_amount: float = 0.0
+    consultation_fee: float = Field(default=0.0, ge=0.0)
+    medication_fee: float = Field(default=0.0, ge=0.0)
+    other_fees: float = Field(default=0.0, ge=0.0)
+    discount_amount: float = Field(default=0.0, ge=0.0)
     payment_method: str = "cash"
 
 
@@ -28,7 +28,11 @@ def create_invoice(
     user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN])),
     db: Session = Depends(get_db),
 ):
-    total = round((data.consultation_fee + data.medication_fee + data.other_fees) - data.discount_amount, 2)
+    patient = db.query(Patient).filter(Patient.id == data.patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    total = round(max(0.0, (data.consultation_fee + data.medication_fee + data.other_fees) - data.discount_amount), 2)
     receipt_no = f"REC-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
     inv = Invoice(

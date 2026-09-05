@@ -2,7 +2,7 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from app.database import get_db
 from app.models import PatientFeedback, Patient, User
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/feedback", tags=["Feedback & Sentiment"])
 
 
 class FeedbackCreate(BaseModel):
-    rating: int
+    rating: int = Field(..., ge=1, le=5, description="Star rating from 1 to 5")
     tags: List[str] = []
     comment_text: str
     doctor_id: Optional[int] = None
