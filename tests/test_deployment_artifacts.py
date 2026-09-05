@@ -35,18 +35,14 @@ def test_render_yaml_syntax_and_structure():
     assert "pip install -r requirements.txt" in svc["buildCommand"]
     assert "uvicorn app.main:app --host 0.0.0.0 --port $PORT" in svc["startCommand"]
     
+    assert svc.get("plan") == "free"
+    
     # Check env vars
     env_keys = {item["key"]: item for item in svc.get("envVars", [])}
     assert "DEMO_MODE" in env_keys
     assert env_keys["DEMO_MODE"]["value"] == "true"
     assert "SECRET_KEY" in env_keys
     assert env_keys["SECRET_KEY"]["generateValue"] is True
-    
-    # Check persistent disk
-    assert "disk" in svc
-    assert svc["disk"]["name"] == "clinic-data"
-    assert svc["disk"]["mountPath"] == "/app/data"
-    assert svc["disk"]["sizeGB"] == 1
 
 def test_dockerignore_content():
     with open(".dockerignore", "r", encoding="utf-8") as f:

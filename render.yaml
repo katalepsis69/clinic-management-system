@@ -2,6 +2,7 @@ services:
   - type: web
     name: clinic-management-system
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -9,7 +10,3 @@ services:
         value: "true"
       - key: SECRET_KEY
         generateValue: true
-    disk:
-      name: clinic-data
-      mountPath: /app/data
-      sizeGB: 1
