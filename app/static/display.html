@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Public TV Queue Display - Clinic Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.4); border-color: #10b981; }
+      50% { box-shadow: 0 0 60px rgba(16, 185, 129, 0.9); border-color: #34d399; }
+    }
+    .called-highlight {
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6 md:p-10 font-sans flex flex-col justify-between select-none">
+
+  <!-- TV Top Header -->
+  <header class="flex justify-between items-center border-b border-slate-800 pb-6">
+    <div class="flex items-center space-x-4">
+      <div class="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-3xl shadow-lg shadow-emerald-900/50">
+        🏥
+      </div>
+      <div>
+        <h1 class="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">City Health Clinic</h1>
+        <p class="text-sm font-semibold text-emerald-400 tracking-wider">Patient Queue Display System</p>
+      </div>
+    </div>
+
+    <!-- Live Clock & Audio Toggle -->
+    <div class="flex items-center space-x-6">
+      <button id="audioToggleBtn" onclick="toggleAudio()" class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-900 border border-slate-700 hover:border-emerald-500 text-slate-300 transition">
+        🔔 Audio Chime: <span id="audioStatus" class="text-amber-400">Click to Enable</span>
+      </button>
+
+      <div class="text-right">
+        <div id="tvClock" class="text-3xl md:text-4xl font-mono font-bold text-white tracking-widest">--:--:--</div>
+        <div id="tvDate" class="text-xs font-medium text-slate-400">Loading date...</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- TV Center Display: NOW SERVING -->
+  <main class="my-auto py-8">
+    <div class="max-w-5xl mx-auto">
+      <div id="servingCard" class="called-highlight bg-slate-900/90 border-2 border-emerald-500 rounded-3xl p-8 md:p-12 text-center shadow-2xl backdrop-blur-md">
+        <div class="flex items-center justify-center space-x-3 mb-2">
+          <span class="w-4 h-4 rounded-full bg-emerald-400 animate-ping"></span>
+          <span class="text-lg md:text-2xl font-extrabold uppercase tracking-widest text-emerald-400">NOW SERVING / 請就診</span>
+        </div>
+
+        <div id="displayTicket" class="text-8xl md:text-9xl font-black text-white tracking-wider my-4 font-mono">
+          None
+        </div>
+
+        <div class="inline-block mt-2 px-6 py-2 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-bold text-2xl md:text-3xl">
+          👉 Please proceed to <span id="displayRoom" class="text-white font-extrabold">Room N/A</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- TV Lower Section: Upcoming Waiting Queue -->
+  <footer class="border-t border-slate-800 pt-6">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+      <!-- Waiting Overview -->
+      <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Total Waiting</span>
+        <div class="flex items-baseline space-x-2">
+          <span id="displayWaitingCount" class="text-4xl font-black text-emerald-400 font-mono">0</span>
+          <span class="text-xs text-slate-400">patients</span>
+        </div>
+        <span class="text-[11px] text-slate-500 mt-1 block">Est. wait: <span id="displayEstWait" class="text-slate-300 font-semibold">0 mins</span></span>
+      </div>
+
+      <!-- Upcoming Tickets Grid -->
+      <div class="md:col-span-3 bg-slate-900 p-5 rounded-2xl border border-slate-800">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Upcoming Waiting Numbers / 候診名單</span>
+          <span class="text-[11px] text-emerald-400 font-mono flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Live Synchronized
+          </span>
+        </div>
+
+        <div id="displayWaitingList" class="flex flex-wrap gap-2.5 min-h-[48px] items-center">
+          <span class="text-xs text-slate-500">No patients waiting in queue.</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Live Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('tvClock').textContent = now.toLocaleTimeString();
+      document.getElementById('tvDate').textContent = now.toLocaleDateString(undefined, {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Audio Chime Synthesis using Web Audio API
+    let audioCtx = null;
+    let audioEnabled = false;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      audioEnabled = true;
+      document.getElementById('audioStatus').textContent = 'ENABLED';
+      document.getElementById('audioStatus').className = 'text-emerald-400 font-bold';
+    }
+
+    function toggleAudio() {
+      initAudio();
+      playChime();
+    }
+
+    function playChime() {
+      if (!audioEnabled || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+
+        // Tone 1: 587.33 Hz (D5)
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, now);
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(0.3, now + 0.05);
+        gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.85);
+
+        // Tone 2: 880.00 Hz (A5)
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880.00, now + 0.25);
+        gain2.gain.setValueAtTime(0, now + 0.25);
+        gain2.gain.linearRampToValueAtTime(0.35, now + 0.3);
+        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(now + 0.25);
+        osc2.stop(now + 1.25);
+      } catch (err) {
+        console.warn('Audio chime error:', err);
+      }
+    }
+
+    // Queue State & Updates
+    let lastServing = null;
+
+    function renderQueue(data) {
+      const current = data.currently_serving || 'None';
+      const room = data.currently_serving_room || 'Room N/A';
+      const waiting = data.waiting_tickets || [];
+      const waitCount = data.waiting_count !== undefined ? data.waiting_count : waiting.length;
+      const waitMins = data.estimated_wait_minutes || (waitCount * 10);
+
+      const ticketEl = document.getElementById('displayTicket');
+      const roomEl = document.getElementById('displayRoom');
+      const countEl = document.getElementById('displayWaitingCount');
+      const estEl = document.getElementById('displayEstWait');
+      const listEl = document.getElementById('displayWaitingList');
+
+      if (ticketEl) ticketEl.textContent = current;
+      if (roomEl) roomEl.textContent = room;
+      if (countEl) countEl.textContent = waitCount;
+      if (estEl) estEl.textContent = waitMins + ' mins';
+
+      // Chime if new patient called
+      if (current !== 'None' && current !== lastServing) {
+        if (lastServing !== null) {
+          playChime();
+        }
+        lastServing = current;
+      }
+
+      if (listEl) {
+        if (waiting.length === 0) {
+          listEl.innerHTML = '<span class=\"text-xs text-slate-500\">No patients waiting in queue.</span>';
+        } else {
+          listEl.innerHTML = waiting.map((t, idx) => `
+            <div class=\"px-3.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold font-mono text-emerald-300 flex items-center gap-2\">
+              <span class=\"text-[10px] text-slate-400 font-sans\">#${idx + 1}</span>
+              <span>${t}</span>
+            </div>
+          `).join('');
+        }
+      }
+    }
+
+    async function fetchQueueStatus() {
+      try {
+        const res = await fetch('/api/queue/live-status');
+        if (res.ok) {
+          const data = await res.json();
+          renderQueue(data);
+        }
+      } catch (err) {
+        console.warn('Polling error:', err);
+      }
+    }
+
+    // WebSocket connection with auto-reconnect
+    let ws = null;
+    function connectWS() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/api/queue/ws`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('TV Queue WebSocket connected');
+        fetchQueueStatus();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.event === 'PATIENT_CALLED') {
+            playChime();
+          }
+          fetchQueueStatus();
+        } catch (e) {
+          fetchQueueStatus();
+        }
+      };
+
+      ws.onclose = () => {
+        setTimeout(connectWS, 3000);
+      };
+
+      ws.onerror = () => {
+        if (ws) ws.close();
+      };
+    }
+
+    connectWS();
+    fetchQueueStatus();
+    setInterval(fetchQueueStatus, 5000);
+  </script>
+</body>
+</html>

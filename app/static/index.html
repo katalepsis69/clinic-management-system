@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinic Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .touch-btn { min-height: 44px; min-width: 44px; }
+    .tab-active { border-bottom: 3px solid #16a34a !important; color: #16a34a !important; font-weight: 700 !important; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <!-- Brand -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xl shadow-md shadow-emerald-200">
+            🏥
+          </div>
+          <div>
+            <span class="text-base sm:text-lg font-bold text-slate-900 tracking-tight block leading-tight">Clinic Management System</span>
+            <span class="text-xs text-slate-500 hidden sm:block">Smart Healthcare & Real-Time Queue Tracker</span>
+          </div>
+        </div>
+
+        <!-- User Profile & Auth -->
+        <div class="flex items-center space-x-3">
+          <div id="userProfileBadge" class="hidden sm:flex items-center space-x-2 bg-slate-100 py-1.5 px-3 rounded-full text-xs font-medium text-slate-700">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="currentUserName">Guest</span>
+            <span id="currentUserRole" class="uppercase px-2 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-800 font-bold">Guest</span>
+          </div>
+
+          <a href="/display" target="_blank" class="touch-btn inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-xl text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition border border-emerald-200">
+            📺 TV Display
+          </a>
+
+          <button id="manualLoginBtn" onclick="window.ClinicApp.showLoginModal()" class="touch-btn inline-flex items-center px-3 py-2 text-xs font-semibold rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 transition">
+            Sign In
+          </button>
+
+          <button id="logoutBtn" onclick="window.ClinicApp.logout()" class="touch-btn hidden inline-flex items-center px-3 py-2 text-xs font-semibold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition border border-red-200">
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Demo Switcher Bar -->
+      <div class="py-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span class="text-slate-500 font-semibold hidden md:inline">🚀 Quick Demo Switcher:</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="window.ClinicApp.quickLogin('patient')" class="touch-btn px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold transition flex items-center gap-1.5 border border-blue-200">
+            <span>👤</span> Patient <span class="text-[10px] opacity-75 hidden sm:inline">(Sarah Connor)</span>
+          </button>
+          <button onclick="window.ClinicApp.quickLogin('doctor')" class="touch-btn px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-semibold transition flex items-center gap-1.5 border border-purple-200">
+            <span>🩺</span> Doctor <span class="text-[10px] opacity-75 hidden sm:inline">(Dr. Emily Stone)</span>
+          </button>
+          <button onclick="window.ClinicApp.quickLogin('staff')" class="touch-btn px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 font-semibold transition flex items-center gap-1.5 border border-amber-200">
+            <span>📋</span> Staff <span class="text-[10px] opacity-75 hidden sm:inline">(Reception Staff)</span>
+          </button>
+          <button onclick="window.ClinicApp.quickLogin('admin')" class="touch-btn px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold transition flex items-center gap-1.5 border border-rose-200">
+            <span>⚙️</span> Admin <span class="text-[10px] opacity-75 hidden sm:inline">(Clinic Director)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex space-x-6 overflow-x-auto py-1" id="portalTabs">
+        <button onclick="window.ClinicApp.switchTab('patient')" id="tab-patient" class="tab-btn touch-btn py-3 px-2 text-sm font-medium text-slate-600 hover:text-emerald-600 border-b-2 border-transparent transition flex items-center gap-2 whitespace-nowrap">
+          <span>👤</span> Patient Portal
+        </button>
+        <button onclick="window.ClinicApp.switchTab('doctor')" id="tab-doctor" class="tab-btn touch-btn py-3 px-2 text-sm font-medium text-slate-600 hover:text-emerald-600 border-b-2 border-transparent transition flex items-center gap-2 whitespace-nowrap">
+          <span>🩺</span> Doctor Portal
+        </button>
+        <button onclick="window.ClinicApp.switchTab('staff')" id="tab-staff" class="tab-btn touch-btn py-3 px-2 text-sm font-medium text-slate-600 hover:text-emerald-600 border-b-2 border-transparent transition flex items-center gap-2 whitespace-nowrap">
+          <span>📋</span> Staff & Billing Desk
+        </button>
+        <button onclick="window.ClinicApp.switchTab('analytics')" id="tab-analytics" class="tab-btn touch-btn py-3 px-2 text-sm font-medium text-slate-600 hover:text-emerald-600 border-b-2 border-transparent transition flex items-center gap-2 whitespace-nowrap">
+          <span>📊</span> Sentiment Analytics
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Notification Banner / Toasts -->
+  <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ================================================================= -->
+    <!-- PORTAL 1: PATIENT PORTAL -->
+    <!-- ================================================================= -->
+    <section id="portal-patient" class="tab-content space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left: Profile & Live Queue Tracker -->
+        <div class="space-y-6">
+          <!-- Profile Card -->
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+            <div class="flex items-center space-x-3 mb-4">
+              <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                SC
+              </div>
+              <div>
+                <h2 class="text-base font-bold text-slate-900" id="patientCardName">Sarah Connor</h2>
+                <p class="text-xs text-slate-500" id="patientCardSub">Patient ID: #1 &bull; Female</p>
+              </div>
+            </div>
+            <div class="space-y-2 text-xs border-t border-slate-100 pt-3">
+              <div class="flex justify-between"><span class="text-slate-500">Date of Birth:</span> <span class="font-semibold text-slate-700">1990-05-14</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Blood Group:</span> <span class="font-semibold text-slate-700">O+</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Allergies:</span> <span class="font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded">Penicillin</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Medical History:</span> <span class="font-semibold text-slate-700">Mild Asthma</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Emergency Contact:</span> <span class="font-semibold text-slate-700">John Connor (555-9999)</span></div>
+            </div>
+          </div>
+
+          <!-- Live Queue Tracker -->
+          <div class="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-md shadow-emerald-200/50">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-100">Live Queue Tracker</h3>
+              <span class="flex h-2.5 w-2.5 relative">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-200 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+              </span>
+            </div>
+
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center mb-4">
+              <span class="text-xs text-emerald-100 block mb-1">Now Serving in Clinic</span>
+              <span id="patientServingTicket" class="text-4xl font-extrabold tracking-tight text-white">None</span>
+              <span id="patientServingRoom" class="text-xs text-emerald-200 block mt-1">Room N/A</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-center mb-4">
+              <div class="bg-black/10 rounded-lg p-2.5">
+                <span class="text-[11px] text-emerald-100 block">Waiting Ahead</span>
+                <span id="patientWaitingCount" class="text-xl font-bold">0</span>
+              </div>
+              <div class="bg-black/10 rounded-lg p-2.5">
+                <span class="text-[11px] text-emerald-100 block">Est. Wait Time</span>
+                <span id="patientEstWait" class="text-xl font-bold">0 min</span>
+              </div>
+            </div>
+
+            <div class="space-y-2.5">
+              <div id="myTicketCard" class="hidden bg-white text-slate-800 rounded-xl p-3 text-center font-medium shadow-sm">
+                <span class="text-xs text-slate-500 block">Your Issued Ticket</span>
+                <span id="myTicketNumber" class="text-2xl font-black text-emerald-600">Q-101</span>
+                <span class="text-[11px] text-slate-400 block mt-0.5">Please wait for your ticket to appear on screen</span>
+              </div>
+              <button onclick="window.ClinicApp.issueMyQueueTicket()" class="touch-btn w-full py-3 px-4 rounded-xl bg-white text-emerald-800 font-bold hover:bg-emerald-50 transition shadow-sm flex items-center justify-center gap-2">
+                <span>🎟️</span> Take Walk-in Queue Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle: Book Appointment Form -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h2 class="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+            <span>📅</span> Book Appointment
+          </h2>
+          <p class="text-xs text-slate-500 mb-5">Select a specialist and reserve your consultation slot.</p>
+
+          <form id="appointmentForm" onsubmit="window.ClinicApp.submitAppointment(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Select Doctor</label>
+              <select id="appointmentDoctorSelect" required class="w-full text-sm rounded-xl border-slate-300 border p-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <option value="">Loading available doctors...</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Appointment Date</label>
+              <input type="date" id="appointmentDate" required class="w-full text-sm rounded-xl border-slate-300 border p-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Preferred Time Slot</label>
+              <select id="appointmentTimeSlot" required class="w-full text-sm rounded-xl border-slate-300 border p-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <option value="09:00 AM">09:00 AM</option>
+                <option value="10:00 AM">10:00 AM</option>
+                <option value="11:00 AM">11:00 AM</option>
+                <option value="02:00 PM">02:00 PM</option>
+                <option value="03:00 PM">03:00 PM</option>
+                <option value="04:00 PM">04:00 PM</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Reason for Visit</label>
+              <textarea id="appointmentReason" rows="2" placeholder="e.g. Annual cardiology checkup, palpitations..." class="w-full text-sm rounded-xl border-slate-300 border p-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"></textarea>
+            </div>
+
+            <button type="submit" class="touch-btn w-full py-3 px-4 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition shadow-md shadow-emerald-200 flex items-center justify-center gap-2">
+              <span>✅</span> Confirm Appointment
+            </button>
+          </form>
+        </div>
+
+        <!-- Right: Patient Feedback Form -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+              <span>⭐</span> Post-Visit Feedback
+            </h2>
+            <p class="text-xs text-slate-500 mb-4">Sentiment analyzed in real time with VADER AI.</p>
+
+            <form id="feedbackForm" onsubmit="window.ClinicApp.submitFeedback(event)" class="space-y-4">
+              <!-- Star Rating -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Rating (1 to 5 Stars)</label>
+                <div class="flex space-x-2 text-2xl" id="starRatingGroup">
+                  <button type="button" onclick="window.ClinicApp.setStarRating(1)" class="star-btn text-amber-400 touch-btn">★</button>
+                  <button type="button" onclick="window.ClinicApp.setStarRating(2)" class="star-btn text-amber-400 touch-btn">★</button>
+                  <button type="button" onclick="window.ClinicApp.setStarRating(3)" class="star-btn text-amber-400 touch-btn">★</button>
+                  <button type="button" onclick="window.ClinicApp.setStarRating(4)" class="star-btn text-amber-400 touch-btn">★</button>
+                  <button type="button" onclick="window.ClinicApp.setStarRating(5)" class="star-btn text-amber-400 touch-btn">★</button>
+                </div>
+                <input type="hidden" id="feedbackRating" value="5">
+              </div>
+
+              <!-- Tags -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Experience Tags</label>
+                <div class="flex flex-wrap gap-1.5" id="feedbackTagsGroup">
+                  <span onclick="window.ClinicApp.toggleTag(this)" class="cursor-pointer text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition">Friendly Staff</span>
+                  <span onclick="window.ClinicApp.toggleTag(this)" class="cursor-pointer text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition">Short Wait</span>
+                  <span onclick="window.ClinicApp.toggleTag(this)" class="cursor-pointer text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition">Clean Facility</span>
+                  <span onclick="window.ClinicApp.toggleTag(this)" class="cursor-pointer text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition">Attentive Care</span>
+                  <span onclick="window.ClinicApp.toggleTag(this)" class="cursor-pointer text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition">Long Wait</span>
+                </div>
+              </div>
+
+              <!-- Comments -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Your Comments</label>
+                <textarea id="feedbackComment" rows="3" required placeholder="Describe your experience with our physicians and clinic staff..." class="w-full text-sm rounded-xl border-slate-300 border p-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"></textarea>
+              </div>
+
+              <button type="submit" class="touch-btn w-full py-3 px-4 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition shadow-sm">
+                Submit Feedback
+              </button>
+            </form>
+          </div>
+
+          <div id="feedbackSentimentResult" class="hidden mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+            <!-- Dynamic Result -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- PORTAL 2: DOCTOR PORTAL -->
+    <!-- ================================================================= -->
+    <section id="portal-doctor" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left: Daily Schedule Viewer -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Dr. Emily Stone</h2>
+              <p class="text-xs text-slate-500">Cardiology & General Medicine (Room 102)</p>
+            </div>
+            <button onclick="window.ClinicApp.loadDoctorSchedule()" class="touch-btn text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition">
+              🔄 Refresh
+            </button>
+          </div>
+
+          <div class="mb-3">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Schedule Date</label>
+            <input type="date" id="scheduleFilterDate" onchange="window.ClinicApp.loadDoctorSchedule()" class="w-full text-xs rounded-xl border border-slate-300 p-2.5">
+          </div>
+
+          <div class="space-y-2 max-h-96 overflow-y-auto" id="scheduleList">
+            <p class="text-xs text-slate-400 py-6 text-center">No appointments scheduled for this date.</p>
+          </div>
+        </div>
+
+        <!-- Middle: Patient EMR Viewer -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 mb-1">Patient EMR Viewer</h2>
+          <p class="text-xs text-slate-500 mb-4">Access medical history, allergies, and past prescriptions.</p>
+
+          <div class="flex gap-2 mb-4">
+            <input type="number" id="emrPatientId" value="1" placeholder="Patient ID" class="w-28 text-xs rounded-xl border border-slate-300 p-2.5">
+            <button onclick="window.ClinicApp.searchPatientEMR()" class="touch-btn flex-1 py-2.5 px-3 bg-purple-600 text-white rounded-xl text-xs font-bold hover:bg-purple-700 transition shadow-sm">
+              Search Patient Chart
+            </button>
+          </div>
+
+          <div id="emrDetailCard" class="space-y-3">
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+              <div class="flex justify-between"><span class="text-slate-500">Patient:</span> <span id="emrName" class="font-bold text-slate-800">Sarah Connor</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">DOB / Gender:</span> <span id="emrDob">1990-05-14 / Female</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Blood Group:</span> <span id="emrBlood" class="font-semibold">O+</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Allergies:</span> <span id="emrAllergies" class="text-red-600 font-bold bg-red-50 px-1.5 rounded">Penicillin</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Medical History:</span> <span id="emrHistory">Mild Asthma</span></div>
+            </div>
+
+            <div>
+              <h4 class="text-xs font-bold text-slate-700 mb-1.5">Past Prescriptions</h4>
+              <div id="emrPrescriptionsList" class="space-y-2 max-h-48 overflow-y-auto text-xs">
+                <p class="text-slate-400 py-2 text-center">No prescriptions recorded yet.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Digital Prescription Generator -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 mb-1">Digital Prescription Generator</h2>
+          <p class="text-xs text-slate-500 mb-4">Generate verified e-prescription with tamper-proof QR code.</p>
+
+          <form id="prescriptionForm" onsubmit="window.ClinicApp.generatePrescription(event)" class="space-y-3 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="font-semibold text-slate-600">Patient ID</label>
+                <input type="number" id="rxPatientId" value="1" required class="w-full rounded-lg border border-slate-300 p-2">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-600">Doctor ID</label>
+                <input type="number" id="rxDoctorId" value="1" required class="w-full rounded-lg border border-slate-300 p-2">
+              </div>
+            </div>
+
+            <div>
+              <label class="font-semibold text-slate-600">Diagnosis</label>
+              <input type="text" id="rxDiagnosis" value="Acute Bronchitis & Cough" required class="w-full rounded-lg border border-slate-300 p-2">
+            </div>
+
+            <div>
+              <label class="font-semibold text-slate-600">Clinical Notes</label>
+              <input type="text" id="rxNotes" value="Follow-up in 7 days if symptoms persist" class="w-full rounded-lg border border-slate-300 p-2">
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="font-semibold text-slate-600">Prescribed Medications</label>
+                <button type="button" onclick="window.ClinicApp.addMedicationRow()" class="text-purple-600 font-bold hover:underline">+ Add Drug</button>
+              </div>
+              <div id="medicationsContainer" class="space-y-2">
+                <div class="med-row bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1.5">
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <input type="text" placeholder="Drug Name" class="med-name rounded border border-slate-300 p-1.5" value="Salbutamol Inhaler" required>
+                    <input type="text" placeholder="Dosage" class="med-dosage rounded border border-slate-300 p-1.5" value="100 mcg" required>
+                  </div>
+                  <div class="grid grid-cols-3 gap-1.5">
+                    <input type="text" placeholder="Frequency" class="med-freq rounded border border-slate-300 p-1.5" value="PRN (As needed)" required>
+                    <input type="text" placeholder="Duration" class="med-duration rounded border border-slate-300 p-1.5" value="7 days" required>
+                    <input type="text" placeholder="Instructions" class="med-instructions rounded border border-slate-300 p-1.5" value="2 puffs every 4-6h">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="touch-btn w-full py-3 px-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition shadow-sm flex items-center justify-center gap-2">
+              <span>💊</span> Generate Prescription & QR Code
+            </button>
+          </form>
+
+          <div id="prescriptionResultCard" class="hidden mt-3 p-3.5 rounded-xl bg-purple-50 border border-purple-200 text-xs">
+            <!-- Filled dynamically -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- PORTAL 3: STAFF & BILLING PORTAL -->
+    <!-- ================================================================= -->
+    <section id="portal-staff" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left: Queue Console -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
+            <span>📢</span> Queue Console
+          </h2>
+          <p class="text-xs text-slate-500 mb-4">Call next waiting patient to doctor consultation room.</p>
+
+          <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4 text-center">
+            <span class="text-xs text-amber-800 font-semibold block">Currently Serving</span>
+            <span id="staffCurrentServing" class="text-3xl font-black text-amber-900">None</span>
+            <span id="staffCurrentRoom" class="text-xs text-amber-700 block mt-0.5">Room N/A</span>
+          </div>
+
+          <div class="space-y-3 mb-5">
+            <div class="flex gap-2">
+              <select id="callDoctorId" class="text-xs rounded-xl border border-slate-300 p-2.5 flex-1">
+                <option value="1">Dr. Emily Stone (Room 102)</option>
+              </select>
+              <button onclick="window.ClinicApp.callNextPatient()" class="touch-btn py-2.5 px-4 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition shadow-sm flex-1 flex items-center justify-center gap-1.5">
+                <span>🔔</span> Call Next
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="text-xs font-bold text-slate-700">Waiting Tickets (<span id="staffWaitingCount">0</span>)</h4>
+              <button onclick="window.ClinicApp.fetchQueueStatus()" class="text-xs text-slate-400 hover:text-slate-600 font-semibold">🔄 Refresh</button>
+            </div>
+            <div id="staffWaitingList" class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span class="text-xs text-slate-400">No patients waiting</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle: Walk-in Registration -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
+            <span>📝</span> Walk-in Registration
+          </h2>
+          <p class="text-xs text-slate-500 mb-4">Register new arrivals and issue sequential queue numbers.</p>
+
+          <form id="walkinForm" onsubmit="window.ClinicApp.registerWalkin(event)" class="space-y-4 text-xs">
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Patient ID</label>
+              <input type="number" id="walkinPatientId" value="1" required class="w-full rounded-xl border border-slate-300 p-2.5 text-sm">
+              <span class="text-[10px] text-slate-400">Default: 1 (Sarah Connor)</span>
+            </div>
+
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Doctor / Specialization</label>
+              <select id="walkinDoctorSelect" required class="w-full rounded-xl border border-slate-300 p-2.5 text-sm">
+                <option value="1">Dr. Emily Stone (Cardiology)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Priority Triage</label>
+              <select id="walkinPriority" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm">
+                <option value="normal">Normal Priority</option>
+                <option value="urgent">Urgent / Priority Triage</option>
+              </select>
+            </div>
+
+            <button type="submit" class="touch-btn w-full py-3 px-4 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition shadow-sm text-sm flex items-center justify-center gap-2">
+              <span>🎟️</span> Issue Queue Ticket
+            </button>
+          </form>
+
+          <div id="walkinTicketResult" class="hidden mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+            <!-- Filled dynamically -->
+          </div>
+        </div>
+
+        <!-- Right: Billing & Invoicing Desk -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
+            <span>💳</span> Billing & Invoicing
+          </h2>
+          <p class="text-xs text-slate-500 mb-4">Issue itemized receipts and finalize payments.</p>
+
+          <form id="billingForm" onsubmit="window.ClinicApp.createInvoice(event)" class="space-y-3 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="font-semibold text-slate-600">Patient ID</label>
+                <input type="number" id="billPatientId" value="1" required class="w-full rounded-lg border border-slate-300 p-2">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-600">Ticket ID (opt)</label>
+                <input type="number" id="billTicketId" placeholder="Optional" class="w-full rounded-lg border border-slate-300 p-2">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="font-semibold text-slate-600">Consultation ($)</label>
+                <input type="number" step="0.01" id="billConsultation" value="60.00" oninput="window.ClinicApp.calculateBillPreview()" class="w-full rounded-lg border border-slate-300 p-2">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-600">Medication ($)</label>
+                <input type="number" step="0.01" id="billMedication" value="25.00" oninput="window.ClinicApp.calculateBillPreview()" class="w-full rounded-lg border border-slate-300 p-2">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-600">Other / Lab ($)</label>
+                <input type="number" step="0.01" id="billOther" value="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="w-full rounded-lg border border-slate-300 p-2">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="font-semibold text-slate-600">Discount ($)</label>
+                <input type="number" step="0.01" id="billDiscount" value="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="w-full rounded-lg border border-slate-300 p-2">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-600">Payment Method</label>
+                <select id="billPaymentMethod" class="w-full rounded-lg border border-slate-300 p-2">
+                  <option value="cash">Cash</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="insurance">Insurance</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-center">
+              <span class="font-semibold text-slate-600">Total Payable:</span>
+              <span id="billTotalPreview" class="text-lg font-black text-slate-900">$85.00</span>
+            </div>
+
+            <button type="submit" class="touch-btn w-full py-2.5 px-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition shadow-sm">
+              Generate Invoice & Receipt
+            </button>
+          </form>
+
+          <div id="billingResultCard" class="hidden mt-3 p-3 rounded-xl bg-slate-100 border border-slate-200 text-xs">
+            <!-- Filled dynamically -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- PORTAL 4: SENTIMENT ANALYTICS DASHBOARD -->
+    <!-- ================================================================= -->
+    <section id="portal-analytics" class="tab-content hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-xl font-extrabold text-slate-900">Patient Sentiment & Experience Intelligence</h2>
+          <p class="text-xs text-slate-500">Real-time VADER Natural Language Sentiment analysis across patient reviews.</p>
+        </div>
+        <button onclick="window.ClinicApp.loadAnalytics()" class="touch-btn px-3.5 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold transition">
+          🔄 Refresh
+        </button>
+      </div>
+
+      <!-- KPI Metric Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Net Sentiment Score (NSS)</span>
+          <div class="flex items-baseline space-x-2">
+            <span id="statNSS" class="text-4xl font-black text-emerald-600">+100.0</span>
+            <span class="text-xs text-slate-400">(-100 to +100)</span>
+          </div>
+          <span id="statNSSStatus" class="inline-block mt-2 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+            Excellent Experience
+          </span>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Average Rating</span>
+          <div class="flex items-baseline space-x-2">
+            <span id="statAvgRating" class="text-4xl font-black text-amber-500">5.0</span>
+            <span class="text-xs text-slate-400">/ 5.0</span>
+          </div>
+          <div id="statStarsVisual" class="text-amber-400 text-sm mt-2">★★★★★</div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Total Patient Feedback</span>
+          <div class="flex items-baseline space-x-2">
+            <span id="statTotalReviews" class="text-4xl font-black text-slate-800">0</span>
+            <span class="text-xs text-slate-400">reviews</span>
+          </div>
+          <span class="inline-block mt-2 text-[11px] font-medium text-slate-500">
+            VADER real-time scored
+          </span>
+        </div>
+      </div>
+
+      <!-- Sentiment Distribution & Critical Alerts -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Distribution Bars -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h3 class="text-base font-bold text-slate-900 mb-4">Sentiment Breakdown</h3>
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-xs font-semibold mb-1">
+                <span class="text-emerald-700">😊 Positive</span>
+                <span id="distPositivePercent">0%</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div id="barPositive" class="bg-emerald-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-semibold mb-1">
+                <span class="text-slate-600">😐 Neutral</span>
+                <span id="distNeutralPercent">0%</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div id="barNeutral" class="bg-slate-400 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-semibold mb-1">
+                <span class="text-rose-600">😡 Negative</span>
+                <span id="distNegativePercent">0%</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div id="barNegative" class="bg-rose-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Critical Alerts List -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-red-500">🚨</span> Critical Feedback Alerts
+            </h3>
+            <span id="criticalAlertsBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700">0 Active</span>
+          </div>
+
+          <div id="criticalAlertsList" class="space-y-2.5 max-h-60 overflow-y-auto text-xs">
+            <p class="text-slate-400 py-6 text-center">No critical complaints flagged.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================================================================= -->
+  <!-- FLOATING CHAT BOX WIDGET -->
+  <!-- ================================================================= -->
+  <div class="fixed bottom-5 right-5 z-50">
+    <!-- Floating Launcher Button -->
+    <button id="chatLauncher" onclick="window.ClinicApp.toggleChat()" class="touch-btn w-14 h-14 rounded-full bg-emerald-600 text-white shadow-xl hover:bg-emerald-700 flex items-center justify-center text-2xl transition transform active:scale-95 border-2 border-white">
+      💬
+    </button>
+
+    <!-- Chat Box Window -->
+    <div id="chatWindow" class="hidden fixed bottom-24 right-5 w-96 max-w-[calc(100vw-2.5rem)] h-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden z-50">
+      <!-- Chat Header -->
+      <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-sm font-bold">
+            🤖
+          </div>
+          <div>
+            <h4 class="text-sm font-bold leading-tight">Clinic Assistant & FAQ</h4>
+            <span class="text-[11px] text-emerald-400 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Online &bull; Live Bot
+            </span>
+          </div>
+        </div>
+        <button onclick="window.ClinicApp.toggleChat()" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <!-- Quick FAQ Chips -->
+      <div class="bg-slate-50 border-b border-slate-200 px-3 py-2 flex gap-1.5 overflow-x-auto text-[11px]">
+        <button onclick="window.ClinicApp.sendQuickFaq('What are your clinic hours?')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-white border border-slate-200 hover:border-emerald-500 transition text-slate-700 font-medium">⏰ Hours?</button>
+        <button onclick="window.ClinicApp.sendQuickFaq('How do I book an appointment?')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-white border border-slate-200 hover:border-emerald-500 transition text-slate-700 font-medium">📅 Booking?</button>
+        <button onclick="window.ClinicApp.sendQuickFaq('Where is the clinic located?')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-white border border-slate-200 hover:border-emerald-500 transition text-slate-700 font-medium">📍 Location?</button>
+        <button onclick="window.ClinicApp.sendQuickFaq('This is a medical emergency!')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition font-medium">🚨 Emergency</button>
+      </div>
+
+      <!-- Messages Area -->
+      <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs">
+        <div class="flex items-start gap-2">
+          <span class="text-base">🤖</span>
+          <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
+            Welcome to City Health Clinic! I am your AI Virtual Assistant. Ask me about opening hours, booking appointments, specialist doctors, or our location.
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Bar -->
+      <form onsubmit="window.ClinicApp.sendChatInput(event)" class="p-3 bg-white border-t border-slate-200 flex gap-2">
+        <input type="text" id="chatInput" placeholder="Ask a question or type a message..." class="flex-1 text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+        <button type="submit" class="touch-btn px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition">
+          Send
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manual Login Modal -->
+  <div id="loginModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-bold text-slate-900">Sign In to Account</h3>
+        <button onclick="window.ClinicApp.hideLoginModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      <form onsubmit="window.ClinicApp.handleManualLogin(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Email Address</label>
+          <input type="email" id="loginEmail" required placeholder="name@demo.com" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm">
+        </div>
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Password</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm">
+        </div>
+        <button type="submit" class="touch-btn w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition text-sm">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 mt-auto">
+    Clinic Management System &bull; Intelligent Real-Time Healthcare Portal &bull; Python 3.12+ & FastAPI
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
