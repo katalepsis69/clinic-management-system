@@ -54,3 +54,15 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Type-checking & linting caches
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+
+# OS
+desktop.ini
+ehthumbs.db
