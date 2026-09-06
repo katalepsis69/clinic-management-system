@@ -1,0 +1,214 @@
+/* ============================================================================
+ * Clinic Management System — Design System (source)
+ * ----------------------------------------------------------------------------
+ * Tokens and component classes. Compiled (minified) to app/static/css/app.css;
+ * the compiled file is committed so production deployment needs no Node.
+ *
+ * Rebuild:
+ *   npx tailwindcss@3.4.17 -c tailwind.config.js -i app/static/src/input.css -o app/static/css/app.css --minify
+ *
+ * Conventions (locked):
+ *   - One accent: emerald (`brand-*`). Status colors are semantic only
+ *     (amber = attention, red = critical, sky = info, slate = neutral).
+ *   - Radius scale: cards 16px (rounded-2xl), controls 12px (rounded-xl),
+ *     chips/pills full.
+ *   - Shadows: `shadow-card` / `shadow-lift` (tinted, never pure black).
+ *   - Touch targets: 44px minimum on every interactive control.
+ *   - z-index scale: 40 sticky nav, 50 overlays/dialogs, 70 toasts.
+ *   - Light theme for the operations UI; the TV display page is dark by intent.
+ *   - Icons: inline SVG sprite (`#i-*` symbols), stroke = currentColor.
+ * ==========================================================================*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  ::selection {
+    @apply bg-brand-100 text-brand-900;
+  }
+}
+
+@layer components {
+  /* Layout ---------------------------------------------------------------- */
+  .container-page {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Cards ----------------------------------------------------------------- */
+  .card {
+    @apply bg-white rounded-2xl border border-slate-200 shadow-card;
+  }
+  .card-pad {
+    @apply p-5 sm:p-6;
+  }
+  .card-title {
+    @apply text-sm font-semibold text-slate-900;
+  }
+  .card-subtitle {
+    @apply text-xs text-slate-500 mt-0.5;
+  }
+
+  /* Buttons (44px touch target, tactile press, visible focus ring) -------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2
+      rounded-xl text-sm font-semibold cursor-pointer select-none
+      transition duration-150
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
+      active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-dark {
+    @apply bg-slate-900 text-white hover:bg-slate-700;
+  }
+  .btn-outline {
+    @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400;
+  }
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .btn-warning {
+    @apply bg-amber-500 text-white hover:bg-amber-600;
+  }
+  .btn-sm {
+    @apply min-h-[40px] px-3 py-1.5 text-xs rounded-lg;
+  }
+
+  /* Forms ------------------------------------------------------------------ */
+  .input,
+  .select {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm
+      text-slate-900 placeholder:text-slate-400
+      transition-colors duration-150
+      focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30;
+  }
+  .select {
+    @apply cursor-pointer pr-9;
+  }
+  .label {
+    @apply block text-xs font-semibold text-slate-700 mb-1.5;
+  }
+  .hint {
+    @apply block text-[11px] text-slate-400 mt-1;
+  }
+
+  /* Tabs ------------------------------------------------------------------- */
+  .tab-btn {
+    @apply inline-flex items-center gap-2 whitespace-nowrap px-3 py-3
+      text-sm font-medium text-slate-500 border-b-2 border-transparent
+      transition-colors duration-150 cursor-pointer
+      hover:text-slate-900
+      focus-visible:outline-none focus-visible:text-slate-900;
+  }
+  .tab-btn[aria-selected='true'] {
+    @apply text-brand-700 border-brand-600 font-semibold;
+  }
+
+  /* Chips (selectable tags) and pills (read-only status) -------------------- */
+  .chip {
+    @apply inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-full
+      border border-slate-200 bg-slate-50 text-slate-600 text-xs font-medium
+      cursor-pointer select-none transition-colors duration-150
+      hover:border-slate-300 hover:bg-slate-100
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
+      active:scale-[0.98];
+  }
+  .chip[aria-pressed='true'] {
+    @apply bg-brand-600 border-brand-600 text-white hover:bg-brand-700;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold;
+  }
+
+  /* Icons -------------------------------------------------------------------
+   * Sizing via width/height utilities (w-4 h-4 …) overrides the 1.25em default.
+   * Color inherits from `currentColor`; filled glyphs opt in with .icon-fill.  */
+  .icon {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 1.25em;
+    height: 1.25em;
+    vertical-align: -0.2em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .icon-fill {
+    fill: currentColor;
+  }
+
+  /* Data ------------------------------------------------------------------- */
+  .stat-label {
+    @apply block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1;
+  }
+  .stat-value {
+    @apply text-3xl sm:text-4xl font-bold tracking-tight;
+  }
+  .meter {
+    @apply w-full h-2.5 rounded-full bg-slate-100 overflow-hidden;
+  }
+  .meter-fill {
+    @apply h-full rounded-full transition-[width] duration-500 ease-out;
+  }
+}
+
+@layer utilities {
+  /* Horizontal scroll rows (nav tabs, demo switcher, chat chips) */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Minimum touch target for icon-only controls (stars, close buttons) */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+}
+
+/* Page-specific: TV waiting-room display ----------------------------------- */
+.tv-ticket {
+  font-size: clamp(4.5rem, 15vw, 11rem);
+  line-height: 1;
+}
+.tv-clock {
+  font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+}
+.tv-title {
+  font-size: clamp(1.25rem, 2.5vw, 1.875rem);
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 25px rgb(16 185 129 / 0.35);
+    border-color: #10b981;
+  }
+  50% {
+    box-shadow: 0 0 60px rgb(16 185 129 / 0.85);
+    border-color: #34d399;
+  }
+}
+.called-highlight {
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -62,20 +62,26 @@
       .replace(/'/g, '&#39;');
   }
 
+  // Inline SVG avatars for generated chat markup (kept in sync with index.html sprite)
+  const ICONS = {
+    bot: '<svg class="icon w-5 h-5 text-brand-600 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-bot"/></svg>',
+    user: '<svg class="icon w-5 h-5 text-slate-400 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-user"/></svg>',
+    staff: '<svg class="icon w-5 h-5 text-slate-500 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-clipboard"/></svg>',
+  };
+
   // Helper: Toast Notifications
   function showToast(message, type = 'info') {
-
     const container = document.getElementById('toastContainer');
     if (!container) return;
 
     const colors = {
-      success: 'bg-emerald-600 text-white border-emerald-700',
-      error: 'bg-red-600 text-white border-red-700',
-      info: 'bg-slate-900 text-white border-slate-950',
+      success: 'bg-brand-600 text-white',
+      error: 'bg-red-600 text-white',
+      info: 'bg-slate-900 text-white',
     };
 
     const toast = document.createElement('div');
-    toast.className = `p-3 rounded-xl text-xs font-semibold shadow-lg border transition-all duration-300 transform translate-x-4 opacity-0 ${colors[type] || colors.info}`;
+    toast.className = `p-3.5 rounded-xl text-xs font-semibold shadow-lg transition-all duration-300 translate-x-4 opacity-0 ${colors[type] || colors.info}`;
     toast.textContent = message;
     container.appendChild(toast);
 
@@ -114,14 +120,12 @@
     }
   }
 
-  // Tab Navigation
+  // Tab Navigation (WAI-ARIA tabs: visual state driven by aria-selected)
   function switchTab(tabName) {
     state.activeTab = tabName;
     document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.remove('tab-active');
+      btn.setAttribute('aria-selected', String(btn.id === `tab-${tabName}`));
     });
-    const activeBtn = document.getElementById(`tab-${tabName}`);
-    if (activeBtn) activeBtn.classList.add('tab-active');
 
     document.querySelectorAll('.tab-content').forEach(sec => {
       sec.classList.add('hidden');
@@ -208,11 +212,15 @@
       if (badge) badge.classList.remove('hidden');
       if (nameEl) nameEl.textContent = state.user.full_name || state.user.email;
       if (roleEl) {
+        const roleColors = {
+          patient: 'bg-sky-100 text-sky-700',
+          doctor: 'bg-violet-100 text-violet-700',
+          staff: 'bg-amber-100 text-amber-700',
+          admin: 'bg-rose-100 text-rose-700',
+        };
         roleEl.textContent = state.user.role;
         roleEl.className = 'uppercase px-2 py-0.5 rounded-full text-[10px] font-bold ' +
-          (state.user.role === 'patient' ? 'bg-blue-100 text-blue-700' :
-           state.user.role === 'doctor' ? 'bg-purple-100 text-purple-700' :
-           state.user.role === 'staff' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700');
+          (roleColors[state.user.role] || 'bg-slate-200 text-slate-800');
       }
       if (manualLoginBtn) manualLoginBtn.classList.add('hidden');
       if (logoutBtn) logoutBtn.classList.remove('hidden');
@@ -226,7 +234,10 @@
   // Modals
   function showLoginModal() {
     const modal = document.getElementById('loginModal');
-    if (modal) modal.classList.remove('hidden');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    const emailInput = document.getElementById('loginEmail');
+    if (emailInput) emailInput.focus();
   }
 
   function hideLoginModal() {
@@ -243,7 +254,6 @@
       hideLoginModal();
     } catch (_) {}
   }
-
   // Queue Live Updates & Tracker
   async function fetchQueueStatus() {
     try {
@@ -286,7 +296,7 @@
       } else {
         staffList.innerHTML = waiting.map(t => `
           <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 font-mono font-bold text-xs">
-            ${t}
+            ${escapeHTML(t)}
           </span>
         `).join('');
       }
@@ -294,7 +304,7 @@
 
     // Check if active ticket was served
     if (state.myTicket && serving === state.myTicket) {
-      showToast(`🔔 Attention: Your ticket ${state.myTicket} is now being called to ${room}!`, 'success');
+      showToast(`Attention: Your ticket ${state.myTicket} is now being called to ${room}!`, 'success');
     }
   }
 
@@ -349,9 +359,9 @@
       if (resultBox) {
         resultBox.classList.remove('hidden');
         resultBox.innerHTML = `
-          <span class="text-xs text-emerald-800 font-semibold block">Ticket Issued Successfully</span>
-          <span class="text-3xl font-black text-emerald-700 font-mono my-1 block">${res.ticket_number}</span>
-          <span class="text-[11px] text-emerald-600">Patient ID #${patientId} &bull; Triage: ${priority}</span>
+          <span class="text-xs text-brand-800 font-semibold block">Ticket Issued Successfully</span>
+          <span class="text-3xl font-black text-brand-700 font-mono my-1 block">${escapeHTML(res.ticket_number)}</span>
+          <span class="text-[11px] text-brand-600">Patient ID #${patientId} &bull; Triage: ${escapeHTML(priority)}</span>
         `;
       }
       showToast(`Ticket ${res.ticket_number} created!`, 'success');
@@ -361,14 +371,42 @@
     }
   }
 
-  // Queue WebSocket
+  // Queue WebSocket with exponential backoff and polling fallback
+  let queueWsRetryMs = 1000;
+  let queuePollTimer = null;
+
+  function startQueuePolling() {
+    if (!queuePollTimer) queuePollTimer = setInterval(fetchQueueStatus, 5000);
+  }
+
+  function stopQueuePolling() {
+    if (queuePollTimer) {
+      clearInterval(queuePollTimer);
+      queuePollTimer = null;
+    }
+  }
+
   function initQueueWebSocket() {
+    if (state.queueWs) {
+      try {
+        state.queueWs.onclose = null;
+        state.queueWs.close();
+      } catch (_) {}
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}${API.queue.ws}`;
 
-    state.queueWs = new WebSocket(wsUrl);
+    try {
+      state.queueWs = new WebSocket(wsUrl);
+    } catch (_) {
+      startQueuePolling();
+      return;
+    }
 
     state.queueWs.onopen = () => {
+      queueWsRetryMs = 1000;
+      stopQueuePolling();
       fetchQueueStatus();
     };
 
@@ -377,7 +415,9 @@
     };
 
     state.queueWs.onclose = () => {
-      setTimeout(initQueueWebSocket, 3000);
+      startQueuePolling();
+      setTimeout(initQueueWebSocket, queueWsRetryMs);
+      queueWsRetryMs = Math.min(queueWsRetryMs * 2, 15000);
     };
   }
 
@@ -391,7 +431,7 @@
 
       if (doctors && doctors.length > 0) {
         const optionsHtml = doctors.map(d => `
-          <option value="${d.id}">${d.name} (${d.specialization}) - Room ${d.room_number || '102'}</option>
+          <option value="${d.id}">${escapeHTML(d.name)} (${escapeHTML(d.specialization)}) - Room ${escapeHTML(String(d.room_number || '102'))}</option>
         `).join('');
 
         if (appSelect) appSelect.innerHTML = optionsHtml;
@@ -448,14 +488,12 @@
       }
 
       list.innerHTML = data.map(app => `
-        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
-          <div>
-            <span class="font-bold text-slate-800 block">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
-            <span class="text-slate-500 text-[11px]">${escapeHTML(app.reason || 'General Consultation')}</span>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between items-center gap-2">
+          <div class="min-w-0">
+            <span class="font-bold text-slate-800 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
+            <span class="text-slate-500 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
           </div>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase">
-            ${escapeHTML(app.status)}
-          </span>
+          <span class="pill bg-brand-100 text-brand-800 uppercase shrink-0">${escapeHTML(app.status)}</span>
         </div>
       `).join('');
     } catch (err) {
@@ -482,13 +520,13 @@
           rxList.innerHTML = '<p class="text-slate-400 py-2 text-center">No previous prescriptions on file.</p>';
         } else {
           rxList.innerHTML = emr.prescriptions.map(rx => `
-            <div class="p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm">
-              <div class="flex justify-between font-semibold text-slate-800">
-                <span>Dx: ${escapeHTML(rx.diagnosis)}</span>
-                <span class="text-[10px] text-slate-400">${escapeHTML(rx.created_at)}</span>
+            <div class="p-2.5 rounded-lg bg-white border border-slate-200 shadow-card">
+              <div class="flex justify-between gap-2 font-semibold text-slate-800">
+                <span class="truncate">Dx: ${escapeHTML(rx.diagnosis)}</span>
+                <span class="text-[10px] text-slate-400 shrink-0">${escapeHTML(rx.created_at)}</span>
               </div>
               <p class="text-slate-500 text-[11px] my-1">${escapeHTML(rx.notes || '')}</p>
-              <div class="text-[10px] text-purple-700 bg-purple-50 p-1.5 rounded">
+              <div class="text-[10px] text-brand-700 bg-brand-50 p-1.5 rounded">
                 ${rx.medications ? rx.medications.map(m => `&bull; ${escapeHTML(m.drug_name || m.name || '')} ${escapeHTML(m.dosage || '')}`).join('<br>') : ''}
               </div>
             </div>
@@ -504,20 +542,20 @@
     const container = document.getElementById('medicationsContainer');
     if (!container) return;
     const row = document.createElement('div');
-    row.className = 'med-row bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1.5';
+    row.className = 'med-row bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5';
     row.innerHTML = `
       <div class="flex justify-between items-center">
         <span class="text-[10px] font-bold text-slate-500 uppercase">Medication Item</span>
-        <button type="button" onclick="this.closest('.med-row').remove()" class="text-red-500 hover:text-red-700 text-xs font-bold">✕ Remove</button>
+        <button type="button" onclick="this.closest('.med-row').remove()" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1">Remove</button>
       </div>
       <div class="grid grid-cols-2 gap-1.5">
-        <input type="text" placeholder="Drug Name" class="med-name rounded border border-slate-300 p-1.5" required>
-        <input type="text" placeholder="Dosage" class="med-dosage rounded border border-slate-300 p-1.5" required>
+        <input type="text" placeholder="Drug Name" aria-label="Drug name" class="med-name input !px-2.5 !py-2" required>
+        <input type="text" placeholder="Dosage" aria-label="Dosage" class="med-dosage input !px-2.5 !py-2" required>
       </div>
       <div class="grid grid-cols-3 gap-1.5">
-        <input type="text" placeholder="Frequency" class="med-freq rounded border border-slate-300 p-1.5" required>
-        <input type="text" placeholder="Duration" class="med-duration rounded border border-slate-300 p-1.5" required>
-        <input type="text" placeholder="Instructions" class="med-instructions rounded border border-slate-300 p-1.5">
+        <input type="text" placeholder="Frequency" aria-label="Frequency" class="med-freq input !px-2.5 !py-2" required>
+        <input type="text" placeholder="Duration" aria-label="Duration" class="med-duration input !px-2.5 !py-2" required>
+        <input type="text" placeholder="Instructions" aria-label="Instructions" class="med-instructions input !px-2.5 !py-2">
       </div>
     `;
     container.appendChild(row);
@@ -558,16 +596,16 @@
       if (card) {
         card.classList.remove('hidden');
         card.innerHTML = `
-          <div class="flex items-center space-x-3 mb-2">
-            <div class="w-12 h-12 bg-white rounded-lg border border-purple-300 flex items-center justify-center font-mono font-bold text-xl text-purple-700 shadow-sm">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-12 h-12 bg-white rounded-lg border border-brand-300 flex items-center justify-center font-mono font-bold text-xl text-brand-700 shadow-card shrink-0">
               QR
             </div>
-            <div>
-              <span class="text-purple-900 font-bold block">Digital Prescription Issued</span>
-              <span class="text-[10px] text-purple-700 font-mono">HASH: ${res.qr_code_hash}</span>
+            <div class="min-w-0">
+              <span class="text-brand-900 font-bold block">Digital Prescription Issued</span>
+              <span class="text-[10px] text-brand-700 font-mono break-all">HASH: ${escapeHTML(res.qr_code_hash)}</span>
             </div>
           </div>
-          <p class="text-[11px] text-purple-800">Prescription #${res.prescription_id} securely saved and linked to patient record.</p>
+          <p class="text-[11px] text-brand-800">Prescription #${res.prescription_id} securely saved and linked to patient record.</p>
         `;
       }
       showToast('Digital prescription generated with tamper-proof QR hash!', 'success');
@@ -617,12 +655,12 @@
       if (card) {
         card.classList.remove('hidden');
         card.innerHTML = `
-          <span class="text-xs font-bold text-slate-800 block">Receipt: ${res.receipt_number}</span>
+          <span class="text-xs font-bold text-slate-800 block">Receipt: ${escapeHTML(res.receipt_number)}</span>
           <div class="flex justify-between items-center my-1 text-slate-600">
-            <span>Total Paid (${method.toUpperCase()}):</span>
+            <span>Total Paid (${escapeHTML(method.toUpperCase())}):</span>
             <span class="font-extrabold text-slate-900">$${res.total.toFixed(2)}</span>
           </div>
-          <span class="text-[10px] text-emerald-600 font-semibold block">✓ Transaction Finalized & Paid</span>
+          <span class="text-[10px] text-brand-600 font-semibold block">Transaction Finalized &amp; Paid</span>
         `;
       }
       showToast(`Invoice ${res.receipt_number} generated!`, 'success');
@@ -630,7 +668,6 @@
       showToast(`Invoice generation failed: ${err.message}`, 'error');
     }
   }
-
   // Feedback & Sentiment Analytics
   function setStarRating(rating) {
     state.selectedRating = rating;
@@ -639,28 +676,23 @@
 
     const btns = document.querySelectorAll('#starRatingGroup .star-btn');
     btns.forEach((b, idx) => {
-      if (idx < rating) {
-        b.classList.remove('text-slate-300');
-        b.classList.add('text-amber-400');
-      } else {
-        b.classList.remove('text-amber-400');
-        b.classList.add('text-slate-300');
-      }
+      const active = idx < rating;
+      b.classList.toggle('text-amber-400', active);
+      b.classList.toggle('text-slate-300', !active);
+      b.setAttribute('aria-pressed', String(active));
     });
   }
 
   function toggleTag(el) {
     const text = el.textContent.trim();
     const idx = state.selectedTags.indexOf(text);
-    if (idx > -1) {
-      state.selectedTags.splice(idx, 1);
-      el.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-600');
-      el.classList.add('bg-slate-100', 'text-slate-700', 'border-slate-200');
-    } else {
+    const pressed = idx === -1;
+    if (pressed) {
       state.selectedTags.push(text);
-      el.classList.remove('bg-slate-100', 'text-slate-700', 'border-slate-200');
-      el.classList.add('bg-emerald-600', 'text-white', 'border-emerald-600');
+    } else {
+      state.selectedTags.splice(idx, 1);
     }
+    el.setAttribute('aria-pressed', String(pressed));
   }
 
   async function submitFeedback(e) {
@@ -691,19 +723,17 @@
         const sentScore = (sent.sentiment_score ?? 0).toFixed(3);
         const isCritical = Boolean(sent.flagged_critical || sent.is_critical);
 
-        const badgeColor = sentLabel === 'positive' ? 'bg-emerald-100 text-emerald-800' :
+        const badgeColor = sentLabel === 'positive' ? 'bg-brand-100 text-brand-800' :
           sentLabel === 'negative' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-800';
 
         resBox.innerHTML = `
-          <div class="flex justify-between items-center mb-1">
+          <div class="flex justify-between items-center mb-1 gap-2">
             <span class="font-bold text-slate-800">VADER Sentiment Analysis</span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${badgeColor}">
-              ${escapeHTML(sentLabel)}
-            </span>
+            <span class="pill ${badgeColor}">${escapeHTML(sentLabel)}</span>
           </div>
           <div class="text-[11px] text-slate-600">
             Compound Score: <strong>${sentScore}</strong>
-            ${isCritical ? '<span class="ml-2 text-red-600 font-bold">⚠️ CRITICAL ALERT</span>' : ''}
+            ${isCritical ? '<span class="ml-2 text-red-600 font-bold">CRITICAL ALERT</span>' : ''}
           </div>
         `;
       }
@@ -737,7 +767,7 @@
 
       if (nssEl) {
         nssEl.textContent = (nss >= 0 ? '+' : '') + nss.toFixed(1);
-        nssEl.className = `text-4xl font-black ${nss >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+        nssEl.className = `stat-value ${nss >= 0 ? 'text-brand-600' : 'text-rose-600'}`;
       }
       if (nssStatus) {
         nssStatus.textContent = nss >= 50 ? 'Excellent Experience' : nss >= 0 ? 'Good / Neutral' : 'Requires Attention';
@@ -775,10 +805,10 @@
             const pId = a.patient_id ? `Patient ID: #${a.patient_id} &bull; ` : '';
             const dt = escapeHTML(a.created_at || '');
             return `
-              <div class="p-3 rounded-xl bg-red-50 border border-red-200 text-xs">
-                <div class="flex justify-between items-center text-red-700 font-bold mb-1">
-                  <span>Rating: ${r} ★ &bull; Score: ${score}</span>
-                  <span class="text-[10px] bg-red-200 text-red-900 px-2 py-0.5 rounded-full font-bold">URGENT</span>
+              <div class="p-3 rounded-xl bg-red-50 border border-red-200">
+                <div class="flex justify-between items-center text-red-700 font-bold mb-1 gap-2">
+                  <span>Rating: ${r} / 5 &bull; Score: ${score}</span>
+                  <span class="pill bg-red-200 text-red-900 shrink-0">URGENT</span>
                 </div>
                 <p class="text-slate-800">"${comment}"</p>
                 <span class="text-[10px] text-slate-500 mt-1 block">${pId}${dt}</span>
@@ -795,15 +825,20 @@
   // Live Chat Widget
   function toggleChat() {
     const win = document.getElementById('chatWindow');
+    const launcher = document.getElementById('chatLauncher');
     if (!win) return;
     const isHidden = win.classList.contains('hidden');
     if (isHidden) {
       win.classList.remove('hidden');
+      if (launcher) launcher.setAttribute('aria-expanded', 'true');
       if (!state.chatWs || state.chatWs.readyState !== WebSocket.OPEN) {
         initChatWebSocket();
       }
+      const chatInput = document.getElementById('chatInput');
+      if (chatInput) chatInput.focus();
     } else {
       win.classList.add('hidden');
+      if (launcher) launcher.setAttribute('aria-expanded', 'false');
     }
   }
 
@@ -841,24 +876,24 @@
 
     if (isBot) {
       div.innerHTML = `
-        <span class="text-base">🤖</span>
-        <div class="bg-emerald-50 text-emerald-950 border border-emerald-200 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
-          <span class="text-[10px] font-bold text-emerald-700 block mb-0.5">Clinic Virtual Bot</span>
+        ${ICONS.bot}
+        <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
+          <span class="text-[10px] font-bold text-slate-500 block mb-0.5">Clinic Virtual Bot</span>
           ${safeText}
         </div>
       `;
     } else if (isMe) {
       div.innerHTML = `
-        <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] leading-relaxed">
+        <div class="bg-brand-600 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] leading-relaxed">
           ${safeText}
         </div>
-        <span class="text-base">👤</span>
+        ${ICONS.user}
       `;
     } else {
       div.innerHTML = `
-        <span class="text-base">📋</span>
+        ${ICONS.staff}
         <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
-          <span class="text-[10px] font-bold text-slate-600 block mb-0.5">${safeSender}</span>
+          <span class="text-[10px] font-bold text-slate-500 block mb-0.5">${safeSender}</span>
           ${safeText}
         </div>
       `;
@@ -926,6 +961,20 @@
     sendChatMessage(question);
   }
 
+  // Close overlays with the Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const loginModal = document.getElementById('loginModal');
+    if (loginModal && !loginModal.classList.contains('hidden')) {
+      hideLoginModal();
+      return;
+    }
+    const chatWin = document.getElementById('chatWindow');
+    if (chatWin && !chatWin.classList.contains('hidden')) {
+      toggleChat();
+    }
+  });
+
   // Initialize on page load
   async function init() {
     updateUserUI();
@@ -936,6 +985,16 @@
     // Default appointment date to today
     const appDate = document.getElementById('appointmentDate');
     if (appDate) appDate.value = new Date().toISOString().split('T')[0];
+
+    // Restore persisted ticket card
+    if (state.myTicket) {
+      const ticketCard = document.getElementById('myTicketCard');
+      const ticketNum = document.getElementById('myTicketNumber');
+      if (ticketCard && ticketNum) {
+        ticketNum.textContent = state.myTicket;
+        ticketCard.classList.remove('hidden');
+      }
+    }
 
     // Check existing token validity
     if (state.token) {
@@ -991,4 +1050,3 @@
     init();
   }
 })();
-

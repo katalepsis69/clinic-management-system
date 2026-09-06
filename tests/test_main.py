@@ -27,3 +27,34 @@ def test_public_display_serves_html():
 def test_static_files_served():
     res = client.get("/static/app.js")
     assert res.status_code == 200
+
+
+def test_compiled_css_served():
+    res = client.get("/static/css/app.css")
+    assert res.status_code == 200
+    assert len(res.text) > 10000  # compiled Tailwind + design system
+    assert ".card" in res.text
+
+
+def test_no_runtime_cdn_dependencies():
+    # Pages must not depend on the Tailwind CDN (offline/air-gapped ready).
+    for path in ("/", "/display"):
+        res = client.get(path)
+        assert res.status_code == 200
+        assert "cdn.tailwindcss.com" not in res.text
+        assert 'href="/static/css/app.css"' in res.text
+
+
+def test_responsive_layout_present():
+    # Portal grids collapse 1 -> 2 -> 3 columns; body reserves dvh height.
+    res = client.get("/")
+    assert "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3" in res.text
+    assert "min-h-[100dvh]" in res.text
+
+
+def test_aria_tabs_and_labels():
+    # WAI-ARIA tab semantics and explicit label/input associations.
+    res = client.get("/")
+    assert 'role="tablist"' in res.text
+    assert 'aria-selected="true"' in res.text
+    assert '<label for="appointmentDate"' in res.text
