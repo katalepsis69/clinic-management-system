@@ -1,25 +1,28 @@
 from datetime import datetime, timezone
 import uuid
-from typing import Optional
+from decimal import Decimal
+from typing import Annotated, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.models import Invoice, Patient, User, UserRole
+from app.models import Invoice, Patient, QueueTicket, User, UserRole
 from app.auth import require_roles
 
 router = APIRouter(prefix="/api/billing", tags=["Billing & Digital Invoicing"])
+
+Money = Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2)]
 
 
 class CreateInvoiceRequest(BaseModel):
     patient_id: int
     queue_ticket_id: Optional[int] = None
-    consultation_fee: float = Field(default=0.0, ge=0.0)
-    medication_fee: float = Field(default=0.0, ge=0.0)
-    other_fees: float = Field(default=0.0, ge=0.0)
-    discount_amount: float = Field(default=0.0, ge=0.0)
-    payment_method: str = "cash"
+    consultation_fee: Money = Decimal("0.00")
+    medication_fee: Money = Decimal("0.00")
+    other_fees: Money = Decimal("0.00")
+    discount_amount: Money = Decimal("0.00")
+    payment_method: Literal["cash", "credit_card", "debit_card", "qr_ewallet"] = "cash"
 
 
 @router.post("/create")
@@ -32,7 +35,22 @@ def create_invoice(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    total = round(max(0.0, (data.consultation_fee + data.medication_fee + data.other_fees) - data.discount_amount), 2)
+    if data.queue_ticket_id is not None:
+        ticket = (
+            db.query(QueueTicket)
+            .filter(
+                QueueTicket.id == data.queue_ticket_id,
+                QueueTicket.patient_id == data.patient_id,
+            )
+            .first()
+        )
+        if not ticket:
+            raise HTTPException(
+                status_code=400, detail="Queue ticket does not exist or belongs to a different patient"
+            )
+
+    total = max(Decimal("0.00"), (data.consultation_fee + data.medication_fee + data.other_fees) - data.discount_amount)
+    # ponytail: uuid suffix collision odds are negligible (~1e-7/day); add a retry if it ever fires
     receipt_no = f"REC-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
     inv = Invoice(

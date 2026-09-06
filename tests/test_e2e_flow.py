@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.database import engine, Base, SessionLocal
+from app.models import QueueTicket, QueueStatus, Appointment
 from app.seed import seed_demo_data
 
 # Ensure database tables and seed data are initialized
@@ -58,8 +59,15 @@ def test_full_patient_to_prescription_flow():
     assert "waiting_count" in queue_data
     assert "currently_serving" in queue_data
 
-    # 4. Feedback Analytics
+    # 4. Feedback Analytics (staff-only endpoint — anonymous access must be rejected)
     f = client.get("/api/feedback/analytics")
+    assert f.status_code == 401
+    s_login = client.post("/api/auth/login", json={"email": "staff@demo.com", "password": "staff123"})
+    assert s_login.status_code == 200
+    f = client.get(
+        "/api/feedback/analytics",
+        headers={"Authorization": f"Bearer {s_login.json()['access_token']}"},
+    )
     assert f.status_code == 200
     analytics = f.json()
     assert "avg_rating" in analytics
@@ -75,6 +83,18 @@ def test_complete_e2e_clinical_workflow():
     Health -> Doctor Directory -> Patient Booking -> Queue Ticket -> Ticket Call ->
     Doctor EMR & Prescription -> Staff Billing -> Patient VADER Feedback -> Chat & Bot FAQ.
     """
+    # Clean slate for the queue and the fixed e2e booking date: close any waiting
+    # tickets and drop stale bookings left by earlier runs
+    _cleanup = SessionLocal()
+    try:
+        _cleanup.query(QueueTicket).filter(QueueTicket.status == QueueStatus.WAITING).update(
+            {"status": QueueStatus.COMPLETED}
+        )
+        _cleanup.query(Appointment).filter(Appointment.appointment_date == "2026-11-20").delete()
+        _cleanup.commit()
+    finally:
+        _cleanup.close()
+
     # -----------------------------------------------------------------------
     # Step 1: API Health Check
     # -----------------------------------------------------------------------
@@ -134,24 +154,22 @@ def test_complete_e2e_clinical_workflow():
     appointment_id = booking_data["appointment_id"]
     assert appointment_id > 0
 
-    # Verify appointment appears on doctor's schedule
-    schedule_res = client.get(
+    # Verify the schedule endpoint is protected (anonymous -> 401, patient cookie -> 403)
+    schedule_anon = client.get(
         f"/api/appointments/doctor-schedule/{doctor_id}?schedule_date=2026-11-20"
     )
-    assert schedule_res.status_code == 200
-    schedule_items = schedule_res.json()
-    assert any(item["id"] == appointment_id for item in schedule_items)
+    assert schedule_anon.status_code in (401, 403)
 
     # -----------------------------------------------------------------------
     # Step 4: Live Queue Ticket Issuance & Status Query
     # -----------------------------------------------------------------------
-    # Patient arrives at the clinic; front desk / kiosk issues ticket for Patient ID 1
+    # Patient arrives at the clinic; patient self-issues their own ticket
     issue_payload = {
         "doctor_id": doctor_id,
         "patient_id": 1,
         "priority": "normal",
     }
-    issue_res = client.post("/api/queue/issue", json=issue_payload)
+    issue_res = client.post("/api/queue/issue", json=issue_payload, headers=patient_headers)
     assert issue_res.status_code == 200
     ticket_data = issue_res.json()
     assert ticket_data["status"] == "success"
@@ -177,6 +195,15 @@ def test_complete_e2e_clinical_workflow():
     assert staff_login_res.status_code == 200
     staff_token = staff_login_res.json()["access_token"]
     staff_headers = {"Authorization": f"Bearer {staff_token}"}
+
+    # Staff views the doctor schedule (staff-only endpoint) and sees the new booking
+    schedule_res = client.get(
+        f"/api/appointments/doctor-schedule/{doctor_id}?schedule_date=2026-11-20",
+        headers=staff_headers,
+    )
+    assert schedule_res.status_code == 200
+    schedule_items = schedule_res.json()
+    assert any(item["id"] == appointment_id for item in schedule_items)
 
     # Staff calls the next patient for this doctor
     call_res = client.post(
@@ -321,8 +348,8 @@ def test_complete_e2e_clinical_workflow():
     assert sentiment_result["sentiment_score"] > 0.05
     assert sentiment_result["flagged_critical"] is False
 
-    # Verify analytics update
-    analytics_res = client.get("/api/feedback/analytics")
+    # Verify analytics update (staff-only endpoint)
+    analytics_res = client.get("/api/feedback/analytics", headers=staff_headers)
     assert analytics_res.status_code == 200
     analytics_data = analytics_res.json()
     assert analytics_data["total"] >= 1
@@ -335,6 +362,9 @@ def test_complete_e2e_clinical_workflow():
     chat_session_id = f"e2e-session-{uuid.uuid4().hex[:8]}"
 
     # 9a. Real-time WebSocket Inquiry & Automated Bot Response
+    # Re-login as patient so the WS handshake cookie carries patient identity
+    # (identity is derived from the authenticated user, not the WS payload)
+    client.post("/api/auth/login", json={"email": "patient@demo.com", "password": "patient123"})
     with client.websocket_connect(f"/api/chat/ws/{chat_session_id}") as ws:
         # Patient sends inquiry about clinic opening hours
         ws.send_json({
@@ -363,7 +393,7 @@ def test_complete_e2e_clinical_workflow():
         "role": "staff",
         "message": "Hello Sarah, your receipt REC is ready and your prescription has been sent.",
     }
-    rest_res = client.post("/api/chat/send", json=rest_chat_payload)
+    rest_res = client.post("/api/chat/send", json=rest_chat_payload, headers=staff_headers)
     assert rest_res.status_code == 200
     rest_data = rest_res.json()
     assert rest_data["status"] == "success"
@@ -371,7 +401,7 @@ def test_complete_e2e_clinical_workflow():
     assert rest_data["bot_reply"] is None
 
     # Verify complete chat history for session
-    hist_res = client.get(f"/api/chat/history/{chat_session_id}")
+    hist_res = client.get(f"/api/chat/history/{chat_session_id}", headers=staff_headers)
     assert hist_res.status_code == 200
     history = hist_res.json()
     assert len(history) >= 3  # Patient question, Bot reply, Staff message

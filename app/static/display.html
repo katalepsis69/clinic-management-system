@@ -197,10 +197,12 @@
         if (waiting.length === 0) {
           listEl.innerHTML = '<span class="text-xs text-slate-500">No patients waiting in queue.</span>';
         } else {
+          // ponytail: tickets are server-generated but escaped anyway — defense in depth
+          const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
           listEl.innerHTML = waiting.map((t, idx) => `
             <div class="px-3.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold font-mono text-brand-300 flex items-center gap-2">
               <span class="text-[10px] text-slate-400 font-sans">#${idx + 1}</span>
-              <span>${t}</span>
+              <span>${esc(t)}</span>
             </div>
           `).join('');
         }

@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Numeric, Text, ForeignKey, Enum as SQLEnum, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Numeric, Text, ForeignKey, Enum as SQLEnum, Float, Index, CheckConstraint, text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -78,13 +78,24 @@ class Appointment(Base):
     reason_for_visit = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    # Atomic slot guard: one live appointment per doctor/date/slot (cancelled slots free to rebook).
+    __table_args__ = (
+        Index(
+            "ux_appointment_slot",
+            "doctor_id", "appointment_date", "time_slot",
+            unique=True,
+            sqlite_where=text("status != 'CANCELLED'"),
+            postgresql_where=text("status != 'CANCELLED'"),
+        ),
+    )
+
     patient = relationship("Patient", back_populates="appointments")
     doctor = relationship("Doctor", back_populates="appointments")
 
 class QueueTicket(Base):
     __tablename__ = "queue_tickets"
     id = Column(Integer, primary_key=True, index=True)
-    ticket_number = Column(String(20), index=True, nullable=False)
+    ticket_number = Column(String(20), unique=True, index=True, nullable=False)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False)
     appointment_id = Column(Integer, ForeignKey("appointments.id"), nullable=True)
@@ -139,6 +150,10 @@ class PatientFeedback(Base):
     sentiment_score = Column(Float, nullable=False)
     flagged_critical = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        CheckConstraint("rating BETWEEN 1 AND 5", name="ck_feedback_rating"),
+    )
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"

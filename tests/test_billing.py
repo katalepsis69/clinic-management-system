@@ -152,7 +152,7 @@ def test_create_invoice_success_staff(client, db_session):
         "medication_fee": 35.50,
         "other_fees": 10.0,
         "discount_amount": 5.50,
-        "payment_method": "card",
+        "payment_method": "credit_card",
     }
 
     response = client.post(
@@ -181,7 +181,7 @@ def test_create_invoice_success_staff(client, db_session):
     assert float(inv.other_fees) == 10.0
     assert float(inv.discount_amount) == 5.50
     assert float(inv.total_amount) == 100.0
-    assert inv.payment_method == "card"
+    assert inv.payment_method == "credit_card"
     assert inv.payment_status == "paid"
     assert inv.paid_at is not None
 

@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from app.database import get_db
-from app.models import PatientFeedback, Patient, User
-from app.auth import get_current_user
+from app.models import PatientFeedback, Patient, User, UserRole
+from app.auth import get_current_user, require_roles
 from app.sentiment import analyze_sentiment
 
 router = APIRouter(prefix="/api/feedback", tags=["Feedback & Sentiment"])
@@ -44,9 +44,13 @@ def submit_feedback(data: FeedbackCreate, user: User = Depends(get_current_user)
 
 
 @router.get("/analytics")
-def get_feedback_analytics(db: Session = Depends(get_db)):
-    feedbacks = db.query(PatientFeedback).all()
-    total = len(feedbacks)
+def get_feedback_analytics(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN, UserRole.DOCTOR])),
+):
+    from sqlalchemy import func
+
+    total = db.query(func.count(PatientFeedback.id)).scalar() or 0
     if total == 0:
         return {
             "total": 0,
@@ -57,17 +61,35 @@ def get_feedback_analytics(db: Session = Depends(get_db)):
             "items": [],
         }
 
-    avg_rating = round(sum(f.rating for f in feedbacks) / total, 2)
-    pos_count = sum(1 for f in feedbacks if f.sentiment_label == "positive")
-    neg_count = sum(1 for f in feedbacks if f.sentiment_label == "negative")
-    critical = [f for f in feedbacks if f.flagged_critical]
+    avg_rating = round(float(db.query(func.avg(PatientFeedback.rating)).scalar() or 0), 2)
+    pos_count = (
+        db.query(func.count(PatientFeedback.id))
+        .filter(PatientFeedback.sentiment_label == "positive")
+        .scalar() or 0
+    )
+    neg_count = (
+        db.query(func.count(PatientFeedback.id))
+        .filter(PatientFeedback.sentiment_label == "negative")
+        .scalar() or 0
+    )
+    critical_count = (
+        db.query(func.count(PatientFeedback.id))
+        .filter(PatientFeedback.flagged_critical == True)  # noqa: E712
+        .scalar() or 0
+    )
+    recent = (
+        db.query(PatientFeedback)
+        .order_by(PatientFeedback.id.desc())
+        .limit(20)
+        .all()
+    )
 
     return {
         "total": total,
         "avg_rating": avg_rating,
         "positive_pct": round((pos_count / total) * 100, 1),
         "negative_pct": round((neg_count / total) * 100, 1),
-        "critical_count": len(critical),
+        "critical_count": critical_count,
         "items": [
             {
                 "id": f.id,
@@ -78,6 +100,6 @@ def get_feedback_analytics(db: Session = Depends(get_db)):
                 "flagged_critical": f.flagged_critical,
                 "created_at": f.created_at.isoformat() if f.created_at else None,
             }
-            for f in feedbacks[-20:]
+            for f in recent
         ],
     }

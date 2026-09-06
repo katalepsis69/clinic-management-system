@@ -1,14 +1,18 @@
+import base64
+import io
 import json
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from app.config import get_settings
 from app.database import get_db
 from app.models import Patient, Doctor, Prescription, User, UserRole
 from app.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/emr", tags=["EMR & Prescriptions"])
+settings = get_settings()
 
 
 class MedicationItem(BaseModel):
@@ -21,10 +25,19 @@ class MedicationItem(BaseModel):
 
 class CreatePrescriptionRequest(BaseModel):
     patient_id: int
-    doctor_id: int
+    # Only honored for ADMIN creating on behalf of a doctor; doctors are derived from the token.
+    doctor_id: Optional[int] = None
     diagnosis: str
     clinical_notes: Optional[str] = ""
     medications: List[MedicationItem]
+
+
+def _qr_code_data_url(url: str) -> str:
+    import qrcode
+
+    buf = io.BytesIO()
+    qrcode.make(url).save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 @router.get("/patient/{patient_id}")
@@ -72,14 +85,29 @@ def create_prescription(
     user: User = Depends(require_roles([UserRole.DOCTOR, UserRole.ADMIN])),
     db: Session = Depends(get_db),
 ):
+    patient = db.query(Patient).filter(Patient.id == data.patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    if user.role == UserRole.DOCTOR:
+        doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
+        if not doctor:
+            raise HTTPException(status_code=403, detail="Current user is not registered as a doctor")
+    else:  # ADMIN creating on behalf of a named, existing doctor
+        if not data.doctor_id:
+            raise HTTPException(status_code=400, detail="doctor_id is required when creating on behalf of a doctor")
+        doctor = db.query(Doctor).filter(Doctor.id == data.doctor_id).first()
+        if not doctor:
+            raise HTTPException(status_code=404, detail="Doctor not found")
+
     qr_hash = uuid.uuid4().hex[:16].upper()
     medications_data = [
         m.model_dump() if hasattr(m, "model_dump") else m.dict()
         for m in data.medications
     ]
     rx = Prescription(
-        patient_id=data.patient_id,
-        doctor_id=data.doctor_id,
+        patient_id=patient.id,
+        doctor_id=doctor.id,
         diagnosis=data.diagnosis,
         clinical_notes=data.clinical_notes,
         medications_json=json.dumps(medications_data),
@@ -88,4 +116,18 @@ def create_prescription(
     db.add(rx)
     db.commit()
     db.refresh(rx)
-    return {"status": "success", "prescription_id": rx.id, "qr_code_hash": rx.qr_code_hash}
+
+    qr_data_url = None
+    if settings.DEMO_MODE:
+        # ponytail: verification URL is demo-relative; add PUBLIC_BASE_URL setting if deployed
+        try:
+            qr_data_url = _qr_code_data_url(f"/api/emr/prescription/verify/{qr_hash}")
+        except Exception:
+            qr_data_url = None
+
+    return {
+        "status": "success",
+        "prescription_id": rx.id,
+        "qr_code_hash": rx.qr_code_hash,
+        "qr_code_image": qr_data_url,
+    }

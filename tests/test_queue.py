@@ -120,20 +120,30 @@ def test_get_live_status_empty(client):
 
 
 def test_issue_ticket_endpoint(client, db_session):
+    u_staff = User(email="staff1@demo.com", hashed_password="pw", full_name="Front Desk", role=UserRole.STAFF)
     u_doc = User(email="doc1@demo.com", hashed_password="pw", full_name="Dr. Sarah", role=UserRole.DOCTOR)
     u_pat = User(email="pat1@demo.com", hashed_password="pw", full_name="John Doe", role=UserRole.PATIENT)
-    db_session.add_all([u_doc, u_pat])
+    u_pat2 = User(email="pat1b@demo.com", hashed_password="pw", full_name="Jane Doe", role=UserRole.PATIENT)
+    db_session.add_all([u_staff, u_doc, u_pat, u_pat2])
     db_session.commit()
 
     doc = Doctor(user_id=u_doc.id, specialization="Cardiology", license_number="DOC-123", room_number="Room 204")
     pat = Patient(user_id=u_pat.id)
-    db_session.add_all([doc, pat])
+    pat2 = Patient(user_id=u_pat2.id)
+    db_session.add_all([doc, pat, pat2])
     db_session.commit()
 
-    # Issue first ticket
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff.email, 'role': u_staff.role.value})}"}
+
+    # Unauthenticated issue is rejected
+    res_anon = client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat.id, "priority": "normal"})
+    assert res_anon.status_code == 401
+
+    # Issue first ticket (staff walk-in for pat)
     res1 = client.post(
         "/api/queue/issue",
         json={"doctor_id": doc.id, "patient_id": pat.id, "priority": "normal"},
+        headers=staff_headers,
     )
     assert res1.status_code == 200
     d1 = res1.json()
@@ -141,10 +151,19 @@ def test_issue_ticket_endpoint(client, db_session):
     assert d1["ticket_number"] == "Q-101"
     assert "id" in d1
 
-    # Issue second ticket
-    res2 = client.post(
+    # Same patient cannot hold two waiting tickets
+    res_dup = client.post(
         "/api/queue/issue",
         json={"doctor_id": doc.id, "patient_id": pat.id, "priority": "urgent"},
+        headers=staff_headers,
+    )
+    assert res_dup.status_code == 409
+
+    # Issue second ticket for another patient
+    res2 = client.post(
+        "/api/queue/issue",
+        json={"doctor_id": doc.id, "patient_id": pat2.id, "priority": "urgent"},
+        headers=staff_headers,
     )
     assert res2.status_code == 200
     d2 = res2.json()
@@ -178,9 +197,13 @@ def test_call_next_patient_flow(client, db_session):
     doctor_token = create_access_token({"sub": "doc2@demo.com", "role": "doctor"})
     patient_token = create_access_token({"sub": "pat2@demo.com", "role": "patient"})
 
-    # Issue two tickets
-    client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat1.id})
-    client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat2.id})
+    # Issue two tickets (requires staff auth)
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': 'staff2@demo.com', 'role': 'staff'})}"}
+    u_staff = User(email="staff2@demo.com", hashed_password="pw", full_name="Desk Two", role=UserRole.STAFF)
+    db_session.add(u_staff)
+    db_session.commit()
+    client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat1.id}, headers=staff_headers)
+    client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat2.id}, headers=staff_headers)
 
     # Call-next unauthenticated -> 401
     res_unauth = client.post(f"/api/queue/call-next?doctor_id={doc.id}")

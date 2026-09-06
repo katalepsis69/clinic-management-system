@@ -15,11 +15,14 @@ class QueueConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict):
-        for connection in self.active_connections:
+        dead = []
+        for connection in list(self.active_connections):
             try:
                 await connection.send_json(message)
             except Exception:
-                pass
+                dead.append(connection)
+        for connection in dead:
+            self.disconnect(connection)
 
 
 queue_manager = QueueConnectionManager()

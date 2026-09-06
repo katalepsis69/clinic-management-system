@@ -39,13 +39,13 @@
   };
 
   const state = {
-    token: localStorage.getItem('access_token') || null,
     user: JSON.parse(localStorage.getItem('user_profile') || 'null'),
     activeTab: 'patient',
     selectedRating: 5,
     selectedTags: [],
     myTicket: localStorage.getItem('my_ticket') || null,
-    chatSessionId: localStorage.getItem('chat_session_id') || ('sess_' + Math.random().toString(36).substring(2, 9)),
+    // ponytail: fresh UUID per login; random session IDs prevent guest-session enumeration
+    chatSessionId: localStorage.getItem('chat_session_id') || crypto.randomUUID(),
     chatWs: null,
     queueWs: null,
   };
@@ -95,12 +95,9 @@
     }, 4000);
   }
 
-  // Helper: Fetch with Bearer Auth
+  // Helper: Fetch using the httpOnly session cookie (same-origin credentials are default)
   async function apiFetch(url, options = {}) {
     options.headers = options.headers || {};
-    if (state.token) {
-      options.headers['Authorization'] = `Bearer ${state.token}`;
-    }
     if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
       options.headers['Content-Type'] = 'application/json';
       options.body = JSON.stringify(options.body);
@@ -160,10 +157,11 @@
         method: 'POST',
         body: { email, password },
       });
-      state.token = data.access_token;
       state.user = data.user;
-      localStorage.setItem('access_token', state.token);
       localStorage.setItem('user_profile', JSON.stringify(state.user));
+      // Fresh chat transcript per login — sessions never carry across accounts
+      state.chatSessionId = crypto.randomUUID();
+      localStorage.setItem('chat_session_id', state.chatSessionId);
 
       updateUserUI();
       showToast(`Welcome back, ${state.user.full_name || state.user.email}!`, 'success');
@@ -191,10 +189,13 @@
     try {
       await apiFetch(API.auth.logout, { method: 'POST' }).catch(() => {});
     } finally {
-      state.token = null;
       state.user = null;
-      localStorage.removeItem('access_token');
       localStorage.removeItem('user_profile');
+      localStorage.removeItem('my_ticket');
+      state.myTicket = null;
+      // New chat session so the next user never inherits this transcript
+      state.chatSessionId = crypto.randomUUID();
+      localStorage.setItem('chat_session_id', state.chatSessionId);
       updateUserUI();
       showToast('Logged out successfully', 'info');
       switchTab('patient');
@@ -309,10 +310,16 @@
   }
 
   async function issueMyQueueTicket() {
+    if (!state.user || state.user.role !== 'patient') {
+      showToast('Please sign in as a patient to get a queue ticket', 'error');
+      showLoginModal();
+      return;
+    }
+    const doctorId = parseInt(document.getElementById('appointmentDoctorSelect')?.value, 10);
     try {
       const res = await apiFetch(API.queue.issue, {
         method: 'POST',
-        body: { patient_id: 1, doctor_id: 1, priority: 'normal' },
+        body: doctorId ? { doctor_id: doctorId, priority: 'normal' } : { priority: 'normal' },
       });
       state.myTicket = res.ticket_number;
       localStorage.setItem('my_ticket', state.myTicket);
@@ -445,8 +452,10 @@
 
   async function submitAppointment(e) {
     e.preventDefault();
-    if (!state.user) {
-      await quickLogin('patient');
+    if (!state.user || state.user.role !== 'patient') {
+      showToast('Please sign in as a patient to book an appointment', 'error');
+      showLoginModal();
+      return;
     }
     const doctorId = parseInt(document.getElementById('appointmentDoctorSelect').value, 10);
     const appointmentDate = document.getElementById('appointmentDate').value;
@@ -472,8 +481,13 @@
 
   // Doctor Schedule
   async function loadDoctorSchedule() {
-    const docId = 1;
+    const docId = state.user?.doctor_id;
     const dateInput = document.getElementById('scheduleFilterDate');
+    if (!docId) {
+      const list = document.getElementById('scheduleList');
+      if (list) list.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Sign in as a doctor to view a schedule.</p>';
+      return;
+    }
     const scheduleDate = dateInput && dateInput.value ? dateInput.value : new Date().toISOString().split('T')[0];
     if (dateInput && !dateInput.value) dateInput.value = scheduleDate;
 
@@ -564,7 +578,6 @@
   async function generatePrescription(e) {
     e.preventDefault();
     const patientId = parseInt(document.getElementById('rxPatientId').value, 10);
-    const doctorId = parseInt(document.getElementById('rxDoctorId').value, 10);
     const diagnosis = document.getElementById('rxDiagnosis').value;
     const clinicalNotes = document.getElementById('rxNotes').value;
 
@@ -585,7 +598,6 @@
         method: 'POST',
         body: {
           patient_id: patientId,
-          doctor_id: doctorId,
           diagnosis: diagnosis,
           clinical_notes: clinicalNotes,
           medications: medications,
@@ -594,12 +606,13 @@
 
       const card = document.getElementById('prescriptionResultCard');
       if (card) {
+        const qrImg = res.qr_code_image
+          ? `<img src="${res.qr_code_image}" alt="Prescription verification QR code" class="w-14 h-14 rounded border border-brand-300 bg-white p-0.5">`
+          : `<div class="w-12 h-12 bg-white rounded-lg border border-brand-300 flex items-center justify-center font-mono font-bold text-xl text-brand-700 shadow-card shrink-0">QR</div>`;
         card.classList.remove('hidden');
         card.innerHTML = `
           <div class="flex items-center gap-3 mb-2">
-            <div class="w-12 h-12 bg-white rounded-lg border border-brand-300 flex items-center justify-center font-mono font-bold text-xl text-brand-700 shadow-card shrink-0">
-              QR
-            </div>
+            ${qrImg}
             <div class="min-w-0">
               <span class="text-brand-900 font-bold block">Digital Prescription Issued</span>
               <span class="text-[10px] text-brand-700 font-mono break-all">HASH: ${escapeHTML(res.qr_code_hash)}</span>
@@ -697,8 +710,10 @@
 
   async function submitFeedback(e) {
     e.preventDefault();
-    if (!state.user) {
-      await quickLogin('patient');
+    if (!state.user || state.user.role !== 'patient') {
+      showToast('Please sign in as a patient to submit feedback', 'error');
+      showLoginModal();
+      return;
     }
     const comment = document.getElementById('feedbackComment').value;
     const rating = state.selectedRating;
@@ -711,7 +726,6 @@
           rating: rating,
           comment_text: comment,
           tags: tags,
-          doctor_id: 1,
         },
       });
 
@@ -740,6 +754,11 @@
       showToast('Thank you! Feedback analyzed successfully.', 'success');
       document.getElementById('feedbackForm').reset();
       setStarRating(5);
+      // Reset tags so the next submission doesn't inherit the previous review's chips
+      state.selectedTags = [];
+      document.querySelectorAll('#feedbackTagsGroup .chip').forEach(chip => {
+        chip.setAttribute('aria-pressed', 'false');
+      });
     } catch (err) {
       showToast(`Feedback submission failed: ${err.message}`, 'error');
     }
@@ -866,7 +885,8 @@
     const box = document.getElementById('chatMessages');
     if (!box) return;
 
-    const isMe = msg.role === 'patient' || (state.user && msg.sender === state.user.full_name);
+    // Identity-based: a message is "mine" only if the server says it came from me
+    const isMe = !isBot && state.user && (msg.sender === state.user.full_name || msg.sender_name === state.user.full_name);
     const isBot = msg.is_bot_reply || msg.role === 'bot' || msg.sender === 'Clinic Assistant Bot';
     const safeText = escapeHTML(msg.message || msg.message_text || '');
     const safeSender = escapeHTML(msg.sender || msg.sender_name || 'Staff');
@@ -906,15 +926,10 @@
   async function sendChatMessage(text) {
     if (!text || !text.trim()) return;
     const msg = text.trim();
-    const senderName = state.user ? state.user.full_name : 'Patient (Guest)';
-    const senderRole = state.user ? state.user.role : 'patient';
 
+    // Identity (name/role) is derived server-side from the session cookie
     const payload = {
       session_id: state.chatSessionId,
-      sender_name: senderName,
-      sender: senderName,
-      sender_role: senderRole,
-      role: senderRole,
       message: msg,
       message_text: msg,
     };
@@ -926,24 +941,21 @@
       try {
         const res = await apiFetch(API.chat.send, {
           method: 'POST',
-          body: {
-            session_id: state.chatSessionId,
-            sender_name: senderName,
-            role: senderRole,
-            message: msg,
-          },
+          body: payload,
         });
         appendChatMessage(payload);
-        if (res.reply) {
+        if (res.bot_reply) {
           appendChatMessage({
             sender: 'Clinic Assistant Bot',
             role: 'bot',
             is_bot_reply: true,
-            message: res.reply,
+            message: res.bot_reply.message || res.bot_reply.message_text,
           });
         }
       } catch (err) {
-        showToast('Chat service unavailable', 'error');
+        showToast(err.message.includes('authenticated')
+          ? 'Please sign in to use live chat'
+          : 'Chat service unavailable', 'error');
       }
     }
   }
@@ -996,21 +1008,16 @@
       }
     }
 
-    // Check existing token validity
-    if (state.token) {
-      try {
-        const me = await apiFetch(API.auth.me);
-        state.user = me;
-        localStorage.setItem('user_profile', JSON.stringify(me));
-        updateUserUI();
-      } catch (_) {
-        state.token = null;
-        state.user = null;
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user_profile');
-        updateUserUI();
-      }
+    // Restore session from the httpOnly cookie (cookie auth is the single source of truth)
+    try {
+      const me = await apiFetch(API.auth.me);
+      state.user = me;
+      localStorage.setItem('user_profile', JSON.stringify(me));
+    } catch (_) {
+      state.user = null;
+      localStorage.removeItem('user_profile');
     }
+    updateUserUI();
     switchTab('patient');
   }
 

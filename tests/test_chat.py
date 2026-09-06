@@ -9,9 +9,21 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import get_db
-from app.models import Base, ChatMessage
+from app.models import Base, ChatMessage, User, UserRole
+from app.auth import create_access_token
 from app.chat_bot import get_bot_response, FAQ_RULES
 from app.routers.chat import router as chat_router, chat_hub, ChatConnectionHub
+
+
+def _auth_cookie(user):
+    """Cookie header for WS handshake / explicit headers, mirroring the login cookie."""
+    token = create_access_token({"sub": user.email, "role": user.role.value})
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _ws_cookie_headers(user):
+    token = create_access_token({"sub": user.email, "role": user.role.value})
+    return {"cookie": f"access_token=Bearer {token}"}
 
 
 @pytest.fixture
@@ -147,13 +159,20 @@ async def test_chat_hub_send_error_handling():
 def test_websocket_patient_message_and_bot_reply(client, db_session):
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
 
-    with client.websocket_connect(f"/api/chat/ws/{session_id}") as ws:
-        # Patient sends a question about clinic hours
-        ws.send_json({
-            "sender_name": "Alice Smith",
-            "message": "What are your clinic hours?",
-            "role": "patient",
-        })
+    u_pat = User(email="alice@chat.test", hashed_password="pw", full_name="Alice Smith", role=UserRole.PATIENT)
+    db_session.add(u_pat)
+    db_session.commit()
+
+    # Unauthenticated WS connections are rejected
+    with pytest.raises(Exception):
+        with client.websocket_connect(f"/api/chat/ws/{session_id}"):
+            pass
+
+    with client.websocket_connect(
+        f"/api/chat/ws/{session_id}", headers=_ws_cookie_headers(u_pat)
+    ) as ws:
+        # Patient sends a question about clinic hours (identity is server-derived)
+        ws.send_json({"message": "What are your clinic hours?"})
 
         # 1st broadcast received: Alice's own message
         msg1 = ws.receive_json()
@@ -189,14 +208,19 @@ def test_websocket_patient_message_and_bot_reply(client, db_session):
 def test_websocket_multi_client_relay_and_staff_message(client, db_session):
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
 
-    with client.websocket_connect(f"/api/chat/ws/{session_id}") as ws_patient:
-        with client.websocket_connect(f"/api/chat/ws/{session_id}") as ws_staff:
-            # Patient sends inquiry
-            ws_patient.send_json({
-                "sender_name": "Bob Patient",
-                "message": "Where is the clinic located?",
-                "role": "patient",
-            })
+    u_bob = User(email="bob@chat.test", hashed_password="pw", full_name="Bob Patient", role=UserRole.PATIENT)
+    u_sarah = User(email="sarah@chat.test", hashed_password="pw", full_name="Nurse Sarah", role=UserRole.STAFF)
+    db_session.add_all([u_bob, u_sarah])
+    db_session.commit()
+
+    with client.websocket_connect(
+        f"/api/chat/ws/{session_id}", headers=_ws_cookie_headers(u_bob)
+    ) as ws_patient:
+        with client.websocket_connect(
+            f"/api/chat/ws/{session_id}", headers=_ws_cookie_headers(u_sarah)
+        ) as ws_staff:
+            # Patient sends inquiry (identity comes from the authenticated user)
+            ws_patient.send_json({"message": "Where is the clinic located?"})
 
             # Patient receives broadcast & bot reply
             p_msg1 = ws_patient.receive_json()
@@ -210,11 +234,11 @@ def test_websocket_multi_client_relay_and_staff_message(client, db_session):
             s_msg2 = ws_staff.receive_json()
             assert "123 Healthcare Blvd" in s_msg2["message"]
 
-            # Staff sends a reply to the patient
+            # Staff sends a reply to the patient (server stamps Nurse Sarah identity)
             ws_staff.send_json({
-                "sender_name": "Nurse Sarah",
                 "message": "Hello Bob! We also offer valet parking on Level B1.",
-                "role": "staff",
+                "sender_name": "Imposter Name",
+                "role": "doctor",
             })
 
             # Both patient and staff receive staff's message
@@ -239,10 +263,16 @@ def test_websocket_multi_client_relay_and_staff_message(client, db_session):
             assert db_msgs[2].sender_role == "staff"
 
 
-def test_websocket_disconnect_cleanup(client):
+def test_websocket_disconnect_cleanup(client, db_session):
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
 
-    with client.websocket_connect(f"/api/chat/ws/{session_id}") as ws:
+    u_pat = User(email="cleanup@chat.test", hashed_password="pw", full_name="Cleanup Pat", role=UserRole.PATIENT)
+    db_session.add(u_pat)
+    db_session.commit()
+
+    with client.websocket_connect(
+        f"/api/chat/ws/{session_id}", headers=_ws_cookie_headers(u_pat)
+    ) as ws:
         assert session_id in chat_hub.rooms
         assert len(chat_hub.rooms[session_id]) == 1
 
@@ -257,8 +287,17 @@ def test_websocket_disconnect_cleanup(client):
 def test_chat_history_endpoint(client, db_session):
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
 
+    u_viewer = User(email="viewer@chat.test", hashed_password="pw", full_name="History Viewer", role=UserRole.STAFF)
+    db_session.add(u_viewer)
+    db_session.commit()
+    headers = _auth_cookie(u_viewer)
+
+    # Anonymous history access is rejected
+    res_anon = client.get(f"/api/chat/history/{session_id}")
+    assert res_anon.status_code == 401
+
     # Initially empty history
-    res_empty = client.get(f"/api/chat/history/{session_id}")
+    res_empty = client.get(f"/api/chat/history/{session_id}", headers=headers)
     assert res_empty.status_code == 200
     assert res_empty.json() == []
 
@@ -281,7 +320,7 @@ def test_chat_history_endpoint(client, db_session):
     db_session.commit()
 
     # Query history
-    res = client.get(f"/api/chat/history/{session_id}")
+    res = client.get(f"/api/chat/history/{session_id}", headers=headers)
     assert res.status_code == 200
     history = res.json()
     assert len(history) == 2
@@ -296,12 +335,20 @@ def test_chat_sessions_endpoint(client, db_session):
     s1 = f"sess-{uuid.uuid4().hex[:8]}"
     s2 = f"sess-{uuid.uuid4().hex[:8]}"
 
+    u_staff = User(email="inbox@chat.test", hashed_password="pw", full_name="Inbox Staff", role=UserRole.STAFF)
+    db_session.add(u_staff)
+    db_session.commit()
+
+    # Anonymous session enumeration is rejected
+    res_anon = client.get("/api/chat/sessions")
+    assert res_anon.status_code == 401
+
     m1 = ChatMessage(session_id=s1, sender_name="P1", sender_role="patient", message_text="Hi 1")
     m2 = ChatMessage(session_id=s2, sender_name="P2", sender_role="patient", message_text="Hi 2")
     db_session.add_all([m1, m2])
     db_session.commit()
 
-    res = client.get("/api/chat/sessions")
+    res = client.get("/api/chat/sessions", headers=_auth_cookie(u_staff))
     assert res.status_code == 200
     sessions = res.json()
     assert s1 in sessions
@@ -311,19 +358,32 @@ def test_chat_sessions_endpoint(client, db_session):
 def test_chat_rest_send_fallback(client, db_session):
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
 
-    # Patient posts message via REST
-    res = client.post("/api/chat/send", json={
+    u_charlie = User(email="charlie@chat.test", hashed_password="pw", full_name="Charlie", role=UserRole.PATIENT)
+    db_session.add(u_charlie)
+    db_session.commit()
+
+    # Anonymous sends are rejected
+    res_anon = client.post("/api/chat/send", json={
         "session_id": session_id,
-        "sender_name": "Charlie",
-        "role": "patient",
+        "message": "how do I book an appointment?",
+    })
+    assert res_anon.status_code == 401
+
+    # Patient posts message via REST (claimed staff identity must be ignored)
+    res = client.post("/api/chat/send", headers=_auth_cookie(u_charlie), json={
+        "session_id": session_id,
+        "sender_name": "Fake Staff Name",
+        "role": "staff",
         "message": "how do I book an appointment?",
     })
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "success"
+    assert data["user_message"]["sender"] == "Charlie"
+    assert data["user_message"]["role"] == "patient"
     assert "Book Appointment" in data["bot_reply"]["message"]
 
     # History contains both
-    res_hist = client.get(f"/api/chat/history/{session_id}")
+    res_hist = client.get(f"/api/chat/history/{session_id}", headers=_auth_cookie(u_charlie))
     assert res_hist.status_code == 200
     assert len(res_hist.json()) == 2

@@ -83,8 +83,17 @@ def test_critical_due_to_strongly_negative_compound():
 
 # --- Integration tests for /api/feedback endpoints ---
 
-def test_feedback_analytics_empty(client):
-    res = client.get("/api/feedback/analytics")
+def test_feedback_analytics_empty(client, db_session):
+    u_staff = User(email="analytics1@demo.com", full_name="Analytics Staff", role=UserRole.STAFF, hashed_password="pw")
+    db_session.add(u_staff)
+    db_session.commit()
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff.email, 'role': u_staff.role.value})}"}
+
+    # Anonymous access is rejected (staff-only endpoint)
+    res_anon = client.get("/api/feedback/analytics")
+    assert res_anon.status_code == 401
+
+    res = client.get("/api/feedback/analytics", headers=staff_headers)
     assert res.status_code == 200
     data = res.json()
     assert data == {
@@ -208,7 +217,12 @@ def test_feedback_analytics_with_data(client, db_session):
         headers={"Authorization": f"Bearer {token}"},
     )
 
-    analytics_res = client.get("/api/feedback/analytics")
+    u_staff2 = User(email="analytics2@demo.com", full_name="Analytics Two", role=UserRole.STAFF, hashed_password="pw")
+    db_session.add(u_staff2)
+    db_session.commit()
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff2.email, 'role': u_staff2.role.value})}"}
+
+    analytics_res = client.get("/api/feedback/analytics", headers=staff_headers)
     assert analytics_res.status_code == 200
     data = analytics_res.json()
     assert data["total"] == 2

@@ -491,8 +491,17 @@ def test_get_doctor_schedule_default_date_today(db_session):
     db_session.add_all([appt_today, appt_tomorrow])
     db_session.commit()
 
+    u_staff = User(email="frontdesk7@clinic.test", hashed_password="pw", full_name="Desk Seven", role=UserRole.STAFF)
+    db_session.add(u_staff)
+    db_session.commit()
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff.email, 'role': u_staff.role.value})}"}
+
+    # Anonymous access is rejected
+    resp_anon = client.get(f"/api/appointments/doctor-schedule/{doc.id}")
+    assert resp_anon.status_code == 401
+
     # Omit schedule_date -> should default to today
-    resp = client.get(f"/api/appointments/doctor-schedule/{doc.id}")
+    resp = client.get(f"/api/appointments/doctor-schedule/{doc.id}", headers=staff_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 1
@@ -562,7 +571,12 @@ def test_get_doctor_schedule_ordered_by_time_slot(db_session):
     db_session.add_all([appt2, appt1])
     db_session.commit()
 
-    resp = client.get(f"/api/appointments/doctor-schedule/{doc.id}?schedule_date={target_date}")
+    u_staff = User(email="frontdesk8@clinic.test", hashed_password="pw", full_name="Desk Eight", role=UserRole.STAFF)
+    db_session.add(u_staff)
+    db_session.commit()
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff.email, 'role': u_staff.role.value})}"}
+
+    resp = client.get(f"/api/appointments/doctor-schedule/{doc.id}?schedule_date={target_date}", headers=staff_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 2
@@ -574,6 +588,14 @@ def test_get_doctor_schedule_ordered_by_time_slot(db_session):
 
 
 def test_get_doctor_schedule_invalid_date(db_session):
-    resp = client.get("/api/appointments/doctor-schedule/1?schedule_date=invalid-date")
+    u_staff = User(email="frontdesk9@clinic.test", hashed_password="pw", full_name="Desk Nine", role=UserRole.STAFF)
+    db_session.add(u_staff)
+    db_session.commit()
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff.email, 'role': u_staff.role.value})}"}
+
+    resp = client.get(
+        "/api/appointments/doctor-schedule/1?schedule_date=invalid-date",
+        headers=staff_headers,
+    )
     assert resp.status_code == 400
     assert "date format" in resp.json()["detail"].lower()

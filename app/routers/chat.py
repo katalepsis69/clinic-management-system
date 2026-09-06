@@ -1,16 +1,36 @@
 """Real-time Patient-Staff Chat with Automated FAQ Bot router."""
 
-import json
+import logging
 from typing import Dict, List, Optional
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Path, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.models import ChatMessage
+from app.models import ChatMessage, User, UserRole
+from app.auth import decode_token, get_current_user, require_roles
 from app.chat_bot import get_bot_response
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/chat", tags=["Live Chat Box"])
+
+
+def _user_from_websocket(websocket: WebSocket, db: Session) -> Optional[User]:
+    """Resolve the authenticated user from the access_token cookie set at WS handshake."""
+    raw = websocket.cookies.get("access_token")
+    if not raw:
+        return None
+    if raw.startswith("Bearer "):
+        raw = raw[7:].strip()
+    try:
+        payload = decode_token(raw)
+    except HTTPException:
+        return None
+    email = payload.get("sub")
+    if not email:
+        return None
+    return db.query(User).filter(User.email == email).first()
 
 
 class ChatConnectionHub:
@@ -45,18 +65,24 @@ chat_hub = ChatConnectionHub()
 
 
 class SendMessageRequest(BaseModel):
-    session_id: str
-    sender_name: Optional[str] = "Patient"
-    role: Optional[str] = "patient"
-    message: str
+    session_id: str = Field(min_length=8, max_length=128)
+    message: str = Field(min_length=1, max_length=2000)
 
 
 @router.websocket("/ws/{session_id}")
 async def chat_websocket(
     websocket: WebSocket,
-    session_id: str,
-    db: Session = Depends(get_db),
+    session_id: str = Path(min_length=8, max_length=128),
+    db: Session = Depends(get_db),  # ponytail: session pinned per socket; per-message SessionLocal if chat volume grows
 ):
+    # Identity comes from the auth cookie, never from the client payload.
+    user = _user_from_websocket(websocket, db)
+    if user is None:
+        await websocket.close(code=1008)
+        return
+    sender_name = user.full_name
+    sender_role = user.role.value if hasattr(user.role, "value") else str(user.role)
+
     await chat_hub.connect(session_id, websocket)
     try:
         while True:
@@ -66,13 +92,12 @@ async def chat_websocket(
             elif not isinstance(data, dict):
                 data = {"message": str(data)}
 
-            sender_name = data.get("sender_name") or data.get("sender") or "Patient"
-            msg_text = data.get("message") or data.get("text") or ""
-            sender_role = data.get("sender_role") or data.get("role") or "patient"
+            msg_text = str(data.get("message") or data.get("text") or "")[:2000]
 
             # 1. Persist user message
             user_msg = ChatMessage(
                 session_id=session_id,
+                sender_id=user.id,
                 sender_name=sender_name,
                 sender_role=sender_role,
                 message_text=msg_text,
@@ -120,14 +145,24 @@ async def chat_websocket(
     except WebSocketDisconnect:
         pass
     except Exception:
-        pass
+        logger.exception("Chat websocket failed for session %s", session_id)
+        try:
+            await websocket.close(code=1011)
+        except Exception:
+            pass
     finally:
         chat_hub.disconnect(session_id, websocket)
 
 
 @router.get("/history/{session_id}")
-def get_chat_history(session_id: str, db: Session = Depends(get_db)):
-    """Retrieve chat history for a given session."""
+def get_chat_history(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve chat history for a given session (any authenticated user)."""
+    # ponytail: sessions are not yet bound to a user in the schema; add a session-owner
+    # column and filter on it if chat history becomes sensitive beyond staff/patient use.
     messages = (
         db.query(ChatMessage)
         .filter(ChatMessage.session_id == session_id)
@@ -152,21 +187,32 @@ def get_chat_history(session_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/sessions")
-def list_chat_sessions(db: Session = Depends(get_db)):
-    """Retrieve all unique active chat session IDs."""
+def list_chat_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN])),
+):
+    """Retrieve all unique active chat session IDs (staff inbox only)."""
     sessions = db.query(ChatMessage.session_id).distinct().all()
     return [s[0] for s in sessions]
 
 
 @router.post("/send")
-async def send_rest_message(data: SendMessageRequest, db: Session = Depends(get_db)):
-    """REST fallback for sending a chat message with automated bot reply."""
-    sender_name = data.sender_name or "Patient"
-    sender_role = data.role or "patient"
+async def send_rest_message(
+    data: SendMessageRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """REST fallback for sending a chat message with automated bot reply.
+
+    Identity is taken from the authenticated user, never from the request body.
+    """
+    sender_name = current_user.full_name
+    sender_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
 
     # Persist user message
     user_msg = ChatMessage(
         session_id=data.session_id,
+        sender_id=current_user.id,
         sender_name=sender_name,
         sender_role=sender_role,
         message_text=data.message,

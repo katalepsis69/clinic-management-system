@@ -12,16 +12,27 @@ from app.routers import auth, feedback, queue, appointments, emr, billing, chat
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        seed_demo_data(db)
-    finally:
-        db.close()
+    if settings.DEMO_MODE:
+        db = SessionLocal()
+        try:
+            seed_demo_data(db)
+        finally:
+            db.close()
     yield
 
 
 settings = get_settings()
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
 
 # Mount API Routers
 app.include_router(auth.router)
