@@ -11,3 +11,5 @@ services:
         value: "true"
       - key: SECRET_KEY
         generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false

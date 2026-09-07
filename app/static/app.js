@@ -850,6 +850,7 @@
     if (isHidden) {
       win.classList.remove('hidden');
       if (launcher) launcher.setAttribute('aria-expanded', 'true');
+      loadChatHistory(); // load via REST before WS — works regardless of WS auth timing
       if (!state.chatWs || state.chatWs.readyState !== WebSocket.OPEN) {
         initChatWebSocket();
       }
@@ -861,23 +862,23 @@
     }
   }
 
+  async function loadChatHistory() {
+    if (!state.user) return; // not logged in — keep static greeting
+    try {
+      const history = await apiFetch(`${API.chat.history}/${state.chatSessionId}`);
+      if (Array.isArray(history) && history.length) {
+        const box = document.getElementById('chatMessages');
+        if (box) box.innerHTML = '';
+        history.forEach(appendChatMessage);
+      }
+    } catch (_) { /* no history or not authenticated — keep static greeting */ }
+  }
+
   function initChatWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}${API.chat.ws}/${state.chatSessionId}`;
 
     state.chatWs = new WebSocket(wsUrl);
-
-    state.chatWs.onopen = async () => {
-      // Load persisted history once WS is ready
-      try {
-        const history = await apiFetch(`${API.chat.history}/${state.chatSessionId}`);
-        if (Array.isArray(history) && history.length) {
-          const box = document.getElementById('chatMessages');
-          if (box) box.innerHTML = ''; // clear the static greeting so we show real history
-          history.forEach(appendChatMessage);
-        }
-      } catch (_) { /* not authenticated yet or no history — keep static greeting */ }
-    };
 
     state.chatWs.onmessage = (event) => {
       try {
