@@ -867,6 +867,18 @@
 
     state.chatWs = new WebSocket(wsUrl);
 
+    state.chatWs.onopen = async () => {
+      // Load persisted history once WS is ready
+      try {
+        const history = await apiFetch(`${API.chat.history}/${state.chatSessionId}`);
+        if (Array.isArray(history) && history.length) {
+          const box = document.getElementById('chatMessages');
+          if (box) box.innerHTML = ''; // clear the static greeting so we show real history
+          history.forEach(appendChatMessage);
+        }
+      } catch (_) { /* not authenticated yet or no history — keep static greeting */ }
+    };
+
     state.chatWs.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
@@ -885,9 +897,9 @@
     const box = document.getElementById('chatMessages');
     if (!box) return;
 
+    const isBot = msg.is_bot_reply || msg.role === 'bot' || msg.sender === 'Clinic Assistant Bot';
     // Identity-based: a message is "mine" only if the server says it came from me
     const isMe = !isBot && state.user && (msg.sender === state.user.full_name || msg.sender_name === state.user.full_name);
-    const isBot = msg.is_bot_reply || msg.role === 'bot' || msg.sender === 'Clinic Assistant Bot';
     const safeText = escapeHTML(msg.message || msg.message_text || '');
     const safeSender = escapeHTML(msg.sender || msg.sender_name || 'Staff');
 
