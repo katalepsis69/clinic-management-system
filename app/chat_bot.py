@@ -3,15 +3,10 @@
 from app.config import get_settings
 
 FAQ_RULES = [
-    (["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "howdy"], "Hello! Welcome to City Health Clinic. I can help you with clinic hours, booking appointments, our location, or connecting you with a specialist. What can I assist you with today?"),
-    (["help", "assist", "support", "what can you do", "options"], "I can help you with: clinic hours, booking appointments, our location and directions, available specialists, and general clinic information. Just ask!"),
     (["emergency", "urgent", "ambulance", "severe", "critical", "911"], "For severe life-threatening emergencies, please call 911 or proceed immediately to the nearest hospital Emergency Room."),
     (["hours", "opening", "open", "time", "schedule", "close", "closing"], "Our clinic is open Monday to Saturday from 8:00 AM to 6:00 PM. Emergency walk-ins are accepted anytime during open hours."),
     (["book", "appointment", "reserve", "slot"], "You can book an appointment in the Patient Portal under 'Book Appointment'. Choose your doctor and preferred time slot!"),
     (["location", "address", "where", "directions", "find", "map"], "We are located at 123 Healthcare Blvd, Suite 400, Medical Arts Tower. Parking is available on Level B1."),
-    (["doctor", "specialist", "cardiologist", "physician", "pediatric", "orthop"], "We have specialists in Cardiology, Pediatrics, General Medicine, and Orthopedics. View their profiles in the booking tab."),
-    (["price", "cost", "fee", "insurance", "payment", "pay", "bill"], "We accept most major insurance plans and offer flexible payment options. Please contact our front desk at 555-0100 for specific pricing."),
-    (["thank", "thanks", "great", "ok", "okay", "got it", "perfect"], "You're welcome! Is there anything else I can help you with?"),
 ]
 
 SYSTEM_PROMPT = """You are the AI Front Desk Assistant for MediFlow Clinic.
