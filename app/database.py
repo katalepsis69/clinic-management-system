@@ -6,9 +6,13 @@ from app.config import get_settings
 
 def create_db_engine(settings):
     url = settings.DATABASE_URL
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
     # ponytail: 20-conn pool + pre-ping is standard; upgrade to external pgbouncer if scaling past 500 rps
     if url.startswith("postgresql"):
-        connect_args = {"sslmode": "require"} if not settings.DEMO_MODE else {}
+        connect_args = {}
+        if "sslmode" not in url:
+            connect_args["sslmode"] = "require"
         return create_engine(
             url,
             pool_size=20,
