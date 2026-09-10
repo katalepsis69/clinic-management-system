@@ -57,11 +57,18 @@ def health_check():
     return {"status": "healthy", "service": settings.APP_NAME}
 
 
+NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 @app.get("/")
 def serve_index():
-    return FileResponse("app/static/index.html")
+    return FileResponse("app/static/index.html", headers=NO_CACHE_HEADERS)
 
 
 @app.get("/display")
 def serve_public_display():
-    return FileResponse("app/static/display.html")
+    return FileResponse("app/static/display.html", headers=NO_CACHE_HEADERS)
