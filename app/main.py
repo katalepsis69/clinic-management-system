@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.database import engine, Base, SessionLocal
 from app.seed import seed_demo_data
 from app.routers import auth, feedback, queue, appointments, emr, billing, chat
+from app.middleware.audit import AuditLoggingMiddleware
 
 
 @asynccontextmanager
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
 
 settings = get_settings()
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+app.add_middleware(AuditLoggingMiddleware)
 
 
 @app.middleware("http")

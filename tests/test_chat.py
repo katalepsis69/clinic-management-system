@@ -97,7 +97,9 @@ def test_bot_faq_all_rules_and_keywords():
     assert "Cardiology" in get_bot_response("Which physician or doctor is available?")
 
 
-def test_bot_fallback_and_edge_cases():
+def test_bot_fallback_and_edge_cases(monkeypatch):
+    from app.config import Settings
+    monkeypatch.setattr("app.chat_bot.get_settings", lambda: Settings(GEMINI_API_KEY=""))
     fallback_substr = "A clinic receptionist has received your inquiry"
     assert fallback_substr in get_bot_response("Tell me a funny joke")
     assert fallback_substr in get_bot_response("Can I buy groceries?")

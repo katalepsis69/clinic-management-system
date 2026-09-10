@@ -1,68 +1,27 @@
-# Secrets & Environment Variables (CRITICAL)
+﻿# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Environment / secrets
 .env
-.env*.local
 *.env
 
-# SQLite & Databases
+# Database
+data/
 *.db
 *.sqlite3
-data/
 
-# Python cache & artifacts
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
+# Virtual env
 venv/
 .venv/
 env/
-ENV/
 
-# Testing & Coverage
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# IDE & OS files
+# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
-
-# Type-checking & linting caches
-.mypy_cache/
-.ruff_cache/
-.dmypy.json
-
-# Jupyter / IPython
-.ipynb_checkpoints/
-
-# OS
-desktop.ini
-ehthumbs.db

@@ -1,13 +1,16 @@
 """AI & FAQ Bot Engine for Clinic Assistant."""
 
+import logging
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 FAQ_RULES = [
     (["emergency", "urgent", "ambulance", "severe", "critical", "911"], "For severe life-threatening emergencies, please call 911 or proceed immediately to the nearest hospital Emergency Room."),
-    (["hours", "opening", "open", "time", "schedule"], "Our clinic is open Monday to Saturday from 8:00 AM to 6:00 PM. Emergency walk-ins are accepted anytime during open hours."),
+    (["hours", "opening", "open", "time", "schedule", "close", "closing"], "Our clinic is open Monday to Saturday from 8:00 AM to 6:00 PM. Emergency walk-ins are accepted anytime during open hours."),
     (["book", "appointment", "reserve", "slot"], "You can book an appointment in the Patient Portal under 'Book Appointment'. Choose your doctor and preferred time slot!"),
-    (["location", "address", "where", "directions"], "We are located at 123 Healthcare Blvd, Suite 400, Medical Arts Tower. Parking is available on Level B1."),
-    (["doctor", "specialist", "cardiologist", "physician"], "We have specialists in Cardiology, Pediatrics, General Medicine, and Orthopedics. View their profiles in the booking tab.")
+    (["location", "address", "where", "directions", "find", "map"], "We are located at 123 Healthcare Blvd, Suite 400, Medical Arts Tower. Parking is available on Level B1."),
+    (["doctor", "specialist", "cardiologist", "physician"], "We have specialists in Cardiology, Pediatrics, General Medicine, and Orthopedics. View their profiles in the booking tab."),
 ]
 
 SYSTEM_PROMPT = """You are the AI Front Desk Assistant for MediFlow Clinic.
@@ -19,23 +22,30 @@ SYSTEM_PROMPT = """You are the AI Front Desk Assistant for MediFlow Clinic.
 - Tone: Polite, empathetic, concise (1-3 sentences)."""
 
 
-def _get_faq_response(message: str) -> str:
+def _get_matching_faq(message: str):
     msg_lower = str(message).lower()
     for keywords, response in FAQ_RULES:
         if any(k in msg_lower for k in keywords):
             return response
+    return None
+
+
+def _get_faq_response(message: str) -> str:
+    match = _get_matching_faq(message)
+    if match:
+        return match
     return "Thank you for messaging. A clinic receptionist has received your inquiry and will reply shortly. If urgent, please call our front desk at 555-0100."
 
 
 def get_bot_response(message: str) -> str:
     """Return intelligent Gemini AI response with fallback to FAQ rules."""
     if not message or not str(message).strip():
-        return "Thank you for messaging. A clinic receptionist has received your inquiry and will reply shortly. If urgent, please call our front desk at 555-0100."
+        return _get_faq_response(message)
 
-    # Fast-path for critical emergency keywords
-    msg_lower = str(message).lower()
-    if any(k in msg_lower for k in ["911", "ambulance", "emergency", "severe chest pain", "can't breathe"]):
-        return "For severe life-threatening emergencies, please call 911 or proceed immediately to the nearest hospital Emergency Room."
+    # ponytail: fast-path deterministic clinic FAQ before external LLM call to eliminate latency and quota waste
+    faq_match = _get_matching_faq(message)
+    if faq_match:
+        return faq_match
 
     settings = get_settings()
     api_key = settings.GEMINI_API_KEY.strip() if settings.GEMINI_API_KEY else ""
@@ -58,7 +68,6 @@ def get_bot_response(message: str) -> str:
             if response.text and response.text.strip():
                 return response.text.strip()
         except Exception:
-            # ponytail: fallback to static FAQ when offline, quota exceeded, or key invalid
-            pass
+            logger.exception("Gemini API call failed — falling back to FAQ")
 
     return _get_faq_response(message)
