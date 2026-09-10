@@ -29,7 +29,7 @@
 - Consumes: `DATABASE_URL` (e.g. `postgresql+psycopg://user:pass@host:5432/clinicdb`)
 - Produces: SQLAlchemy engine configured with `pool_size=20`, `max_overflow=10`, `pool_pre_ping=True`, and automatic SSL requirement in production.
 
-- [ ] **Step 1: Write pool configuration test**
+- [x] **Step 1: Write pool configuration test**
 
 ```python
 # tests/test_postgres_pool.py
@@ -42,12 +42,12 @@ def test_engine_pool_configuration():
     assert engine is not None
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_postgres_pool.py -v`  
 Expected: FAIL with `ImportError: cannot import name 'create_db_engine'`
 
-- [ ] **Step 3: Implement production database engine factory**
+- [x] **Step 3: Implement production database engine factory**
 
 ```python
 # app/database.py (production enhancement)
@@ -86,12 +86,12 @@ def get_db():
         db.close()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_postgres_pool.py -v`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/database.py tests/test_postgres_pool.py
@@ -111,7 +111,7 @@ git commit -m "feat(prod): implement production PostgreSQL connection pool with 
 - Consumes: `REDIS_URL`
 - Produces: Multi-instance broadcast mechanism where any container publishing a queue or chat event delivers it to all connected patients across the entire cluster.
 
-- [ ] **Step 1: Write mock Redis broadcast test**
+- [x] **Step 1: Write mock Redis broadcast test**
 
 ```python
 # tests/test_redis_pubsub.py
@@ -132,12 +132,12 @@ async def test_broadcast_bus_fallback():
     assert messages[0]["ticket"] == "Q-105"
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_redis_pubsub.py -v`  
 Expected: FAIL with `ModuleNotFoundError: No module named 'app.redis_pubsub'`
 
-- [ ] **Step 3: Implement BroadcastBus with Redis and in-memory fallback**
+- [x] **Step 3: Implement BroadcastBus with Redis and in-memory fallback**
 
 ```python
 # app/redis_pubsub.py
@@ -167,12 +167,12 @@ class BroadcastBus:
 bus = BroadcastBus()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_redis_pubsub.py -v`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/redis_pubsub.py tests/test_redis_pubsub.py
@@ -192,7 +192,7 @@ git commit -m "feat(prod): implement Redis pub/sub broadcast bus for horizontal 
 - Consumes: All requests modifying or viewing patient EMR, prescriptions, or billing
 - Produces: Immutable `audit_logs` records tracking `user_id`, `patient_id`, `action`, `resource`, `ip_address`, and `user_agent`.
 
-- [ ] **Step 1: Write audit trail test**
+- [x] **Step 1: Write audit trail test**
 
 ```python
 # tests/test_audit_logging.py
@@ -221,12 +221,12 @@ def test_audit_event_logged():
     db.close()
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_audit_logging.py -v`  
 Expected: FAIL with `ModuleNotFoundError: No module named 'app.models_audit'`
 
-- [ ] **Step 3: Implement audit models and logging function**
+- [x] **Step 3: Implement audit models and logging function**
 
 ```python
 # app/models_audit.py
@@ -263,12 +263,12 @@ def log_audit_event(db: Session, user_id: int, action: str, resource: str, patie
     return log
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_audit_logging.py -v`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/models_audit.py tests/test_audit_logging.py
@@ -287,7 +287,7 @@ git commit -m "feat(prod): implement HIPAA/GDPR immutable audit logging for pati
 - Consumes: Queue updates (when a ticket is 2 away from being served)
 - Produces: `send_queue_alert(phone, ticket_number, room_number)` via Twilio or webhook with automatic simulated mode in dev.
 
-- [ ] **Step 1: Write notification dispatch test**
+- [x] **Step 1: Write notification dispatch test**
 
 ```python
 # tests/test_notifications.py
@@ -305,12 +305,12 @@ def test_mock_notification_send():
     assert success is True
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_notifications.py -v`  
 Expected: FAIL with `ModuleNotFoundError: No module named 'app.notifications'`
 
-- [ ] **Step 3: Implement SMS notification service**
+- [x] **Step 3: Implement SMS notification service**
 
 ```python
 # app/notifications.py
@@ -350,12 +350,12 @@ class NotificationService:
 notification_service = NotificationService()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_notifications.py -v`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/notifications.py tests/test_notifications.py
@@ -374,7 +374,7 @@ git commit -m "feat(prod): implement SMS/WhatsApp alert gateway for live queue n
 - Consumes: Doctor's private key + prescription metadata
 - Produces: Cryptographically signed prescription payload that any pharmacy or patient can independently verify using the clinic's public key.
 
-- [ ] **Step 1: Write cryptographic signature test**
+- [x] **Step 1: Write cryptographic signature test**
 
 ```python
 # tests/test_crypto_sign.py
@@ -390,12 +390,12 @@ def test_signature_roundtrip():
     assert verify_prescription_signature("tampered-data", signature, public_pem) is False
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_crypto_sign.py -v`  
 Expected: FAIL with `ModuleNotFoundError: No module named 'app.crypto_sign'`
 
-- [ ] **Step 3: Implement RSA digital signature logic**
+- [x] **Step 3: Implement RSA digital signature logic**
 
 ```python
 # app/crypto_sign.py
@@ -442,12 +442,12 @@ def verify_prescription_signature(data: str, signature_b64: str, public_pem: str
         return False
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_crypto_sign.py -v`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/crypto_sign.py tests/test_crypto_sign.py
@@ -467,7 +467,7 @@ git commit -m "feat(prod): implement RSA cryptographic digital signatures for e-
 - Consumes: Container image
 - Produces: Production multi-worker Gunicorn server configuration and Kubernetes Horizontal Pod Autoscaler (HPA) manifests.
 
-- [ ] **Step 1: Write configuration validator test**
+- [x] **Step 1: Write configuration validator test**
 
 ```python
 # tests/test_gunicorn_conf.py
@@ -479,12 +479,12 @@ def test_gunicorn_settings():
     assert gunicorn_conf.keepalive == 120
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_gunicorn_conf.py -v`  
 Expected: FAIL with `ModuleNotFoundError: No module named 'gunicorn_conf'`
 
-- [ ] **Step 3: Implement Gunicorn config and Kubernetes deployment manifests**
+- [x] **Step 3: Implement Gunicorn config and Kubernetes deployment manifests**
 
 ```python
 # gunicorn_conf.py
@@ -565,12 +565,12 @@ spec:
           averageUtilization: 75
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_gunicorn_conf.py -v`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add gunicorn_conf.py deploy/k8s-deployment.yaml tests/test_gunicorn_conf.py
