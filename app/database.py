@@ -4,16 +4,30 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from app.config import get_settings
 
+def create_db_engine(settings):
+    url = settings.DATABASE_URL
+    # ponytail: 20-conn pool + pre-ping is standard; upgrade to external pgbouncer if scaling past 500 rps
+    if url.startswith("postgresql"):
+        connect_args = {"sslmode": "require"} if not settings.DEMO_MODE else {}
+        return create_engine(
+            url,
+            pool_size=20,
+            max_overflow=10,
+            pool_timeout=30,
+            pool_recycle=1800,
+            pool_pre_ping=True,
+            connect_args=connect_args,
+        )
+    else:
+        connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+        if url.startswith("sqlite"):
+            db_file_path = url.replace("sqlite:///", "")
+            if db_file_path and db_file_path != ":memory:":
+                os.makedirs(os.path.dirname(db_file_path) or ".", exist_ok=True)
+        return create_engine(url, connect_args=connect_args)
+
 settings = get_settings()
-
-connect_args = {}
-if settings.DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
-    db_file_path = settings.DATABASE_URL.replace("sqlite:///", "")
-    if db_file_path and db_file_path != ":memory:":
-        os.makedirs(os.path.dirname(db_file_path) or ".", exist_ok=True)
-
-engine = create_engine(settings.DATABASE_URL, connect_args=connect_args)
+engine = create_db_engine(settings)
 
 # SQLite Concurrency in WAL Mode + Busy Timeout listener
 @event.listens_for(Engine, "connect")
