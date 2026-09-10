@@ -132,13 +132,29 @@
         showToast('Access restricted: your account does not have permission for this portal.', 'warning');
         return;
       }
+    } else if (tabName === 'login') {
+      state.activeTab = 'login';
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.setAttribute('aria-selected', 'false');
+      });
+      document.querySelectorAll('.tab-content').forEach(sec => {
+        sec.classList.add('hidden');
+      });
+      const activeSec = document.getElementById('portal-login');
+      if (activeSec) activeSec.classList.remove('hidden');
+      const nav = document.getElementById('portalNav');
+      if (nav) nav.classList.add('hidden');
+      return;
     } else if (tabName !== 'patient') {
       showToast('Please sign in with authorized clinic credentials.', 'info');
-      showAuthModal('login');
+      switchTab('login');
       return;
     }
 
     state.activeTab = tabName;
+    const nav = document.getElementById('portalNav');
+    if (nav) nav.classList.remove('hidden');
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.setAttribute('aria-selected', String(btn.id === `tab-${tabName}`));
     });
@@ -207,7 +223,7 @@
       localStorage.setItem('chat_session_id', state.chatSessionId);
       updateUserUI();
       showToast('Logged out successfully', 'info');
-      switchTab('patient');
+      switchTab('login');
     }
   }
 
@@ -225,7 +241,10 @@
     const tabStaff = document.getElementById('tab-staff');
     const tabAnalytics = document.getElementById('tab-analytics');
 
+    const nav = document.getElementById('portalNav');
+
     if (state.user) {
+      if (nav) nav.classList.remove('hidden');
       if (badge) badge.classList.remove('hidden');
       if (nameEl) nameEl.textContent = state.user.full_name || state.user.email;
       if (roleEl) {
@@ -267,6 +286,12 @@
         if (tabAnalytics) tabAnalytics.classList.remove('hidden');
       }
     } else {
+      if (state.activeTab === 'login') {
+        if (nav) nav.classList.add('hidden');
+      } else {
+        if (nav) nav.classList.remove('hidden');
+      }
+
       if (badge) badge.classList.add('hidden');
       if (manualLoginBtn) manualLoginBtn.classList.remove('hidden');
       if (registerNavBtn) registerNavBtn.classList.remove('hidden');
@@ -461,6 +486,107 @@
         showToast(err.message, 'error');
       }
     }
+  }
+
+  // Dedicated Role-based Login Portal Logic
+  let currentLoginRole = 'patient';
+
+  const roleMeta = {
+    patient: {
+      title: 'Patient Portal Sign In',
+      subtitle: 'Book appointments, track live queue, and view medical profile',
+      btnText: 'Sign In as Patient',
+      icon: '#i-user',
+      emailPlaceholder: 'patient@example.com',
+    },
+    doctor: {
+      title: 'Doctor Clinical Console',
+      subtitle: 'Access daily schedules, patient EMRs, and digital e-prescriptions',
+      btnText: 'Sign In as Doctor',
+      icon: '#i-stethoscope',
+      emailPlaceholder: 'doctor@demo.com',
+    },
+    staff: {
+      title: 'Staff & Billing Desk',
+      subtitle: 'Manage waiting queues, walk-in check-in, and invoice issuance',
+      btnText: 'Sign In as Staff',
+      icon: '#i-clipboard',
+      emailPlaceholder: 'staff@demo.com',
+    },
+    admin: {
+      title: 'Administrator Console',
+      subtitle: 'Review clinic-wide operations, footfall, and patient sentiment analytics',
+      btnText: 'Sign In as Administrator',
+      icon: '#i-chart',
+      emailPlaceholder: 'admin@demo.com',
+    },
+  };
+
+  function switchLoginRole(role) {
+    if (!roleMeta[role]) role = 'patient';
+    currentLoginRole = role;
+
+    ['patient', 'doctor', 'staff', 'admin'].forEach(r => {
+      const pill = document.getElementById(`pill-${r}`);
+      if (pill) {
+        pill.setAttribute('aria-selected', r === role ? 'true' : 'false');
+      }
+    });
+
+    const meta = roleMeta[role];
+    const titleEl = document.getElementById('loginRoleTitle');
+    const subEl = document.getElementById('loginRoleSubtitle');
+    const btnTextEl = document.getElementById('portalLoginBtnText');
+    const emailInput = document.getElementById('portalLoginEmail');
+    const roleIcon = document.getElementById('loginRoleIcon');
+
+    if (titleEl) titleEl.textContent = meta.title;
+    if (subEl) subEl.textContent = meta.subtitle;
+    if (btnTextEl) btnTextEl.textContent = meta.btnText;
+    if (emailInput) {
+      emailInput.placeholder = meta.emailPlaceholder;
+      emailInput.focus();
+    }
+    if (roleIcon) {
+      roleIcon.innerHTML = `<use href="${meta.icon}"/>`;
+    }
+
+    ['patient', 'doctor', 'staff', 'admin'].forEach(r => {
+      const promptEl = document.getElementById(`rolePrompt${r.charAt(0).toUpperCase() + r.slice(1)}`);
+      if (promptEl) {
+        promptEl.classList.toggle('hidden', r === role);
+      }
+    });
+
+    const errEl = document.getElementById('portalLoginErrorMsg');
+    if (errEl) errEl.classList.add('hidden');
+  }
+
+  async function handlePortalLogin(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('portalLoginErrorMsg');
+    if (errEl) errEl.classList.add('hidden');
+    const submitBtn = document.getElementById('portalLoginSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const email = document.getElementById('portalLoginEmail').value.trim();
+    const password = document.getElementById('portalLoginPassword').value;
+    try {
+      await login(email, password);
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || 'Incorrect email or password.';
+        errEl.classList.remove('hidden');
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  function continueAsGuest() {
+    const nav = document.getElementById('portalNav');
+    if (nav) nav.classList.remove('hidden');
+    switchTab('patient');
   }
 
   function showProfileModal() {
@@ -1300,12 +1426,15 @@
       const me = await apiFetch(API.auth.me);
       state.user = me;
       localStorage.setItem('user_profile', JSON.stringify(me));
+      updateUserUI();
+      const roleMap = { patient: 'patient', doctor: 'doctor', staff: 'staff', admin: 'analytics' };
+      switchTab(roleMap[me.role] || 'patient');
     } catch (_) {
       state.user = null;
       localStorage.removeItem('user_profile');
+      updateUserUI();
+      switchTab('login');
     }
-    updateUserUI();
-    switchTab('patient');
   }
 
   // Expose methods to window.ClinicApp
@@ -1313,6 +1442,9 @@
     switchTab,
     login,
     logout,
+    switchLoginRole,
+    handlePortalLogin,
+    continueAsGuest,
     showAuthModal,
     hideAuthModal,
     switchAuthTab,

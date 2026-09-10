@@ -91,7 +91,7 @@
   </header>
 
   <!-- Sticky navigation tabs -->
-  <nav class="bg-[#FAF8F5]/90 backdrop-blur border-b border-stone-200/80 sticky top-0 z-40" aria-label="Portal sections">
+  <nav id="portalNav" class="hidden bg-[#FAF8F5]/90 backdrop-blur border-b border-stone-200/80 sticky top-0 z-40" aria-label="Portal sections">
     <div class="container-page">
       <div class="flex gap-1 overflow-x-auto no-scrollbar" id="portalTabs" role="tablist">
         <button onclick="window.ClinicApp.switchTab('patient')" id="tab-patient" role="tab" aria-selected="true" aria-controls="portal-patient" class="tab-btn">
@@ -115,6 +115,85 @@
 
   <!-- Main content -->
   <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+
+    <!-- ================================================================= -->
+    <!-- PORTAL 0: LOGIN GATEWAY -->
+    <!-- ================================================================= -->
+    <section id="portal-login" role="tabpanel" aria-label="Clinic Login Portal" class="tab-content max-w-lg mx-auto py-6 sm:py-10">
+      <div class="card card-pad shadow-xl border border-stone-200/90 relative overflow-hidden">
+        <!-- Brand / Welcome Header -->
+        <div class="text-center">
+          <div class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-700 border border-brand-200/70 mx-auto flex items-center justify-center shadow-sm shadow-brand-900/5" aria-hidden="true">
+            <svg class="icon w-7 h-7" id="loginRoleIcon"><use href="#i-user"/></svg>
+          </div>
+          <h2 id="loginRoleTitle" class="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight mt-3">Patient Portal Sign In</h2>
+          <p id="loginRoleSubtitle" class="text-xs text-stone-500 mt-1 max-w-xs mx-auto">Book appointments, track live queue, and view medical profile</p>
+        </div>
+
+        <!-- Role Segmented Control -->
+        <div class="bg-stone-100/80 p-1 rounded-2xl flex gap-1 mt-6 border border-stone-200/60" role="tablist" aria-label="Select role to sign in">
+          <button type="button" role="tab" id="pill-patient" aria-selected="true" onclick="window.ClinicApp.switchLoginRole('patient')" class="role-pill flex-1">
+            <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-user"/></svg> <span>Patient</span>
+          </button>
+          <button type="button" role="tab" id="pill-doctor" aria-selected="false" onclick="window.ClinicApp.switchLoginRole('doctor')" class="role-pill flex-1">
+            <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-stethoscope"/></svg> <span>Doctor</span>
+          </button>
+          <button type="button" role="tab" id="pill-staff" aria-selected="false" onclick="window.ClinicApp.switchLoginRole('staff')" class="role-pill flex-1">
+            <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-clipboard"/></svg> <span>Staff</span>
+          </button>
+          <button type="button" role="tab" id="pill-admin" aria-selected="false" onclick="window.ClinicApp.switchLoginRole('admin')" class="role-pill flex-1">
+            <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-chart"/></svg> <span>Admin</span>
+          </button>
+        </div>
+
+        <!-- Error alert -->
+        <div id="portalLoginErrorMsg" role="alert" aria-live="polite" class="hidden mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700"></div>
+
+        <!-- Sign In Form -->
+        <form id="portalLoginForm" onsubmit="window.ClinicApp.handlePortalLogin(event)" class="mt-5 space-y-4">
+          <div>
+            <label for="portalLoginEmail" class="label">Email Address</label>
+            <input type="email" id="portalLoginEmail" required autocomplete="email" placeholder="patient@example.com" class="input">
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label for="portalLoginPassword" class="label !mb-0">Password</label>
+            </div>
+            <input type="password" id="portalLoginPassword" required autocomplete="current-password" placeholder="••••••••" class="input">
+          </div>
+          <button type="submit" id="portalLoginSubmitBtn" class="btn btn-primary w-full shadow-md shadow-brand-900/10">
+            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-login"/></svg>
+            <span id="portalLoginBtnText">Sign In as Patient</span>
+          </button>
+        </form>
+
+        <!-- Contextual Role Switcher Links ("Doctor? Click here" etc.) -->
+        <div id="roleSwitchLinks" class="mt-6 pt-5 border-t border-stone-200/80 text-center text-xs text-stone-500 space-y-2">
+          <div id="rolePromptDoctor" class="block">
+            Doctor? <button type="button" onclick="window.ClinicApp.switchLoginRole('doctor')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline">Click here to access Clinical Console</button>
+          </div>
+          <div id="rolePromptStaff" class="block">
+            Staff &amp; Billing Desk? <button type="button" onclick="window.ClinicApp.switchLoginRole('staff')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline">Click here</button>
+          </div>
+          <div id="rolePromptAdmin" class="block">
+            Clinic Administrator? <button type="button" onclick="window.ClinicApp.switchLoginRole('admin')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline">Click here</button>
+          </div>
+          <div id="rolePromptPatient" class="hidden">
+            Patient looking for appointments? <button type="button" onclick="window.ClinicApp.switchLoginRole('patient')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline">Click here for Patient Portal</button>
+          </div>
+        </div>
+
+        <!-- Guest Patient Access & Registration -->
+        <div class="mt-5 pt-4 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <button type="button" onclick="window.ClinicApp.continueAsGuest()" class="font-semibold text-stone-600 hover:text-stone-900 underline underline-offset-2">
+            Continue as Guest Patient &rarr;
+          </button>
+          <button type="button" onclick="window.ClinicApp.showAuthModal('register')" class="font-semibold text-brand-700 hover:text-brand-800">
+            New patient? Register here
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- ================================================================= -->
     <!-- PORTAL 1: PATIENT -->

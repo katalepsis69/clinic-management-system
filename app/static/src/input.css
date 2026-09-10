@@ -132,6 +132,18 @@
     @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold;
   }
 
+  /* Role segmented pill control for login portal */
+  .role-pill {
+    @apply inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3.5 py-1.5 rounded-xl
+      text-xs font-semibold text-stone-600 transition-all duration-150 cursor-pointer select-none
+      hover:text-stone-900 hover:bg-stone-100/80
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
+      active:scale-[0.98];
+  }
+  .role-pill[aria-selected='true'] {
+    @apply bg-white text-stone-900 shadow-sm border border-stone-200/80 font-bold;
+  }
+
   /* Icons -------------------------------------------------------------------
    * Sizing via width/height utilities (w-4 h-4 …) overrides the 1.25em default.
    * Color inherits from `currentColor`.  */
