@@ -68,6 +68,29 @@ def get_current_user(
     return user
 
 
+def get_optional_current_user(
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    auth_token = token or request.cookies.get("access_token")
+    if auth_token and auth_token.startswith("Bearer "):
+        auth_token = auth_token[7:].strip()
+    if not auth_token:
+        return None
+
+    try:
+        payload = decode_token(auth_token)
+    except HTTPException:
+        return None
+
+    email: str = payload.get("sub")
+    if not email:
+        return None
+
+    return db.query(User).filter(User.email == email).first()
+
+
 def require_roles(allowed_roles: List[UserRole]):
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in allowed_roles:

@@ -57,7 +57,6 @@
           </div>
           <div class="min-w-0">
             <span class="block text-sm sm:text-base font-bold text-stone-900 tracking-tight leading-tight truncate">Clinic Management System</span>
-            <span class="hidden sm:block text-xs text-stone-500 leading-tight">Smart healthcare &amp; real-time queue tracker</span>
           </div>
         </div>
 
@@ -121,7 +120,6 @@
             <svg class="icon w-7 h-7" id="loginRoleIcon"><use href="#i-user"/></svg>
           </div>
           <h2 id="loginRoleTitle" class="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight mt-3">Patient Portal Sign In</h2>
-          <p id="loginRoleSubtitle" class="text-xs text-stone-500 mt-1 max-w-xs mx-auto">Book appointments, track live queue, and view medical profile</p>
         </div>
 
         <!-- Role Segmented Control -->
@@ -169,10 +167,6 @@
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-login"/></svg>
             <span id="portalLoginBtnText">Sign In as Patient</span>
           </button>
-          <div class="text-center pt-3 border-t border-stone-100 text-xs text-stone-500">
-            Don't have an account?
-            <button type="button" onclick="window.ClinicApp.switchPortalMode('register')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline ml-1">Create one now</button>
-          </div>
         </form>
 
         <!-- Mode 2: Role-Based Sign Up Form -->
@@ -305,10 +299,6 @@
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-user-plus"/></svg>
             <span id="portalRegBtnText">Create Patient Account</span>
           </button>
-          <div class="text-center pt-3 border-t border-stone-100 text-xs text-stone-500">
-            Already have an account?
-            <button type="button" onclick="window.ClinicApp.switchPortalMode('login')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline ml-1">Sign in here</button>
-          </div>
         </form>
       </div>
     </div>
@@ -524,7 +514,6 @@
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 class="text-lg font-bold text-stone-900 tracking-tight">Patient Portal</h2>
-          <p class="text-xs text-stone-500 mt-0.5">Book appointments, track the live queue, and share visit feedback.</p>
         </div>
       </div>
 
@@ -698,7 +687,6 @@
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 class="text-lg font-bold text-stone-900 tracking-tight">Doctor Portal</h2>
-          <p class="text-xs text-stone-500 mt-0.5">Today's schedule, patient records, and digital prescriptions.</p>
         </div>
       </div>
 
@@ -838,7 +826,6 @@
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 class="text-lg font-bold text-stone-900 tracking-tight">Staff &amp; Billing Desk</h2>
-          <p class="text-xs text-stone-500 mt-0.5">Queue console, walk-in intake, and invoice issuance.</p>
         </div>
       </div>
 
@@ -1002,7 +989,6 @@
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 class="text-lg font-bold text-stone-900 tracking-tight">Patient Sentiment &amp; Experience</h2>
-          <p class="text-xs text-stone-500 mt-0.5">Real-time VADER natural-language analysis across patient reviews.</p>
         </div>
         <button onclick="window.ClinicApp.loadAnalytics()" class="btn btn-outline btn-sm">
           <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg> Refresh
@@ -1106,8 +1092,10 @@
         </div>
         <div class="min-w-0">
           <h3 class="text-sm font-bold leading-tight truncate">Clinic Assistant &amp; FAQ</h3>
-          <span class="text-[11px] text-brand-400 flex items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" aria-hidden="true"></span> Online &bull; Live Bot
+          <span class="text-[11px] text-brand-400 flex items-center gap-1.5 flex-wrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" aria-hidden="true"></span>
+            <span>Online &bull; Live Bot</span>
+            <span id="chatGuestPill" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-brand-800 text-brand-200 border border-brand-700 font-mono">Guest: <span id="chatGuestRemaining">5</span>/5 left</span>
           </span>
         </div>
       </div>
@@ -1145,6 +1133,14 @@
           Welcome to City Health Clinic. I am your virtual assistant. Ask me about opening hours, booking appointments, specialists, general health facts, or our location. (Pwede rin po kayong magtanong sa Tagalog!)
         </div>
       </div>
+    </div>
+
+    <!-- Guest limit warning banner -->
+    <div id="chatGuestBanner" class="hidden px-3.5 py-2 bg-amber-50 border-t border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2 shrink-0">
+      <span class="font-medium text-[11px] truncate">Guest limit reached (5/5 messages).</span>
+      <button type="button" onclick="window.ClinicApp.showAuthModal('login')" class="btn btn-primary !min-h-[28px] !h-7 !py-0.5 !px-2.5 !text-[11px] font-bold shrink-0">
+        Sign In
+      </button>
     </div>
 
     <!-- Input -->

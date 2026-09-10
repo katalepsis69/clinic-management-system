@@ -37,6 +37,7 @@
       history: '/api/chat/history',
       send: '/api/chat/send',
       ws: '/api/chat/ws',
+      status: '/api/chat/status',
     },
   };
 
@@ -48,6 +49,7 @@
     myTicket: localStorage.getItem('my_ticket') || null,
     // ponytail: fresh UUID per login; random session IDs prevent guest-session enumeration
     chatSessionId: localStorage.getItem('chat_session_id') || crypto.randomUUID(),
+    guestChatRemaining: 5,
     chatWs: null,
     queueWs: null,
   };
@@ -304,6 +306,7 @@
       if (tabAnalytics) tabAnalytics.classList.add('hidden');
       renderGuestPatientProfile();
     }
+    updateChatGuestUI(state.user ? null : state.guestChatRemaining);
   }
 
   function renderGuestPatientProfile() {
@@ -495,8 +498,6 @@
   const roleMeta = {
     patient: {
       title: 'Patient Portal',
-      loginSubtitle: 'Book appointments, track live queue, and view medical profile',
-      regSubtitle: 'Create your patient account and clinical health file',
       btnText: 'Sign In as Patient',
       regBtnText: 'Create Patient Account',
       icon: '#i-user',
@@ -504,8 +505,6 @@
     },
     doctor: {
       title: 'Doctor Clinical Console',
-      loginSubtitle: 'Access daily schedules, patient EMRs, and digital e-prescriptions',
-      regSubtitle: 'Register your doctor clinical practice and consultation room',
       btnText: 'Sign In as Doctor',
       regBtnText: 'Register Doctor Account',
       icon: '#i-stethoscope',
@@ -513,8 +512,6 @@
     },
     staff: {
       title: 'Staff & Billing Desk',
-      loginSubtitle: 'Manage waiting queues, walk-in check-in, and invoice issuance',
-      regSubtitle: 'Register staff member for front desk, queue, and billing',
       btnText: 'Sign In as Staff',
       regBtnText: 'Register Staff Account',
       icon: '#i-clipboard',
@@ -522,8 +519,6 @@
     },
     admin: {
       title: 'Administrator Console',
-      loginSubtitle: 'Review clinic-wide operations, footfall, and patient sentiment analytics',
-      regSubtitle: 'Register clinic administrator with full operational access',
       btnText: 'Sign In as Administrator',
       regBtnText: 'Register Administrator Account',
       icon: '#i-chart',
@@ -534,17 +529,14 @@
   function updatePortalHeader() {
     const meta = roleMeta[currentLoginRole] || roleMeta.patient;
     const titleEl = document.getElementById('loginRoleTitle');
-    const subEl = document.getElementById('loginRoleSubtitle');
     const roleIcon = document.getElementById('loginRoleIcon');
 
     if (roleIcon) roleIcon.innerHTML = `<use href="${meta.icon}"/>`;
 
     if (currentPortalMode === 'register') {
       if (titleEl) titleEl.textContent = `${meta.title} Sign Up`;
-      if (subEl) subEl.textContent = meta.regSubtitle;
     } else {
       if (titleEl) titleEl.textContent = `${meta.title} Sign In`;
-      if (subEl) subEl.textContent = meta.loginSubtitle;
     }
   }
 
@@ -1374,6 +1366,62 @@
   // Live Chat Widget
   const pendingOptimisticMessages = new Set();
 
+  function updateChatGuestUI(remaining) {
+    const pill = document.getElementById('chatGuestPill');
+    const countEl = document.getElementById('chatGuestRemaining');
+    const banner = document.getElementById('chatGuestBanner');
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSendBtn');
+
+    if (state.user) {
+      if (pill) pill.classList.add('hidden');
+      if (banner) banner.classList.add('hidden');
+      if (input) {
+        input.disabled = false;
+        input.placeholder = 'Ask a question or type a message...';
+      }
+      if (sendBtn) sendBtn.disabled = false;
+      return;
+    }
+
+    if (pill) pill.classList.remove('hidden');
+    if (typeof remaining === 'number') {
+      state.guestChatRemaining = Math.max(0, remaining);
+    }
+    if (countEl) countEl.textContent = state.guestChatRemaining;
+
+    if (state.guestChatRemaining <= 0) {
+      if (banner) banner.classList.remove('hidden');
+      if (input) {
+        input.disabled = true;
+        input.placeholder = 'Guest limit reached (5/5). Please sign in...';
+      }
+      if (sendBtn) sendBtn.disabled = true;
+    } else {
+      if (banner) banner.classList.add('hidden');
+      if (input) {
+        input.disabled = false;
+        input.placeholder = 'Ask a question or type a message...';
+      }
+      if (sendBtn) sendBtn.disabled = false;
+    }
+  }
+
+  async function checkChatGuestStatus() {
+    if (state.user) {
+      updateChatGuestUI(null);
+      return;
+    }
+    try {
+      const res = await apiFetch(`${API.chat.status}/${state.chatSessionId}`);
+      if (res && typeof res.remaining === 'number') {
+        updateChatGuestUI(res.remaining);
+      }
+    } catch (_) {
+      updateChatGuestUI(state.guestChatRemaining);
+    }
+  }
+
   function formatChatTime(dateStr) {
     if (!dateStr) {
       const d = new Date();
@@ -1395,12 +1443,13 @@
     if (isHidden) {
       win.classList.remove('hidden');
       if (launcher) launcher.setAttribute('aria-expanded', 'true');
+      checkChatGuestStatus();
       loadChatHistory(); // load via REST before WS — works regardless of WS auth timing
       if (!state.chatWs || state.chatWs.readyState !== WebSocket.OPEN) {
         initChatWebSocket();
       }
       const chatInput = document.getElementById('chatInput');
-      if (chatInput) chatInput.focus();
+      if (chatInput && !chatInput.disabled) chatInput.focus();
     } else {
       win.classList.add('hidden');
       if (launcher) launcher.setAttribute('aria-expanded', 'false');
@@ -1434,6 +1483,12 @@
           const payload = JSON.parse(event.data);
           hideTypingIndicator();
           appendChatMessage(payload);
+          if (payload.limit_reached) {
+            updateChatGuestUI(0);
+            showToast('Guest chat limit reached (5 messages). Sign in to continue.', 'warning');
+          } else if (typeof payload.guest_remaining === 'number') {
+            updateChatGuestUI(payload.guest_remaining);
+          }
         } catch (err) {
           console.warn('Chat parse error:', err);
         }
@@ -1574,6 +1629,8 @@
     if (!confirm('Clear this chat conversation?')) return;
     state.chatSessionId = crypto.randomUUID();
     localStorage.setItem('chat_session_id', state.chatSessionId);
+    state.guestChatRemaining = 5;
+    updateChatGuestUI(5);
     hideTypingIndicator();
     const box = document.getElementById('chatMessages');
     if (box) {
@@ -1597,6 +1654,12 @@
     if (!text || !text.trim()) return;
     const msg = text.trim();
 
+    if (!state.user && state.guestChatRemaining <= 0) {
+      showToast('Guest chat limit reached (5/5). Please sign in to continue chatting.', 'warning');
+      updateChatGuestUI(0);
+      return;
+    }
+
     // 1. Optimistic rendering: Render user bubble immediately
     pendingOptimisticMessages.add(msg);
     appendChatMessage({
@@ -1604,7 +1667,7 @@
       sender_name: state.user ? state.user.full_name : 'You',
       message: msg,
       message_text: msg,
-      role: 'patient',
+      role: state.user ? state.user.role : 'patient',
       is_bot_reply: false,
       is_optimistic: true,
       created_at: null,
@@ -1638,11 +1701,22 @@
             created_at: null,
           });
         }
+        if (res.limit_reached) {
+          updateChatGuestUI(0);
+          showToast('Guest chat limit reached (5 messages). Sign in to continue.', 'warning');
+        } else if (typeof res.guest_remaining === 'number') {
+          updateChatGuestUI(res.guest_remaining);
+        }
       } catch (err) {
         hideTypingIndicator();
-        showToast(err.message.includes('authenticated')
-          ? 'Please sign in to use live chat'
-          : 'Chat service unavailable', 'error');
+        if (err.message && (err.message.includes('Guest chat limit') || err.message.includes('429'))) {
+          updateChatGuestUI(0);
+          showToast(err.message, 'warning');
+        } else {
+          showToast(err.message.includes('authenticated')
+            ? 'Please sign in to use live chat'
+            : 'Chat service unavailable', 'error');
+        }
       }
     }
   }

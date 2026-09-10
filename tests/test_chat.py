@@ -165,11 +165,6 @@ def test_websocket_patient_message_and_bot_reply(client, db_session):
     db_session.add(u_pat)
     db_session.commit()
 
-    # Unauthenticated WS connections are rejected
-    with pytest.raises(Exception):
-        with client.websocket_connect(f"/api/chat/ws/{session_id}"):
-            pass
-
     with client.websocket_connect(
         f"/api/chat/ws/{session_id}", headers=_ws_cookie_headers(u_pat)
     ) as ws:
@@ -364,13 +359,6 @@ def test_chat_rest_send_fallback(client, db_session):
     db_session.add(u_charlie)
     db_session.commit()
 
-    # Anonymous sends are rejected
-    res_anon = client.post("/api/chat/send", json={
-        "session_id": session_id,
-        "message": "how do I book an appointment?",
-    })
-    assert res_anon.status_code == 401
-
     # Patient posts message via REST (claimed staff identity must be ignored)
     res = client.post("/api/chat/send", headers=_auth_cookie(u_charlie), json={
         "session_id": session_id,
@@ -384,8 +372,70 @@ def test_chat_rest_send_fallback(client, db_session):
     assert data["user_message"]["sender"] == "Charlie"
     assert data["user_message"]["role"] == "patient"
     assert "Book Appointment" in data["bot_reply"]["message"]
+    # Authenticated user has no guest limit
+    assert data["guest_remaining"] is None
 
     # History contains both
     res_hist = client.get(f"/api/chat/history/{session_id}", headers=_auth_cookie(u_charlie))
     assert res_hist.status_code == 200
     assert len(res_hist.json()) == 2
+
+
+def test_websocket_guest_chat_and_limit(client, db_session):
+    session_id = f"guest-ws-{uuid.uuid4().hex[:8]}"
+
+    with client.websocket_connect(f"/api/chat/ws/{session_id}") as ws:
+        # Guest sends 5 inquiries (all allowed)
+        for i in range(5):
+            ws.send_json({"message": f"Question {i+1}: What are your hours?"})
+            echo = ws.receive_json()
+            assert echo["sender"] == "Guest"
+            assert echo["role"] == "patient"
+            bot_reply = ws.receive_json()
+            assert bot_reply["sender"] == "Clinic Assistant Bot"
+            assert bot_reply["guest_remaining"] == (4 - i)
+            if i < 4:
+                assert bot_reply["limit_reached"] is False
+            else:
+                assert bot_reply["limit_reached"] is True
+
+        # 6th inquiry hits guest limit
+        ws.send_json({"message": "Question 6: Still there?"})
+        limit_msg = ws.receive_json()
+        assert limit_msg["limit_reached"] is True
+        assert limit_msg["guest_remaining"] == 0
+        assert "guest limit" in limit_msg["message"].lower()
+
+
+def test_chat_rest_guest_send_and_limit(client, db_session):
+    session_id = f"guest-rest-{uuid.uuid4().hex[:8]}"
+
+    # Initial status: 5 remaining
+    res_status = client.get(f"/api/chat/status/{session_id}")
+    assert res_status.status_code == 200
+    assert res_status.json()["is_guest"] is True
+    assert res_status.json()["remaining"] == 5
+
+    # Guest sends 5 messages via REST
+    for i in range(5):
+        res = client.post("/api/chat/send", json={
+            "session_id": session_id,
+            "message": f"Inquiry {i+1}: What is the address?",
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["user_message"]["sender"] == "Guest"
+        assert data["guest_remaining"] == (4 - i)
+
+    # Status shows 0 remaining
+    res_status2 = client.get(f"/api/chat/status/{session_id}")
+    assert res_status2.json()["remaining"] == 0
+    assert res_status2.json()["limit_reached"] is True
+
+    # 6th message is blocked by 429
+    res_6th = client.post("/api/chat/send", json={
+        "session_id": session_id,
+        "message": "Inquiry 6: Any parking?",
+    })
+    assert res_6th.status_code == 429
+    assert "limit" in res_6th.json()["detail"].lower()
