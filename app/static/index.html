@@ -68,7 +68,12 @@
             <span class="hidden lg:inline">TV Display</span>
           </a>
 
-          <button id="manualLoginBtn" onclick="window.ClinicApp.showLoginModal()" class="btn btn-outline btn-sm">
+          <button id="registerNavBtn" onclick="window.ClinicApp.showAuthModal('register')" class="btn btn-primary btn-sm">
+            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-user-plus"/></svg>
+            <span class="hidden sm:inline">Patient</span> Sign Up
+          </button>
+
+          <button id="manualLoginBtn" onclick="window.ClinicApp.showAuthModal('login')" class="btn btn-outline btn-sm">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-login"/></svg>
             <span class="hidden sm:inline">Sign</span> In
           </button>
@@ -76,29 +81,6 @@
           <button id="logoutBtn" onclick="window.ClinicApp.logout()" class="btn btn-ghost btn-sm hidden text-red-600 hover:bg-red-50 hover:text-red-700" aria-label="Log out">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-logout"/></svg>
             <span class="hidden sm:inline">Logout</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Quick demo switcher: single scrollable row on every screen size -->
-      <div class="flex items-center gap-2 border-t border-slate-100 py-2 text-xs">
-        <span class="text-slate-400 font-semibold hidden md:inline shrink-0">Demo accounts</span>
-        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0" role="group" aria-label="Quick demo login">
-          <button onclick="window.ClinicApp.quickLogin('patient')" class="btn btn-outline btn-sm shrink-0">
-            <span class="w-2 h-2 rounded-full bg-sky-500" aria-hidden="true"></span>
-            Patient<span class="hidden lg:inline text-slate-400 font-normal">(Sarah Connor)</span>
-          </button>
-          <button onclick="window.ClinicApp.quickLogin('doctor')" class="btn btn-outline btn-sm shrink-0">
-            <span class="w-2 h-2 rounded-full bg-violet-500" aria-hidden="true"></span>
-            Doctor<span class="hidden lg:inline text-slate-400 font-normal">(Dr. Emily Stone)</span>
-          </button>
-          <button onclick="window.ClinicApp.quickLogin('staff')" class="btn btn-outline btn-sm shrink-0">
-            <span class="w-2 h-2 rounded-full bg-amber-500" aria-hidden="true"></span>
-            Staff<span class="hidden lg:inline text-slate-400 font-normal">(Reception)</span>
-          </button>
-          <button onclick="window.ClinicApp.quickLogin('admin')" class="btn btn-outline btn-sm shrink-0">
-            <span class="w-2 h-2 rounded-full bg-rose-500" aria-hidden="true"></span>
-            Admin<span class="hidden lg:inline text-slate-400 font-normal">(Director)</span>
           </button>
         </div>
       </div>
@@ -148,19 +130,24 @@
         <div class="space-y-4 sm:space-y-6">
           <!-- Profile card -->
           <div class="card card-pad">
-            <div class="flex items-center gap-3 mb-4">
-              <div class="w-12 h-12 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold" aria-hidden="true">SC</div>
-              <div class="min-w-0">
-                <h3 class="text-sm font-bold text-slate-900 truncate" id="patientCardName">Sarah Connor</h3>
-                <p class="text-xs text-slate-500" id="patientCardSub">Patient ID: #1 &bull; Female</p>
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div class="flex items-center gap-3 min-w-0">
+                <div id="patientCardInitials" class="w-12 h-12 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-base shrink-0" aria-hidden="true">--</div>
+                <div class="min-w-0">
+                  <h3 class="text-sm font-bold text-slate-900 truncate" id="patientCardName">Guest Patient</h3>
+                  <p class="text-xs text-slate-500 truncate" id="patientCardSub">Sign in to view your medical profile</p>
+                </div>
               </div>
+              <button id="editProfileBtn" onclick="window.ClinicApp.showProfileModal()" class="btn btn-ghost btn-sm text-brand-700 hover:bg-brand-50" title="Edit Medical Profile">
+                <span class="text-xs font-semibold">Edit</span>
+              </button>
             </div>
             <dl class="space-y-2 text-xs border-t border-slate-100 pt-3">
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Date of Birth</dt><dd class="font-semibold text-slate-700 text-right">1990-05-14</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Blood Group</dt><dd class="font-semibold text-slate-700">O+</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Allergies</dt><dd class="font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-md">Penicillin</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Medical History</dt><dd class="font-semibold text-slate-700 text-right">Mild Asthma</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Emergency Contact</dt><dd class="font-semibold text-slate-700 text-right">John Connor (555-9999)</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Date of Birth</dt><dd class="font-semibold text-slate-700 text-right" id="patientCardDob">--</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Blood Group</dt><dd class="font-semibold text-slate-700" id="patientCardBlood">--</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Allergies</dt><dd class="font-semibold text-slate-700" id="patientCardAllergies">--</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Medical History</dt><dd class="font-semibold text-slate-700 text-right" id="patientCardHistory">--</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Emergency Contact</dt><dd class="font-semibold text-slate-700 text-right" id="patientCardEmergency">--</dd></div>
             </dl>
           </div>
 
@@ -761,25 +748,205 @@
     </form>
   </div>
 
-  <!-- Manual login modal -->
-  <div id="loginModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" onclick="if(event.target===this)window.ClinicApp.hideLoginModal()">
-    <div class="card max-w-sm w-full card-pad">
-      <div class="flex justify-between items-center mb-4">
-        <h3 id="loginModalTitle" class="text-base font-bold text-slate-900">Sign In to Account</h3>
-        <button onclick="window.ClinicApp.hideLoginModal()" class="touch-target flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 transition-colors" aria-label="Close sign-in dialog">
+  <!-- Auth Modal: Sign In & Patient Registration with Medical Profiling -->
+  <div id="authModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" onclick="if(event.target===this)window.ClinicApp.hideAuthModal()">
+    <div class="card max-w-lg w-full card-pad my-8 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+        <div class="flex gap-2" role="tablist">
+          <button type="button" id="authTabLoginBtn" onclick="window.ClinicApp.switchAuthTab('login')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition-colors">Sign In</button>
+          <button type="button" id="authTabRegisterBtn" onclick="window.ClinicApp.switchAuthTab('register')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">Patient Sign Up</button>
+        </div>
+        <button onclick="window.ClinicApp.hideAuthModal()" class="touch-target flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 transition-colors" aria-label="Close dialog">
           <svg class="icon w-5 h-5" aria-hidden="true"><use href="#i-x"/></svg>
         </button>
       </div>
-      <form onsubmit="window.ClinicApp.handleManualLogin(event)" class="space-y-3">
-        <div>
-          <label for="loginEmail" class="label">Email Address</label>
-          <input type="email" id="loginEmail" required placeholder="name@demo.com" autocomplete="email" class="input">
+
+      <!-- Tab 1: Sign In -->
+      <div id="authLoginPanel">
+        <h3 id="authModalTitle" class="text-base font-bold text-slate-900 mb-1">Welcome to MediFlow</h3>
+        <p class="text-xs text-slate-500 mb-4">Sign in to your patient or clinical staff account.</p>
+        <div id="loginErrorMsg" class="hidden p-3 rounded-lg bg-red-50 text-red-700 text-xs font-medium mb-3"></div>
+        <form onsubmit="window.ClinicApp.handleManualLogin(event)" class="space-y-3">
+          <div>
+            <label for="loginEmail" class="label">Email Address</label>
+            <input type="email" id="loginEmail" required placeholder="patient@clinic.com" autocomplete="email" class="input">
+          </div>
+          <div>
+            <label for="loginPassword" class="label">Password</label>
+            <input type="password" id="loginPassword" required placeholder="Enter password" autocomplete="current-password" class="input">
+          </div>
+          <button type="submit" class="btn btn-primary w-full mt-2">Sign In</button>
+          <div class="text-center pt-2">
+            <span class="text-xs text-slate-500">New patient? </span>
+            <button type="button" onclick="window.ClinicApp.switchAuthTab('register')" class="text-xs font-semibold text-brand-600 hover:text-brand-700 underline">Create your medical profile</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab 2: Patient Registration with Medical Profiling -->
+      <div id="authRegisterPanel" class="hidden">
+        <h3 class="text-base font-bold text-slate-900 mb-1">New Patient Registration</h3>
+        <p class="text-xs text-slate-500 mb-4">Set up your personal medical file for clinic appointments and electronic prescriptions.</p>
+        <div id="registerErrorMsg" class="hidden p-3 rounded-lg bg-red-50 text-red-700 text-xs font-medium mb-3"></div>
+        <form onsubmit="window.ClinicApp.handlePatientRegister(event)" class="space-y-4">
+          <!-- Account Details -->
+          <div>
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 text-brand-700">1. Account Details</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="regFullName" class="label">Full Legal Name *</label>
+                <input type="text" id="regFullName" required placeholder="e.g. Eleanor Vance" class="input">
+              </div>
+              <div>
+                <label for="regEmail" class="label">Email Address *</label>
+                <input type="email" id="regEmail" required placeholder="eleanor@example.com" class="input">
+              </div>
+              <div>
+                <label for="regPassword" class="label">Password *</label>
+                <input type="password" id="regPassword" required minlength="6" placeholder="Min. 6 characters" class="input">
+              </div>
+              <div>
+                <label for="regPhone" class="label">Phone Number *</label>
+                <input type="tel" id="regPhone" required placeholder="+1 555-0142" class="input">
+              </div>
+            </div>
+          </div>
+
+          <!-- Medical Demographics -->
+          <div class="border-t border-slate-100 pt-3">
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 text-brand-700">2. Clinical Demographics</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label for="regDob" class="label">Date of Birth</label>
+                <input type="date" id="regDob" class="input">
+              </div>
+              <div>
+                <label for="regGender" class="label">Gender</label>
+                <select id="regGender" class="input">
+                  <option value="">Select gender</option>
+                  <option value="Female">Female</option>
+                  <option value="Male">Male</option>
+                  <option value="Other">Other</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
+              <div>
+                <label for="regBloodGroup" class="label">Blood Group</label>
+                <select id="regBloodGroup" class="input">
+                  <option value="">Select blood type</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Medical Safety & History -->
+          <div class="border-t border-slate-100 pt-3">
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 text-brand-700">3. Clinical Safety &amp; History</h4>
+            <div class="space-y-3">
+              <div>
+                <label for="regAllergies" class="label">Known Drug or Food Allergies</label>
+                <input type="text" id="regAllergies" placeholder="e.g. Penicillin, Latex, Peanuts (or 'None known')" class="input">
+              </div>
+              <div>
+                <label for="regHistory" class="label">Medical Conditions &amp; Past Surgeries</label>
+                <textarea id="regHistory" rows="2" placeholder="e.g. Asthma, Hypertension, Diabetes, prior operations..." class="input"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Emergency Contact -->
+          <div class="border-t border-slate-100 pt-3">
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 text-brand-700">4. Emergency Contact</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="regEmergencyName" class="label">Contact Person &amp; Relationship</label>
+                <input type="text" id="regEmergencyName" placeholder="e.g. Robert Vance (Spouse)" class="input">
+              </div>
+              <div>
+                <label for="regEmergencyPhone" class="label">Emergency Contact Phone</label>
+                <input type="tel" id="regEmergencyPhone" placeholder="+1 555-9876" class="input">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-full mt-3 !py-2.5 text-sm font-bold">Create Patient Account &amp; Profile</button>
+          <div class="text-center pt-1">
+            <span class="text-xs text-slate-500">Already registered? </span>
+            <button type="button" onclick="window.ClinicApp.switchAuthTab('login')" class="text-xs font-semibold text-brand-600 hover:text-brand-700 underline">Sign in instead</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div id="profileModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" onclick="if(event.target===this)window.ClinicApp.hideProfileModal()">
+    <div class="card max-w-lg w-full card-pad my-8 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+        <h3 id="profileModalTitle" class="text-base font-bold text-slate-900">Edit Medical Profile</h3>
+        <button onclick="window.ClinicApp.hideProfileModal()" class="touch-target flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 transition-colors" aria-label="Close dialog">
+          <svg class="icon w-5 h-5" aria-hidden="true"><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <form onsubmit="window.ClinicApp.handleProfileUpdate(event)" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="editFullName" class="label">Full Name</label>
+            <input type="text" id="editFullName" class="input">
+          </div>
+          <div>
+            <label for="editPhone" class="label">Phone Number</label>
+            <input type="tel" id="editPhone" class="input">
+          </div>
+          <div>
+            <label for="editDob" class="label">Date of Birth</label>
+            <input type="date" id="editDob" class="input">
+          </div>
+          <div>
+            <label for="editBloodGroup" class="label">Blood Group</label>
+            <select id="editBloodGroup" class="input">
+              <option value="">Select blood type</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+            </select>
+          </div>
         </div>
         <div>
-          <label for="loginPassword" class="label">Password</label>
-          <input type="password" id="loginPassword" required placeholder="Your password" autocomplete="current-password" class="input">
+          <label for="editAllergies" class="label">Allergies</label>
+          <input type="text" id="editAllergies" class="input">
         </div>
-        <button type="submit" class="btn btn-primary w-full mt-1">Sign In</button>
+        <div>
+          <label for="editHistory" class="label">Medical History</label>
+          <textarea id="editHistory" rows="2" class="input"></textarea>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="editEmergencyName" class="label">Emergency Contact Name</label>
+            <input type="text" id="editEmergencyName" class="input">
+          </div>
+          <div>
+            <label for="editEmergencyPhone" class="label">Emergency Contact Phone</label>
+            <input type="tel" id="editEmergencyPhone" class="input">
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="btn btn-ghost btn-sm">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save Medical Profile</button>
+        </div>
       </form>
     </div>
   </div>

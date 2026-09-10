@@ -221,3 +221,45 @@ def test_auth_router_endpoints(db_session):
         or logout_res.cookies["access_token"] == '""'
         or logout_res.cookies["access_token"] == ""
     )
+
+    # 5. Patient Registration with clinical profiling
+    reg_payload = {
+        "email": "newpatient@clinic.test",
+        "password": "strongPassword123",
+        "full_name": "Alexander Hayes",
+        "phone": "+1-555-4321",
+        "date_of_birth": "1994-08-22",
+        "gender": "Male",
+        "blood_group": "B+",
+        "emergency_contact_name": "Elena Hayes",
+        "emergency_contact_phone": "+1-555-8888",
+        "allergies": "Sulfa drugs, Aspirin",
+        "medical_history": "Childhood asthma",
+    }
+    reg_res = client.post("/api/auth/register", json=reg_payload)
+    assert reg_res.status_code == 201
+    reg_data = reg_res.json()
+    assert reg_data["user"]["email"] == "newpatient@clinic.test"
+    assert reg_data["user"]["role"] == "patient"
+    assert reg_data["user"]["patient_id"] is not None
+    assert reg_data["user"]["patient_profile"]["blood_group"] == "B+"
+    assert reg_data["user"]["patient_profile"]["allergies"] == "Sulfa drugs, Aspirin"
+    assert reg_data["user"]["patient_profile"]["emergency_contact_name"] == "Elena Hayes"
+
+    new_token = reg_data["access_token"]
+
+    # 6. Update patient medical profile
+    update_res = client.put(
+        "/api/auth/profile",
+        headers={"Authorization": f"Bearer {new_token}"},
+        json={"allergies": "Sulfa drugs, Aspirin, Shellfish", "phone": "+1-555-9999"},
+    )
+    assert update_res.status_code == 200
+    updated_data = update_res.json()
+    assert updated_data["patient_profile"]["allergies"] == "Sulfa drugs, Aspirin, Shellfish"
+    assert updated_data["phone"] == "+1-555-9999"
+
+    # 7. Duplicate email rejection
+    dup_res = client.post("/api/auth/register", json=reg_payload)
+    assert dup_res.status_code == 400
+    assert "already exists" in dup_res.json()["detail"]

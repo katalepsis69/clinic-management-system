@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
@@ -5,11 +6,12 @@ from sqlalchemy.orm import Session
 from app.auth import (
     create_access_token,
     get_current_user,
+    get_password_hash,
     verify_password,
 )
 from app.config import get_settings
 from app.database import get_db
-from app.models import User
+from app.models import Patient, User, UserRole
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 settings = get_settings()
@@ -41,7 +43,7 @@ def _record_failure(email: str):
 
 def _user_profile(user: User) -> dict:
     role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
-    return {
+    data = {
         "id": user.id,
         "email": user.email,
         "full_name": user.full_name,
@@ -50,6 +52,17 @@ def _user_profile(user: User) -> dict:
         "patient_id": user.patient.id if user.patient else None,
         "doctor_id": user.doctor.id if user.doctor else None,
     }
+    if user.patient:
+        data["patient_profile"] = {
+            "date_of_birth": str(user.patient.date_of_birth) if user.patient.date_of_birth else None,
+            "gender": user.patient.gender,
+            "blood_group": user.patient.blood_group,
+            "emergency_contact_name": user.patient.emergency_contact_name,
+            "emergency_contact_phone": user.patient.emergency_contact_phone,
+            "allergies": user.patient.allergies,
+            "medical_history": user.patient.medical_history,
+        }
+    return data
 
 
 @router.post("/login")
@@ -116,4 +129,132 @@ def logout(response: Response):
 
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
+    return _user_profile(current_user)
+
+
+class RegisterPatientPayload(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    phone: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    blood_group: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    allergies: Optional[str] = None
+    medical_history: Optional[str] = None
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def register_patient(
+    payload: RegisterPatientPayload,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    email = payload.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required")
+    if not payload.password or len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    if not payload.full_name or not payload.full_name.strip():
+        raise HTTPException(status_code=400, detail="Full name is required")
+
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
+
+    dob = None
+    if payload.date_of_birth:
+        try:
+            dob = date.fromisoformat(payload.date_of_birth)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Date of birth must be in YYYY-MM-DD format")
+
+    user = User(
+        email=email,
+        hashed_password=get_password_hash(payload.password),
+        full_name=payload.full_name.strip(),
+        phone=payload.phone.strip() if payload.phone else None,
+        role=UserRole.PATIENT,
+    )
+    db.add(user)
+    db.flush()
+
+    patient = Patient(
+        user_id=user.id,
+        date_of_birth=dob,
+        gender=payload.gender.strip() if payload.gender else None,
+        blood_group=payload.blood_group.strip() if payload.blood_group else None,
+        emergency_contact_name=payload.emergency_contact_name.strip() if payload.emergency_contact_name else None,
+        emergency_contact_phone=payload.emergency_contact_phone.strip() if payload.emergency_contact_phone else None,
+        allergies=payload.allergies.strip() if payload.allergies else None,
+        medical_history=payload.medical_history.strip() if payload.medical_history else None,
+    )
+    db.add(patient)
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token({"sub": user.email, "role": user.role.value})
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token}",
+        httponly=True,
+        secure=not settings.DEMO_MODE,
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": _user_profile(user),
+    }
+
+
+class UpdatePatientProfilePayload(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    blood_group: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    allergies: Optional[str] = None
+    medical_history: Optional[str] = None
+
+
+@router.put("/profile")
+def update_profile(
+    payload: UpdatePatientProfilePayload,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if payload.full_name is not None and payload.full_name.strip():
+        current_user.full_name = payload.full_name.strip()
+    if payload.phone is not None:
+        current_user.phone = payload.phone.strip() if payload.phone else None
+
+    if current_user.patient:
+        patient = current_user.patient
+        if payload.date_of_birth is not None:
+            if payload.date_of_birth:
+                patient.date_of_birth = date.fromisoformat(payload.date_of_birth)
+            else:
+                patient.date_of_birth = None
+        if payload.gender is not None:
+            patient.gender = payload.gender
+        if payload.blood_group is not None:
+            patient.blood_group = payload.blood_group
+        if payload.emergency_contact_name is not None:
+            patient.emergency_contact_name = payload.emergency_contact_name
+        if payload.emergency_contact_phone is not None:
+            patient.emergency_contact_phone = payload.emergency_contact_phone
+        if payload.allergies is not None:
+            patient.allergies = payload.allergies
+        if payload.medical_history is not None:
+            patient.medical_history = payload.medical_history
+
+    db.commit()
+    db.refresh(current_user)
     return _user_profile(current_user)

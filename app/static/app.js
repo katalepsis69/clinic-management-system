@@ -5,6 +5,8 @@
   const API = {
     auth: {
       login: '/api/auth/login',
+      register: '/api/auth/register',
+      profile: '/api/auth/profile',
       me: '/api/auth/me',
       logout: '/api/auth/logout',
     },
@@ -117,8 +119,25 @@
     }
   }
 
-  // Tab Navigation (WAI-ARIA tabs: visual state driven by aria-selected)
+  // Tab Navigation (WAI-ARIA tabs with strict Role-Based Access Control)
   function switchTab(tabName) {
+    if (state.user) {
+      const allowedRoles = {
+        patient: ['patient', 'admin'],
+        doctor: ['doctor', 'admin'],
+        staff: ['staff', 'admin'],
+        analytics: ['admin'],
+      };
+      if (allowedRoles[tabName] && !allowedRoles[tabName].includes(state.user.role)) {
+        showToast('Access restricted: your account does not have permission for this portal.', 'warning');
+        return;
+      }
+    } else if (tabName !== 'patient') {
+      showToast('Please sign in with authorized clinic credentials.', 'info');
+      showAuthModal('login');
+      return;
+    }
+
     state.activeTab = tabName;
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.setAttribute('aria-selected', String(btn.id === `tab-${tabName}`));
@@ -140,17 +159,15 @@
     } else if (tabName === 'patient') {
       loadDoctors();
       fetchQueueStatus();
+      if (state.user && state.user.role === 'patient') {
+        renderPatientProfile(state.user);
+      } else {
+        renderGuestPatientProfile();
+      }
     }
   }
 
-  // Auth & Demo Accounts
-  const DEMO_ACCOUNTS = {
-    patient: { email: 'patient@demo.com', password: 'patient123' },
-    doctor: { email: 'doctor@demo.com', password: 'doctor123' },
-    staff: { email: 'staff@demo.com', password: 'staff123' },
-    admin: { email: 'admin@demo.com', password: 'admin123' },
-  };
-
+  // Real Authentication & Session Management
   async function login(email, password) {
     try {
       const data = await apiFetch(API.auth.login, {
@@ -164,9 +181,9 @@
       localStorage.setItem('chat_session_id', state.chatSessionId);
 
       updateUserUI();
-      showToast(`Welcome back, ${state.user.full_name || state.user.email}!`, 'success');
+      showToast(`Welcome, ${state.user.full_name || state.user.email}!`, 'success');
 
-      // Auto-switch to their matching portal
+      // Auto-switch to authorized portal
       const roleMap = { patient: 'patient', doctor: 'doctor', staff: 'staff', admin: 'analytics' };
       if (roleMap[state.user.role]) {
         switchTab(roleMap[state.user.role]);
@@ -178,13 +195,6 @@
     }
   }
 
-  async function quickLogin(role) {
-    const creds = DEMO_ACCOUNTS[role];
-    if (creds) {
-      await login(creds.email, creds.password);
-    }
-  }
-
   async function logout() {
     try {
       await apiFetch(API.auth.logout, { method: 'POST' }).catch(() => {});
@@ -193,7 +203,6 @@
       localStorage.removeItem('user_profile');
       localStorage.removeItem('my_ticket');
       state.myTicket = null;
-      // New chat session so the next user never inherits this transcript
       state.chatSessionId = crypto.randomUUID();
       localStorage.setItem('chat_session_id', state.chatSessionId);
       updateUserUI();
@@ -207,7 +216,14 @@
     const nameEl = document.getElementById('currentUserName');
     const roleEl = document.getElementById('currentUserRole');
     const manualLoginBtn = document.getElementById('manualLoginBtn');
+    const registerNavBtn = document.getElementById('registerNavBtn');
     const logoutBtn = document.getElementById('logoutBtn');
+
+    // Role-based portal tab visibility
+    const tabPatient = document.getElementById('tab-patient');
+    const tabDoctor = document.getElementById('tab-doctor');
+    const tabStaff = document.getElementById('tab-staff');
+    const tabAnalytics = document.getElementById('tab-analytics');
 
     if (state.user) {
       if (badge) badge.classList.remove('hidden');
@@ -224,36 +240,289 @@
           (roleColors[state.user.role] || 'bg-slate-200 text-slate-800');
       }
       if (manualLoginBtn) manualLoginBtn.classList.add('hidden');
+      if (registerNavBtn) registerNavBtn.classList.add('hidden');
       if (logoutBtn) logoutBtn.classList.remove('hidden');
+
+      // STRICT ROLE-BASED ACCESS CONTROL FOR TABS
+      if (state.user.role === 'patient') {
+        if (tabPatient) tabPatient.classList.remove('hidden');
+        if (tabDoctor) tabDoctor.classList.add('hidden');
+        if (tabStaff) tabStaff.classList.add('hidden');
+        if (tabAnalytics) tabAnalytics.classList.add('hidden');
+        renderPatientProfile(state.user);
+      } else if (state.user.role === 'doctor') {
+        if (tabPatient) tabPatient.classList.add('hidden');
+        if (tabDoctor) tabDoctor.classList.remove('hidden');
+        if (tabStaff) tabStaff.classList.add('hidden');
+        if (tabAnalytics) tabAnalytics.classList.add('hidden');
+      } else if (state.user.role === 'staff') {
+        if (tabPatient) tabPatient.classList.add('hidden');
+        if (tabDoctor) tabDoctor.classList.add('hidden');
+        if (tabStaff) tabStaff.classList.remove('hidden');
+        if (tabAnalytics) tabAnalytics.classList.add('hidden');
+      } else if (state.user.role === 'admin') {
+        if (tabPatient) tabPatient.classList.remove('hidden');
+        if (tabDoctor) tabDoctor.classList.remove('hidden');
+        if (tabStaff) tabStaff.classList.remove('hidden');
+        if (tabAnalytics) tabAnalytics.classList.remove('hidden');
+      }
     } else {
       if (badge) badge.classList.add('hidden');
       if (manualLoginBtn) manualLoginBtn.classList.remove('hidden');
+      if (registerNavBtn) registerNavBtn.classList.remove('hidden');
       if (logoutBtn) logoutBtn.classList.add('hidden');
+
+      // Guest / unauthenticated: show Patient view, hide clinical staff tabs
+      if (tabPatient) tabPatient.classList.remove('hidden');
+      if (tabDoctor) tabDoctor.classList.add('hidden');
+      if (tabStaff) tabStaff.classList.add('hidden');
+      if (tabAnalytics) tabAnalytics.classList.add('hidden');
+      renderGuestPatientProfile();
     }
   }
 
-  // Modals
-  function showLoginModal() {
-    const modal = document.getElementById('loginModal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    const emailInput = document.getElementById('loginEmail');
-    if (emailInput) emailInput.focus();
+  function renderGuestPatientProfile() {
+    const nameEl = document.getElementById('patientCardName');
+    const subEl = document.getElementById('patientCardSub');
+    const initialsEl = document.getElementById('patientCardInitials');
+    const dobEl = document.getElementById('patientCardDob');
+    const bloodEl = document.getElementById('patientCardBlood');
+    const allergiesEl = document.getElementById('patientCardAllergies');
+    const historyEl = document.getElementById('patientCardHistory');
+    const emergencyEl = document.getElementById('patientCardEmergency');
+    const editBtn = document.getElementById('editProfileBtn');
+
+    if (nameEl) nameEl.textContent = 'Guest Patient';
+    if (subEl) subEl.textContent = 'Sign in or register to access medical profile';
+    if (initialsEl) initialsEl.textContent = 'GP';
+    if (dobEl) dobEl.textContent = 'Sign in to view';
+    if (bloodEl) bloodEl.textContent = 'Sign in to view';
+    if (allergiesEl) {
+      allergiesEl.textContent = 'Sign in to view';
+      allergiesEl.className = 'font-semibold text-slate-500';
+    }
+    if (historyEl) historyEl.textContent = 'Sign in to view';
+    if (emergencyEl) emergencyEl.textContent = 'Sign in to view';
+    if (editBtn) editBtn.classList.add('hidden');
   }
 
-  function hideLoginModal() {
-    const modal = document.getElementById('loginModal');
+  function renderPatientProfile(user) {
+    if (!user) {
+      renderGuestPatientProfile();
+      return;
+    }
+    const nameEl = document.getElementById('patientCardName');
+    const subEl = document.getElementById('patientCardSub');
+    const initialsEl = document.getElementById('patientCardInitials');
+    const dobEl = document.getElementById('patientCardDob');
+    const bloodEl = document.getElementById('patientCardBlood');
+    const allergiesEl = document.getElementById('patientCardAllergies');
+    const historyEl = document.getElementById('patientCardHistory');
+    const emergencyEl = document.getElementById('patientCardEmergency');
+    const editBtn = document.getElementById('editProfileBtn');
+
+    if (nameEl) nameEl.textContent = user.full_name || user.email;
+    if (subEl) {
+      const pId = user.patient_id ? `#${user.patient_id}` : 'Registered';
+      const gender = user.patient_profile?.gender || 'Unspecified';
+      subEl.textContent = `Patient ID: ${pId} • ${gender}`;
+    }
+    if (initialsEl && user.full_name) {
+      const parts = user.full_name.trim().split(/\s+/);
+      initialsEl.textContent = parts.length > 1
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : parts[0].slice(0, 2).toUpperCase();
+    }
+
+    const prof = user.patient_profile || {};
+    if (dobEl) dobEl.textContent = prof.date_of_birth || 'Not recorded';
+    if (bloodEl) bloodEl.textContent = prof.blood_group || 'Unknown';
+    if (allergiesEl) {
+      allergiesEl.textContent = prof.allergies || 'None known';
+      if (prof.allergies && prof.allergies.toLowerCase() !== 'none' && prof.allergies.toLowerCase() !== 'none known') {
+        allergiesEl.className = 'font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-md';
+      } else {
+        allergiesEl.className = 'font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md';
+      }
+    }
+    if (historyEl) historyEl.textContent = prof.medical_history || 'None recorded';
+    if (emergencyEl) {
+      const name = prof.emergency_contact_name || '';
+      const phone = prof.emergency_contact_phone || '';
+      emergencyEl.textContent = (name || phone) ? `${name} (${phone})`.trim() : 'None recorded';
+    }
+    if (editBtn) editBtn.classList.remove('hidden');
+  }
+
+  // Auth & Profile Modals
+  function showAuthModal(tab = 'login') {
+    const modal = document.getElementById('authModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    switchAuthTab(tab);
+  }
+
+  function hideAuthModal() {
+    const modal = document.getElementById('authModal');
     if (modal) modal.classList.add('hidden');
+    const errLogin = document.getElementById('loginErrorMsg');
+    if (errLogin) errLogin.classList.add('hidden');
+    const errReg = document.getElementById('registerErrorMsg');
+    if (errReg) errReg.classList.add('hidden');
+  }
+
+  function switchAuthTab(tab) {
+    const loginPanel = document.getElementById('authLoginPanel');
+    const regPanel = document.getElementById('authRegisterPanel');
+    const loginBtn = document.getElementById('authTabLoginBtn');
+    const regBtn = document.getElementById('authTabRegisterBtn');
+
+    if (tab === 'login') {
+      if (loginPanel) loginPanel.classList.remove('hidden');
+      if (regPanel) regPanel.classList.add('hidden');
+      if (loginBtn) {
+        loginBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition-colors';
+      }
+      if (regBtn) {
+        regBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-100 transition-colors';
+      }
+      const emailInput = document.getElementById('loginEmail');
+      if (emailInput) emailInput.focus();
+    } else {
+      if (loginPanel) loginPanel.classList.add('hidden');
+      if (regPanel) regPanel.classList.remove('hidden');
+      if (regBtn) {
+        regBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition-colors';
+      }
+      if (loginBtn) {
+        loginBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-100 transition-colors';
+      }
+      const nameInput = document.getElementById('regFullName');
+      if (nameInput) nameInput.focus();
+    }
   }
 
   async function handleManualLogin(e) {
     e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
+    const errEl = document.getElementById('loginErrorMsg');
+    if (errEl) errEl.classList.add('hidden');
+
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     try {
       await login(email, password);
-      hideLoginModal();
-    } catch (_) {}
+      hideAuthModal();
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || 'Incorrect email or password.';
+        errEl.classList.remove('hidden');
+      }
+    }
+  }
+
+  async function handlePatientRegister(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('registerErrorMsg');
+    if (errEl) errEl.classList.add('hidden');
+
+    const payload = {
+      full_name: document.getElementById('regFullName').value.trim(),
+      email: document.getElementById('regEmail').value.trim(),
+      password: document.getElementById('regPassword').value,
+      phone: document.getElementById('regPhone').value.trim(),
+      date_of_birth: document.getElementById('regDob').value || null,
+      gender: document.getElementById('regGender').value || null,
+      blood_group: document.getElementById('regBloodGroup').value || null,
+      allergies: document.getElementById('regAllergies').value.trim() || null,
+      medical_history: document.getElementById('regHistory').value.trim() || null,
+      emergency_contact_name: document.getElementById('regEmergencyName').value.trim() || null,
+      emergency_contact_phone: document.getElementById('regEmergencyPhone').value.trim() || null,
+    };
+
+    try {
+      const data = await apiFetch(API.auth.register, {
+        method: 'POST',
+        body: payload,
+      });
+      state.user = data.user;
+      localStorage.setItem('user_profile', JSON.stringify(state.user));
+      state.chatSessionId = crypto.randomUUID();
+      localStorage.setItem('chat_session_id', state.chatSessionId);
+
+      hideAuthModal();
+      updateUserUI();
+      showToast(`Welcome to MediFlow, ${state.user.full_name}! Your clinical profile is ready.`, 'success');
+      switchTab('patient');
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || 'Registration failed. Please check your details.';
+        errEl.classList.remove('hidden');
+      } else {
+        showToast(err.message, 'error');
+      }
+    }
+  }
+
+  function showProfileModal() {
+    if (!state.user) {
+      showAuthModal('login');
+      return;
+    }
+    const modal = document.getElementById('profileModal');
+    if (!modal) return;
+    const prof = state.user.patient_profile || {};
+    const fnEl = document.getElementById('editFullName');
+    const phEl = document.getElementById('editPhone');
+    const dobEl = document.getElementById('editDob');
+    const bgEl = document.getElementById('editBloodGroup');
+    const alEl = document.getElementById('editAllergies');
+    const histEl = document.getElementById('editHistory');
+    const emNameEl = document.getElementById('editEmergencyName');
+    const emPhEl = document.getElementById('editEmergencyPhone');
+
+    if (fnEl) fnEl.value = state.user.full_name || '';
+    if (phEl) phEl.value = state.user.phone || '';
+    if (dobEl) dobEl.value = prof.date_of_birth || '';
+    if (bgEl) bgEl.value = prof.blood_group || '';
+    if (alEl) alEl.value = prof.allergies || '';
+    if (histEl) histEl.value = prof.medical_history || '';
+    if (emNameEl) emNameEl.value = prof.emergency_contact_name || '';
+    if (emPhEl) emPhEl.value = prof.emergency_contact_phone || '';
+    modal.classList.remove('hidden');
+  }
+
+  function hideProfileModal() {
+    const modal = document.getElementById('profileModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  async function handleProfileUpdate(e) {
+    e.preventDefault();
+    const payload = {
+      full_name: document.getElementById('editFullName').value.trim(),
+      phone: document.getElementById('editPhone').value.trim(),
+      date_of_birth: document.getElementById('editDob').value || null,
+      gender: state.user.patient_profile?.gender || null,
+      blood_group: document.getElementById('editBloodGroup').value || null,
+      allergies: document.getElementById('editAllergies').value.trim() || null,
+      medical_history: document.getElementById('editHistory').value.trim() || null,
+      emergency_contact_name: document.getElementById('editEmergencyName').value.trim() || null,
+      emergency_contact_phone: document.getElementById('editEmergencyPhone').value.trim() || null,
+    };
+    try {
+      const updated = await apiFetch(API.auth.profile, {
+        method: 'PUT',
+        body: payload,
+      });
+      state.user = updated;
+      localStorage.setItem('user_profile', JSON.stringify(state.user));
+      hideProfileModal();
+      renderPatientProfile(state.user);
+      updateUserUI();
+      showToast('Medical profile updated successfully', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   }
   // Queue Live Updates & Tracker
   async function fetchQueueStatus() {
@@ -312,7 +581,7 @@
   async function issueMyQueueTicket() {
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to get a queue ticket', 'error');
-      showLoginModal();
+      showAuthModal('login');
       return;
     }
     const doctorId = parseInt(document.getElementById('appointmentDoctorSelect')?.value, 10);
@@ -454,7 +723,7 @@
     e.preventDefault();
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to book an appointment', 'error');
-      showLoginModal();
+      showAuthModal('login');
       return;
     }
     const doctorId = parseInt(document.getElementById('appointmentDoctorSelect').value, 10);
@@ -712,7 +981,7 @@
     e.preventDefault();
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to submit feedback', 'error');
-      showLoginModal();
+      showAuthModal('login');
       return;
     }
     const comment = document.getElementById('feedbackComment').value;
@@ -989,9 +1258,14 @@
   // Close overlays with the Escape key
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    const loginModal = document.getElementById('loginModal');
-    if (loginModal && !loginModal.classList.contains('hidden')) {
-      hideLoginModal();
+    const authModal = document.getElementById('authModal');
+    if (authModal && !authModal.classList.contains('hidden')) {
+      hideAuthModal();
+      return;
+    }
+    const profileModal = document.getElementById('profileModal');
+    if (profileModal && !profileModal.classList.contains('hidden')) {
+      hideProfileModal();
       return;
     }
     const chatWin = document.getElementById('chatWindow');
@@ -1038,11 +1312,15 @@
   window.ClinicApp = {
     switchTab,
     login,
-    quickLogin,
     logout,
-    showLoginModal,
-    hideLoginModal,
+    showAuthModal,
+    hideAuthModal,
+    switchAuthTab,
     handleManualLogin,
+    handlePatientRegister,
+    showProfileModal,
+    hideProfileModal,
+    handleProfileUpdate,
     fetchQueueStatus,
     issueMyQueueTicket,
     callNextPatient,
