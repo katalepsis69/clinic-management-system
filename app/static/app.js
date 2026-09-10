@@ -700,6 +700,30 @@
     }
   }
 
+  function showcaseSelectRole(role) {
+    switchLoginRole(role);
+    switchPortalMode('login');
+    const loginCard = document.getElementById('loginGatewayCard');
+    if (loginCard) {
+      loginCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    const emailInput = document.getElementById('portalLoginEmail');
+    if (emailInput) {
+      setTimeout(() => emailInput.focus(), 350);
+    }
+  }
+
+  function showcaseOpenChat() {
+    const chatWin = document.getElementById('chatWindow');
+    if (chatWin && chatWin.classList.contains('hidden')) {
+      toggleChat();
+    }
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+      setTimeout(() => chatInput.focus(), 250);
+    }
+  }
+
   function showProfileModal() {
     if (!state.user) {
       showAuthModal('login');
@@ -1657,6 +1681,14 @@
 
   // Initialize on page load
   async function init() {
+    // Immediately set active portal tab before network roundtrip to eliminate reload flicker
+    const roleMap = { patient: 'patient', doctor: 'doctor', staff: 'staff', admin: 'analytics' };
+    if (state.user && state.user.role && roleMap[state.user.role]) {
+      switchTab(roleMap[state.user.role]);
+    } else {
+      switchTab('login');
+    }
+
     updateUserUI();
     loadDoctors();
     fetchQueueStatus();
@@ -1737,6 +1769,8 @@
     sendChatMessage,
     sendChatInput,
     sendQuickFaq,
+    showcaseSelectRole,
+    showcaseOpenChat,
   };
 
   if (document.readyState === 'loading') {
