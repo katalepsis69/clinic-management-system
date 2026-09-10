@@ -67,8 +67,8 @@
   // Inline SVG avatars for generated chat markup (kept in sync with index.html sprite)
   const ICONS = {
     bot: '<svg class="icon w-5 h-5 text-brand-600 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-bot"/></svg>',
-    user: '<svg class="icon w-5 h-5 text-slate-400 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-user"/></svg>',
-    staff: '<svg class="icon w-5 h-5 text-slate-500 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-clipboard"/></svg>',
+    user: '<svg class="icon w-5 h-5 text-stone-400 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-user"/></svg>',
+    staff: '<svg class="icon w-5 h-5 text-stone-500 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-clipboard"/></svg>',
   };
 
   // Helper: Toast Notifications
@@ -79,20 +79,20 @@
     const colors = {
       success: 'bg-brand-600 text-white',
       error: 'bg-red-600 text-white',
-      info: 'bg-slate-900 text-white',
+      info: 'bg-stone-900 text-white',
     };
 
     const toast = document.createElement('div');
-    toast.className = `p-3.5 rounded-xl text-xs font-semibold shadow-lg transition-all duration-300 translate-x-4 opacity-0 ${colors[type] || colors.info}`;
+    toast.className = `p-3.5 rounded-xl text-xs font-semibold shadow-lg transition-all duration-300 transtone-x-4 opacity-0 ${colors[type] || colors.info}`;
     toast.textContent = message;
     container.appendChild(toast);
 
     requestAnimationFrame(() => {
-      toast.classList.remove('translate-x-4', 'opacity-0');
+      toast.classList.remove('transtone-x-4', 'opacity-0');
     });
 
     setTimeout(() => {
-      toast.classList.add('opacity-0', 'translate-x-4');
+      toast.classList.add('opacity-0', 'transtone-x-4');
       setTimeout(() => toast.remove(), 300);
     }, 4000);
   }
@@ -237,7 +237,7 @@
         };
         roleEl.textContent = state.user.role;
         roleEl.className = 'uppercase px-2 py-0.5 rounded-full text-[10px] font-bold ' +
-          (roleColors[state.user.role] || 'bg-slate-200 text-slate-800');
+          (roleColors[state.user.role] || 'bg-stone-200 text-stone-800');
       }
       if (manualLoginBtn) manualLoginBtn.classList.add('hidden');
       if (registerNavBtn) registerNavBtn.classList.add('hidden');
@@ -299,7 +299,7 @@
     if (bloodEl) bloodEl.textContent = 'Sign in to view';
     if (allergiesEl) {
       allergiesEl.textContent = 'Sign in to view';
-      allergiesEl.className = 'font-semibold text-slate-500';
+      allergiesEl.className = 'font-semibold text-stone-500';
     }
     if (historyEl) historyEl.textContent = 'Sign in to view';
     if (emergencyEl) emergencyEl.textContent = 'Sign in to view';
@@ -384,7 +384,7 @@
         loginBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition-colors';
       }
       if (regBtn) {
-        regBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-100 transition-colors';
+        regBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-stone-600 hover:bg-stone-100 transition-colors';
       }
       const emailInput = document.getElementById('loginEmail');
       if (emailInput) emailInput.focus();
@@ -395,7 +395,7 @@
         regBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition-colors';
       }
       if (loginBtn) {
-        loginBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-100 transition-colors';
+        loginBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-stone-600 hover:bg-stone-100 transition-colors';
       }
       const nameInput = document.getElementById('regFullName');
       if (nameInput) nameInput.focus();
@@ -562,7 +562,7 @@
 
     if (staffList) {
       if (waiting.length === 0) {
-        staffList.innerHTML = '<span class="text-xs text-slate-400">No patients waiting</span>';
+        staffList.innerHTML = '<span class="text-xs text-stone-400">No patients waiting</span>';
       } else {
         staffList.innerHTML = waiting.map(t => `
           <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 font-mono font-bold text-xs">
@@ -754,7 +754,7 @@
     const dateInput = document.getElementById('scheduleFilterDate');
     if (!docId) {
       const list = document.getElementById('scheduleList');
-      if (list) list.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Sign in as a doctor to view a schedule.</p>';
+      if (list) list.innerHTML = '<p class="text-xs text-stone-400 py-6 text-center">Sign in as a doctor to view a schedule.</p>';
       return;
     }
     const scheduleDate = dateInput && dateInput.value ? dateInput.value : new Date().toISOString().split('T')[0];
@@ -766,15 +766,15 @@
       if (!list) return;
 
       if (!data || data.length === 0) {
-        list.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">No appointments scheduled for this date.</p>';
+        list.innerHTML = '<p class="text-xs text-stone-400 py-6 text-center">No appointments scheduled for this date.</p>';
         return;
       }
 
       list.innerHTML = data.map(app => `
-        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between items-center gap-2">
+        <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs flex justify-between items-center gap-2">
           <div class="min-w-0">
-            <span class="font-bold text-slate-800 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
-            <span class="text-slate-500 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
+            <span class="font-bold text-stone-800 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
+            <span class="text-stone-500 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
           </div>
           <span class="pill bg-brand-100 text-brand-800 uppercase shrink-0">${escapeHTML(app.status)}</span>
         </div>
@@ -800,15 +800,15 @@
       const rxList = document.getElementById('emrPrescriptionsList');
       if (rxList) {
         if (!emr.prescriptions || emr.prescriptions.length === 0) {
-          rxList.innerHTML = '<p class="text-slate-400 py-2 text-center">No previous prescriptions on file.</p>';
+          rxList.innerHTML = '<p class="text-stone-400 py-2 text-center">No previous prescriptions on file.</p>';
         } else {
           rxList.innerHTML = emr.prescriptions.map(rx => `
-            <div class="p-2.5 rounded-lg bg-white border border-slate-200 shadow-card">
-              <div class="flex justify-between gap-2 font-semibold text-slate-800">
+            <div class="p-2.5 rounded-lg bg-white border border-stone-200 shadow-card">
+              <div class="flex justify-between gap-2 font-semibold text-stone-800">
                 <span class="truncate">Dx: ${escapeHTML(rx.diagnosis)}</span>
-                <span class="text-[10px] text-slate-400 shrink-0">${escapeHTML(rx.created_at)}</span>
+                <span class="text-[10px] text-stone-400 shrink-0">${escapeHTML(rx.created_at)}</span>
               </div>
-              <p class="text-slate-500 text-[11px] my-1">${escapeHTML(rx.notes || '')}</p>
+              <p class="text-stone-500 text-[11px] my-1">${escapeHTML(rx.notes || '')}</p>
               <div class="text-[10px] text-brand-700 bg-brand-50 p-1.5 rounded">
                 ${rx.medications ? rx.medications.map(m => `&bull; ${escapeHTML(m.drug_name || m.name || '')} ${escapeHTML(m.dosage || '')}`).join('<br>') : ''}
               </div>
@@ -825,10 +825,10 @@
     const container = document.getElementById('medicationsContainer');
     if (!container) return;
     const row = document.createElement('div');
-    row.className = 'med-row bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5';
+    row.className = 'med-row bg-stone-50 p-2.5 rounded-xl border border-stone-200 space-y-1.5';
     row.innerHTML = `
       <div class="flex justify-between items-center">
-        <span class="text-[10px] font-bold text-slate-500 uppercase">Medication Item</span>
+        <span class="text-[10px] font-bold text-stone-500 uppercase">Medication Item</span>
         <button type="button" onclick="this.closest('.med-row').remove()" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1">Remove</button>
       </div>
       <div class="grid grid-cols-2 gap-1.5">
@@ -937,10 +937,10 @@
       if (card) {
         card.classList.remove('hidden');
         card.innerHTML = `
-          <span class="text-xs font-bold text-slate-800 block">Receipt: ${escapeHTML(res.receipt_number)}</span>
-          <div class="flex justify-between items-center my-1 text-slate-600">
+          <span class="text-xs font-bold text-stone-800 block">Receipt: ${escapeHTML(res.receipt_number)}</span>
+          <div class="flex justify-between items-center my-1 text-stone-600">
             <span>Total Paid (${escapeHTML(method.toUpperCase())}):</span>
-            <span class="font-extrabold text-slate-900">$${res.total.toFixed(2)}</span>
+            <span class="font-extrabold text-stone-900">$${res.total.toFixed(2)}</span>
           </div>
           <span class="text-[10px] text-brand-600 font-semibold block">Transaction Finalized &amp; Paid</span>
         `;
@@ -960,7 +960,7 @@
     btns.forEach((b, idx) => {
       const active = idx < rating;
       b.classList.toggle('text-amber-400', active);
-      b.classList.toggle('text-slate-300', !active);
+      b.classList.toggle('text-stone-300', !active);
       b.setAttribute('aria-pressed', String(active));
     });
   }
@@ -1007,14 +1007,14 @@
         const isCritical = Boolean(sent.flagged_critical || sent.is_critical);
 
         const badgeColor = sentLabel === 'positive' ? 'bg-brand-100 text-brand-800' :
-          sentLabel === 'negative' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-800';
+          sentLabel === 'negative' ? 'bg-rose-100 text-rose-800' : 'bg-stone-100 text-stone-800';
 
         resBox.innerHTML = `
           <div class="flex justify-between items-center mb-1 gap-2">
-            <span class="font-bold text-slate-800">VADER Sentiment Analysis</span>
+            <span class="font-bold text-stone-800">VADER Sentiment Analysis</span>
             <span class="pill ${badgeColor}">${escapeHTML(sentLabel)}</span>
           </div>
-          <div class="text-[11px] text-slate-600">
+          <div class="text-[11px] text-stone-600">
             Compound Score: <strong>${sentScore}</strong>
             ${isCritical ? '<span class="ml-2 text-red-600 font-bold">CRITICAL ALERT</span>' : ''}
           </div>
@@ -1084,7 +1084,7 @@
       const list = document.getElementById('criticalAlertsList');
       if (list) {
         if (rawAlerts.length === 0) {
-          list.innerHTML = '<p class="text-slate-400 py-6 text-center">No critical negative complaints detected.</p>';
+          list.innerHTML = '<p class="text-stone-400 py-6 text-center">No critical negative complaints detected.</p>';
         } else {
           list.innerHTML = rawAlerts.map(a => {
             const r = a.rating ?? 1;
@@ -1098,8 +1098,8 @@
                   <span>Rating: ${r} / 5 &bull; Score: ${score}</span>
                   <span class="pill bg-red-200 text-red-900 shrink-0">URGENT</span>
                 </div>
-                <p class="text-slate-800">"${comment}"</p>
-                <span class="text-[10px] text-slate-500 mt-1 block">${pId}${dt}</span>
+                <p class="text-stone-800">"${comment}"</p>
+                <span class="text-[10px] text-stone-500 mt-1 block">${pId}${dt}</span>
               </div>
             `;
           }).join('');
@@ -1179,8 +1179,8 @@
     if (isBot) {
       div.innerHTML = `
         ${ICONS.bot}
-        <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
-          <span class="text-[10px] font-bold text-slate-500 block mb-0.5">Clinic Virtual Bot</span>
+        <div class="bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
+          <span class="text-[10px] font-bold text-stone-500 block mb-0.5">Clinic Virtual Bot</span>
           ${safeText}
         </div>
       `;
@@ -1194,8 +1194,8 @@
     } else {
       div.innerHTML = `
         ${ICONS.staff}
-        <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
-          <span class="text-[10px] font-bold text-slate-500 block mb-0.5">${safeSender}</span>
+        <div class="bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
+          <span class="text-[10px] font-bold text-stone-500 block mb-0.5">${safeSender}</span>
           ${safeText}
         </div>
       `;
