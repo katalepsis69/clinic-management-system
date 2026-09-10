@@ -263,3 +263,44 @@ def test_auth_router_endpoints(db_session):
     dup_res = client.post("/api/auth/register", json=reg_payload)
     assert dup_res.status_code == 400
     assert "already exists" in dup_res.json()["detail"]
+
+    # 8. Doctor registration
+    doc_res = client.post("/api/auth/register", json={
+        "email": "dr.house@clinic.test",
+        "password": "password123",
+        "full_name": "Dr. Gregory House",
+        "role": "doctor",
+        "phone": "555-4321",
+        "specialization": "Nephrology & Diagnostics",
+        "license_number": "MD-44910",
+        "room_number": "Room 304",
+        "consultation_fee": 120.00,
+    })
+    assert doc_res.status_code == 201
+    doc_data = doc_res.json()
+    assert doc_data["user"]["role"] == "doctor"
+    assert doc_data["user"]["doctor_id"] is not None
+
+    # 9. Staff registration
+    staff_res = client.post("/api/auth/register", json={
+        "email": "nurse.jackie@clinic.test",
+        "password": "password123",
+        "full_name": "Jackie Peyton",
+        "role": "staff",
+        "phone": "555-8888",
+    })
+    assert staff_res.status_code == 201
+    staff_data = staff_res.json()
+    assert staff_data["user"]["role"] == "staff"
+
+    # 10. Admin registration
+    admin_res = client.post("/api/auth/register", json={
+        "email": "head.admin@clinic.test",
+        "password": "password123",
+        "full_name": "Dr. Cuddy",
+        "role": "admin",
+        "phone": "555-9999",
+    })
+    assert admin_res.status_code == 201
+    admin_data = admin_res.json()
+    assert admin_data["user"]["role"] == "admin"

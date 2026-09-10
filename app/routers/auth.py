@@ -11,7 +11,7 @@ from app.auth import (
 )
 from app.config import get_settings
 from app.database import get_db
-from app.models import Patient, User, UserRole
+from app.models import Doctor, Patient, User, UserRole
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 settings = get_settings()
@@ -132,11 +132,13 @@ def get_me(current_user: User = Depends(get_current_user)):
     return _user_profile(current_user)
 
 
-class RegisterPatientPayload(BaseModel):
+class RegisterUserPayload(BaseModel):
     email: str
     password: str
     full_name: str
     phone: Optional[str] = None
+    role: Optional[str] = "patient"
+    # Patient fields
     date_of_birth: Optional[str] = None
     gender: Optional[str] = None
     blood_group: Optional[str] = None
@@ -144,11 +146,23 @@ class RegisterPatientPayload(BaseModel):
     emergency_contact_phone: Optional[str] = None
     allergies: Optional[str] = None
     medical_history: Optional[str] = None
+    # Doctor fields
+    specialization: Optional[str] = None
+    license_number: Optional[str] = None
+    room_number: Optional[str] = None
+    consultation_fee: Optional[float] = 60.00
+    # Staff / Admin fields
+    department: Optional[str] = None
+    admin_title: Optional[str] = None
+
+
+# Backwards compatibility alias
+RegisterPatientPayload = RegisterUserPayload
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-def register_patient(
-    payload: RegisterPatientPayload,
+def register_user(
+    payload: RegisterUserPayload,
     response: Response,
     db: Session = Depends(get_db),
 ):
@@ -164,38 +178,66 @@ def register_patient(
     if existing:
         raise HTTPException(status_code=400, detail="An account with this email already exists")
 
-    dob = None
-    if payload.date_of_birth:
-        try:
-            dob = date.fromisoformat(payload.date_of_birth)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Date of birth must be in YYYY-MM-DD format")
+    target_role_str = (payload.role or "patient").strip().lower()
+    role_map = {
+        "patient": UserRole.PATIENT,
+        "doctor": UserRole.DOCTOR,
+        "staff": UserRole.STAFF,
+        "admin": UserRole.ADMIN,
+    }
+    user_role = role_map.get(target_role_str, UserRole.PATIENT)
 
     user = User(
         email=email,
         hashed_password=get_password_hash(payload.password),
         full_name=payload.full_name.strip(),
         phone=payload.phone.strip() if payload.phone else None,
-        role=UserRole.PATIENT,
+        role=user_role,
     )
     db.add(user)
     db.flush()
 
-    patient = Patient(
-        user_id=user.id,
-        date_of_birth=dob,
-        gender=payload.gender.strip() if payload.gender else None,
-        blood_group=payload.blood_group.strip() if payload.blood_group else None,
-        emergency_contact_name=payload.emergency_contact_name.strip() if payload.emergency_contact_name else None,
-        emergency_contact_phone=payload.emergency_contact_phone.strip() if payload.emergency_contact_phone else None,
-        allergies=payload.allergies.strip() if payload.allergies else None,
-        medical_history=payload.medical_history.strip() if payload.medical_history else None,
-    )
-    db.add(patient)
+    if user_role == UserRole.PATIENT:
+        dob = None
+        if payload.date_of_birth:
+            try:
+                dob = date.fromisoformat(payload.date_of_birth)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Date of birth must be in YYYY-MM-DD format")
+
+        patient = Patient(
+            user_id=user.id,
+            date_of_birth=dob,
+            gender=payload.gender.strip() if payload.gender else None,
+            blood_group=payload.blood_group.strip() if payload.blood_group else None,
+            emergency_contact_name=payload.emergency_contact_name.strip() if payload.emergency_contact_name else None,
+            emergency_contact_phone=payload.emergency_contact_phone.strip() if payload.emergency_contact_phone else None,
+            allergies=payload.allergies.strip() if payload.allergies else None,
+            medical_history=payload.medical_history.strip() if payload.medical_history else None,
+        )
+        db.add(patient)
+
+    elif user_role == UserRole.DOCTOR:
+        spec = (payload.specialization or "").strip() or "General Medicine"
+        lic = (payload.license_number or "").strip() or f"MD-{user.id:04d}"
+        room = (payload.room_number or "").strip() or f"Room {100 + user.id}"
+        fee = payload.consultation_fee if payload.consultation_fee is not None else 60.00
+
+        doctor = Doctor(
+            user_id=user.id,
+            specialization=spec,
+            license_number=lic,
+            room_number=room,
+            consultation_fee=fee,
+            is_available=True,
+        )
+        db.add(doctor)
+
     db.commit()
     db.refresh(user)
 
-    token = create_access_token({"sub": user.email, "role": user.role.value})
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    token = create_access_token({"sub": user.email, "role": role_val})
     response.set_cookie(
         key="access_token",
         value=f"Bearer {token}",

@@ -488,39 +488,98 @@
     }
   }
 
-  // Dedicated Role-based Login Portal Logic
+  // Dedicated Role-based Login & Sign Up Portal Logic
   let currentLoginRole = 'patient';
+  let currentPortalMode = 'login'; // 'login' | 'register'
 
   const roleMeta = {
     patient: {
-      title: 'Patient Portal Sign In',
-      subtitle: 'Book appointments, track live queue, and view medical profile',
+      title: 'Patient Portal',
+      loginSubtitle: 'Book appointments, track live queue, and view medical profile',
+      regSubtitle: 'Create your patient account and clinical health file',
       btnText: 'Sign In as Patient',
+      regBtnText: 'Create Patient Account',
       icon: '#i-user',
-      emailPlaceholder: 'patient@example.com',
+      emailPlaceholder: 'patient@demo.com',
     },
     doctor: {
       title: 'Doctor Clinical Console',
-      subtitle: 'Access daily schedules, patient EMRs, and digital e-prescriptions',
+      loginSubtitle: 'Access daily schedules, patient EMRs, and digital e-prescriptions',
+      regSubtitle: 'Register your doctor clinical practice and consultation room',
       btnText: 'Sign In as Doctor',
+      regBtnText: 'Register Doctor Account',
       icon: '#i-stethoscope',
       emailPlaceholder: 'doctor@demo.com',
     },
     staff: {
       title: 'Staff & Billing Desk',
-      subtitle: 'Manage waiting queues, walk-in check-in, and invoice issuance',
+      loginSubtitle: 'Manage waiting queues, walk-in check-in, and invoice issuance',
+      regSubtitle: 'Register staff member for front desk, queue, and billing',
       btnText: 'Sign In as Staff',
+      regBtnText: 'Register Staff Account',
       icon: '#i-clipboard',
       emailPlaceholder: 'staff@demo.com',
     },
     admin: {
       title: 'Administrator Console',
-      subtitle: 'Review clinic-wide operations, footfall, and patient sentiment analytics',
+      loginSubtitle: 'Review clinic-wide operations, footfall, and patient sentiment analytics',
+      regSubtitle: 'Register clinic administrator with full operational access',
       btnText: 'Sign In as Administrator',
+      regBtnText: 'Register Administrator Account',
       icon: '#i-chart',
       emailPlaceholder: 'admin@demo.com',
     },
   };
+
+  function updatePortalHeader() {
+    const meta = roleMeta[currentLoginRole] || roleMeta.patient;
+    const titleEl = document.getElementById('loginRoleTitle');
+    const subEl = document.getElementById('loginRoleSubtitle');
+    const roleIcon = document.getElementById('loginRoleIcon');
+
+    if (roleIcon) roleIcon.innerHTML = `<use href="${meta.icon}"/>`;
+
+    if (currentPortalMode === 'register') {
+      if (titleEl) titleEl.textContent = `${meta.title} Sign Up`;
+      if (subEl) subEl.textContent = meta.regSubtitle;
+    } else {
+      if (titleEl) titleEl.textContent = `${meta.title} Sign In`;
+      if (subEl) subEl.textContent = meta.loginSubtitle;
+    }
+  }
+
+  function switchPortalMode(mode) {
+    currentPortalMode = mode === 'register' ? 'register' : 'login';
+
+    const signInBtn = document.getElementById('portalModeSignInBtn');
+    const regBtn = document.getElementById('portalModeRegisterBtn');
+    const loginForm = document.getElementById('portalLoginForm');
+    const regForm = document.getElementById('portalRegisterForm');
+    const errEl = document.getElementById('portalLoginErrorMsg');
+    if (errEl) errEl.classList.add('hidden');
+
+    if (currentPortalMode === 'register') {
+      if (signInBtn) {
+        signInBtn.className = 'flex-1 py-2 rounded-lg text-stone-500 hover:text-stone-900 transition-all font-semibold';
+      }
+      if (regBtn) {
+        regBtn.className = 'flex-1 py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all';
+      }
+      if (loginForm) loginForm.classList.add('hidden');
+      if (regForm) regForm.classList.remove('hidden');
+    } else {
+      if (signInBtn) {
+        signInBtn.className = 'flex-1 py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all';
+      }
+      if (regBtn) {
+        regBtn.className = 'flex-1 py-2 rounded-lg text-stone-500 hover:text-stone-900 transition-all font-semibold';
+      }
+      if (loginForm) loginForm.classList.remove('hidden');
+      if (regForm) regForm.classList.add('hidden');
+    }
+
+    updatePortalHeader();
+  }
 
   function switchLoginRole(role) {
     if (!roleMeta[role]) role = 'patient';
@@ -534,29 +593,26 @@
     });
 
     const meta = roleMeta[role];
-    const titleEl = document.getElementById('loginRoleTitle');
-    const subEl = document.getElementById('loginRoleSubtitle');
     const btnTextEl = document.getElementById('portalLoginBtnText');
+    const regBtnTextEl = document.getElementById('portalRegBtnText');
     const emailInput = document.getElementById('portalLoginEmail');
-    const roleIcon = document.getElementById('loginRoleIcon');
 
-    if (titleEl) titleEl.textContent = meta.title;
-    if (subEl) subEl.textContent = meta.subtitle;
     if (btnTextEl) btnTextEl.textContent = meta.btnText;
-    if (emailInput) {
-      emailInput.placeholder = meta.emailPlaceholder;
-      emailInput.focus();
-    }
-    if (roleIcon) {
-      roleIcon.innerHTML = `<use href="${meta.icon}"/>`;
-    }
+    if (regBtnTextEl) regBtnTextEl.textContent = meta.regBtnText;
+    if (emailInput) emailInput.placeholder = meta.emailPlaceholder;
 
-    ['patient', 'doctor', 'staff', 'admin'].forEach(r => {
-      const promptEl = document.getElementById(`rolePrompt${r.charAt(0).toUpperCase() + r.slice(1)}`);
-      if (promptEl) {
-        promptEl.classList.toggle('hidden', r === role);
-      }
-    });
+    // Toggle role-specific registration fields
+    const patFields = document.getElementById('portalRegPatientFields');
+    const docFields = document.getElementById('portalRegDoctorFields');
+    const stfFields = document.getElementById('portalRegStaffFields');
+    const admFields = document.getElementById('portalRegAdminFields');
+
+    if (patFields) patFields.classList.toggle('hidden', role !== 'patient');
+    if (docFields) docFields.classList.toggle('hidden', role !== 'doctor');
+    if (stfFields) stfFields.classList.toggle('hidden', role !== 'staff');
+    if (admFields) admFields.classList.toggle('hidden', role !== 'admin');
+
+    updatePortalHeader();
 
     const errEl = document.getElementById('portalLoginErrorMsg');
     if (errEl) errEl.classList.add('hidden');
@@ -583,10 +639,65 @@
     }
   }
 
-  function continueAsGuest() {
-    const nav = document.getElementById('portalNav');
-    if (nav) nav.classList.remove('hidden');
-    switchTab('patient');
+  async function handlePortalRegister(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('portalLoginErrorMsg');
+    if (errEl) errEl.classList.add('hidden');
+    const submitBtn = document.getElementById('portalRegSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const payload = {
+      full_name: document.getElementById('portalRegFullName').value.trim(),
+      email: document.getElementById('portalRegEmail').value.trim(),
+      password: document.getElementById('portalRegPassword').value,
+      phone: document.getElementById('portalRegPhone').value.trim(),
+      role: currentLoginRole,
+    };
+
+    if (currentLoginRole === 'patient') {
+      payload.date_of_birth = document.getElementById('portalRegDob').value || null;
+      payload.gender = document.getElementById('portalRegGender').value || null;
+      payload.blood_group = document.getElementById('portalRegBloodGroup').value || null;
+      payload.emergency_contact_name = document.getElementById('portalRegEmergencyName').value.trim() || null;
+      payload.emergency_contact_phone = document.getElementById('portalRegEmergencyPhone').value.trim() || null;
+      payload.allergies = document.getElementById('portalRegAllergies').value.trim() || null;
+      payload.medical_history = document.getElementById('portalRegHistory').value.trim() || null;
+    } else if (currentLoginRole === 'doctor') {
+      payload.specialization = document.getElementById('portalRegSpecialization').value.trim() || 'General Medicine';
+      payload.license_number = document.getElementById('portalRegLicense').value.trim() || 'MD-REG';
+      payload.room_number = document.getElementById('portalRegRoom').value.trim() || 'Room 101';
+      payload.consultation_fee = parseFloat(document.getElementById('portalRegFee').value) || 60.00;
+    } else if (currentLoginRole === 'staff') {
+      payload.department = document.getElementById('portalRegDepartment').value;
+    } else if (currentLoginRole === 'admin') {
+      payload.admin_title = document.getElementById('portalRegAdminTitle').value.trim() || 'Clinic Administrator';
+    }
+
+    try {
+      const data = await apiFetch(API.auth.register, {
+        method: 'POST',
+        body: payload,
+      });
+      state.user = data.user;
+      localStorage.setItem('user_profile', JSON.stringify(state.user));
+      state.chatSessionId = crypto.randomUUID();
+      localStorage.setItem('chat_session_id', state.chatSessionId);
+
+      updateUserUI();
+      showToast(`Welcome, ${state.user.full_name}! Your ${state.user.role} account is ready.`, 'success');
+
+      const roleMap = { patient: 'patient', doctor: 'doctor', staff: 'staff', admin: 'analytics' };
+      switchTab(roleMap[state.user.role] || 'patient');
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || 'Registration failed. Please check your details.';
+        errEl.classList.remove('hidden');
+      } else {
+        showToast(err.message, 'error');
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   }
 
   function showProfileModal() {
@@ -1594,8 +1705,9 @@
     login,
     logout,
     switchLoginRole,
+    switchPortalMode,
     handlePortalLogin,
-    continueAsGuest,
+    handlePortalRegister,
     showAuthModal,
     hideAuthModal,
     switchAuthTab,

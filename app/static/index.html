@@ -74,16 +74,6 @@
             <span class="hidden lg:inline">TV Display</span>
           </a>
 
-          <button id="registerNavBtn" onclick="window.ClinicApp.showAuthModal('register')" class="btn btn-primary btn-sm">
-            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-user-plus"/></svg>
-            <span class="hidden sm:inline">Patient</span> Sign Up
-          </button>
-
-          <button id="manualLoginBtn" onclick="window.ClinicApp.showAuthModal('login')" class="btn btn-outline btn-sm">
-            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-login"/></svg>
-            <span class="hidden sm:inline">Sign</span> In
-          </button>
-
           <button id="logoutBtn" onclick="window.ClinicApp.logout()" class="btn btn-ghost btn-sm hidden text-rose-600 hover:bg-rose-50 hover:text-rose-700" aria-label="Log out">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-logout"/></svg>
             <span class="hidden sm:inline">Logout</span>
@@ -134,7 +124,7 @@
         </div>
 
         <!-- Role Segmented Control -->
-        <div class="bg-stone-100/80 p-1 rounded-2xl flex gap-1 mt-6 border border-stone-200/60" role="tablist" aria-label="Select role to sign in">
+        <div class="bg-stone-100/80 p-1 rounded-2xl flex gap-1 mt-6 border border-stone-200/60" role="tablist" aria-label="Select role">
           <button type="button" role="tab" id="pill-patient" aria-selected="true" onclick="window.ClinicApp.switchLoginRole('patient')" class="role-pill flex-1">
             <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-user"/></svg> <span>Patient</span>
           </button>
@@ -149,14 +139,24 @@
           </button>
         </div>
 
+        <!-- Mode Toggle: Sign In vs Register -->
+        <div class="flex bg-stone-100 p-1 rounded-xl mt-4 text-xs font-semibold" role="tablist" aria-label="Sign In or Register">
+          <button type="button" id="portalModeSignInBtn" onclick="window.ClinicApp.switchPortalMode('login')" class="flex-1 py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all">
+            Sign In
+          </button>
+          <button type="button" id="portalModeRegisterBtn" onclick="window.ClinicApp.switchPortalMode('register')" class="flex-1 py-2 rounded-lg text-stone-500 hover:text-stone-900 transition-all">
+            Sign Up
+          </button>
+        </div>
+
         <!-- Error alert -->
         <div id="portalLoginErrorMsg" role="alert" aria-live="polite" class="hidden mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700"></div>
 
-        <!-- Sign In Form -->
+        <!-- Mode 1: Sign In Form -->
         <form id="portalLoginForm" onsubmit="window.ClinicApp.handlePortalLogin(event)" class="mt-5 space-y-4">
           <div>
             <label for="portalLoginEmail" class="label">Email Address</label>
-            <input type="email" id="portalLoginEmail" required autocomplete="email" placeholder="patient@example.com" class="input">
+            <input type="email" id="portalLoginEmail" required autocomplete="email" placeholder="patient@demo.com" class="input">
           </div>
           <div>
             <div class="flex justify-between items-center mb-1.5">
@@ -168,33 +168,147 @@
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-login"/></svg>
             <span id="portalLoginBtnText">Sign In as Patient</span>
           </button>
+          <div class="text-center pt-3 border-t border-stone-100 text-xs text-stone-500">
+            Don't have an account?
+            <button type="button" onclick="window.ClinicApp.switchPortalMode('register')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline ml-1">Create one now</button>
+          </div>
         </form>
 
-        <!-- Contextual Role Switcher Links ("Doctor? Click here" etc.) -->
-        <div id="roleSwitchLinks" class="mt-6 pt-5 border-t border-stone-200/80 text-center text-xs text-stone-500 space-y-2">
-          <div id="rolePromptDoctor" class="block">
-            Doctor? <button type="button" onclick="window.ClinicApp.switchLoginRole('doctor')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline">Click here to access Clinical Console</button>
+        <!-- Mode 2: Role-Based Sign Up Form -->
+        <form id="portalRegisterForm" onsubmit="window.ClinicApp.handlePortalRegister(event)" class="hidden mt-5 space-y-4">
+          <!-- Shared Account Fields -->
+          <div class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="portalRegFullName" class="label">Full Legal Name *</label>
+                <input type="text" id="portalRegFullName" required placeholder="e.g. John Doe" class="input">
+              </div>
+              <div>
+                <label for="portalRegPhone" class="label">Phone Number *</label>
+                <input type="tel" id="portalRegPhone" required placeholder="555-0142" class="input">
+              </div>
+            </div>
+            <div>
+              <label for="portalRegEmail" class="label">Email Address *</label>
+              <input type="email" id="portalRegEmail" required placeholder="your.name@example.com" class="input">
+            </div>
+            <div>
+              <label for="portalRegPassword" class="label">Password (Min. 6 chars) *</label>
+              <input type="password" id="portalRegPassword" required minlength="6" placeholder="••••••••" class="input">
+            </div>
           </div>
-          <div id="rolePromptStaff" class="block">
-            Staff &amp; Billing Desk? <button type="button" onclick="window.ClinicApp.switchLoginRole('staff')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline">Click here</button>
-          </div>
-          <div id="rolePromptAdmin" class="block">
-            Clinic Administrator? <button type="button" onclick="window.ClinicApp.switchLoginRole('admin')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline">Click here</button>
-          </div>
-          <div id="rolePromptPatient" class="hidden">
-            Patient looking for appointments? <button type="button" onclick="window.ClinicApp.switchLoginRole('patient')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline">Click here for Patient Portal</button>
-          </div>
-        </div>
 
-        <!-- Guest Patient Access & Registration -->
-        <div class="mt-5 pt-4 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <button type="button" onclick="window.ClinicApp.continueAsGuest()" class="font-semibold text-stone-600 hover:text-stone-900 underline underline-offset-2">
-            Continue as Guest Patient &rarr;
+          <!-- Role-Specific: Patient Demographics & Medical History -->
+          <div id="portalRegPatientFields" class="space-y-3 pt-2 border-t border-stone-200/80">
+            <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Clinical Demographics</span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label for="portalRegDob" class="label">Date of Birth</label>
+                <input type="date" id="portalRegDob" class="input">
+              </div>
+              <div>
+                <label for="portalRegGender" class="label">Gender</label>
+                <select id="portalRegGender" class="input">
+                  <option value="">Select</option>
+                  <option value="Female">Female</option>
+                  <option value="Male">Male</option>
+                  <option value="Other">Other</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
+              <div>
+                <label for="portalRegBloodGroup" class="label">Blood Group</label>
+                <select id="portalRegBloodGroup" class="input">
+                  <option value="">Select</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="portalRegEmergencyName" class="label">Emergency Contact Name</label>
+                <input type="text" id="portalRegEmergencyName" placeholder="Contact person" class="input">
+              </div>
+              <div>
+                <label for="portalRegEmergencyPhone" class="label">Emergency Contact Phone</label>
+                <input type="tel" id="portalRegEmergencyPhone" placeholder="555-9999" class="input">
+              </div>
+            </div>
+            <div>
+              <label for="portalRegAllergies" class="label">Known Drug/Food Allergies</label>
+              <input type="text" id="portalRegAllergies" placeholder="e.g. Penicillin, Latex (or None)" class="input">
+            </div>
+            <div>
+              <label for="portalRegHistory" class="label">Medical History &amp; Conditions</label>
+              <textarea id="portalRegHistory" rows="2" placeholder="e.g. Asthma, Hypertension" class="input !h-auto py-2"></textarea>
+            </div>
+          </div>
+
+          <!-- Role-Specific: Doctor Credentials -->
+          <div id="portalRegDoctorFields" class="hidden space-y-3 pt-2 border-t border-stone-200/80">
+            <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Doctor Credentials &amp; Practice</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="portalRegSpecialization" class="label">Specialization *</label>
+                <input type="text" id="portalRegSpecialization" placeholder="e.g. Cardiology &amp; General Medicine" class="input">
+              </div>
+              <div>
+                <label for="portalRegLicense" class="label">Medical License Number *</label>
+                <input type="text" id="portalRegLicense" placeholder="e.g. MD-98421" class="input">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="portalRegRoom" class="label">Assigned Room Number *</label>
+                <input type="text" id="portalRegRoom" placeholder="e.g. Room 102" class="input">
+              </div>
+              <div>
+                <label for="portalRegFee" class="label">Consultation Fee ($) *</label>
+                <input type="number" id="portalRegFee" step="0.01" value="60.00" class="input">
+              </div>
+            </div>
+          </div>
+
+          <!-- Role-Specific: Staff Department -->
+          <div id="portalRegStaffFields" class="hidden space-y-3 pt-2 border-t border-stone-200/80">
+            <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Staff Department</span>
+            <div>
+              <label for="portalRegDepartment" class="label">Department / Desk</label>
+              <select id="portalRegDepartment" class="input">
+                <option value="Front Desk & Reception">Front Desk &amp; Reception</option>
+                <option value="Billing & Invoicing">Billing &amp; Invoicing</option>
+                <option value="Triage & Nursing">Triage &amp; Nursing</option>
+                <option value="Pharmacy Desk">Pharmacy Desk</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Role-Specific: Admin Title -->
+          <div id="portalRegAdminFields" class="hidden space-y-3 pt-2 border-t border-stone-200/80">
+            <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Administrator Role</span>
+            <div>
+              <label for="portalRegAdminTitle" class="label">Administrative Title</label>
+              <input type="text" id="portalRegAdminTitle" placeholder="e.g. Operations Director / Clinic Manager" class="input">
+            </div>
+          </div>
+
+          <!-- Submit Register Button -->
+          <button type="submit" id="portalRegSubmitBtn" class="btn btn-primary w-full shadow-md shadow-brand-900/10">
+            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-user-plus"/></svg>
+            <span id="portalRegBtnText">Create Patient Account</span>
           </button>
-          <button type="button" onclick="window.ClinicApp.showAuthModal('register')" class="font-semibold text-brand-700 hover:text-brand-800">
-            New patient? Register here
-          </button>
-        </div>
+          <div class="text-center pt-3 border-t border-stone-100 text-xs text-stone-500">
+            Already have an account?
+            <button type="button" onclick="window.ClinicApp.switchPortalMode('login')" class="font-semibold text-brand-700 hover:text-brand-800 hover:underline ml-1">Sign in here</button>
+          </div>
+        </form>
       </div>
     </section>
 
