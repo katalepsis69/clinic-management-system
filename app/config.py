@@ -10,6 +10,17 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./data/clinic.db"
     DEMO_MODE: bool = True
     GEMINI_API_KEY: str = ""
+    GEMINI_API_KEYS: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+
+    def get_gemini_keys(self) -> list[str]:
+        """Return list of non-empty API keys for round-robin / fallback pool."""
+        keys = []
+        if self.GEMINI_API_KEYS:
+            keys.extend([k.strip() for k in self.GEMINI_API_KEYS.split(",") if k.strip()])
+        if self.GEMINI_API_KEY and self.GEMINI_API_KEY.strip() not in keys:
+            keys.append(self.GEMINI_API_KEY.strip())
+        return keys
 
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 

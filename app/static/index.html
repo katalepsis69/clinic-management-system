@@ -41,6 +41,9 @@
     <symbol id="i-card" viewBox="0 0 256 256"><line x1="168" y1="168" x2="200" y2="168" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="120" y1="168" x2="136" y2="168" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="24" y1="96" x2="232" y2="96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-user-plus" viewBox="0 0 256 256"><line x1="200" y1="136" x2="248" y2="136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="224" y1="112" x2="224" y2="160" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><circle cx="108" cy="100" r="60" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M24,200c20.55-24.45,49.56-40,84-40s63.45,15.55,84,40" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-check" viewBox="0 0 256 256"><polyline points="40 144 96 200 224 72" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 256 256"><line x1="216" y1="56" x2="40" y2="56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="104" y1="104" x2="104" y2="168" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="152" y1="104" x2="152" y2="168" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M200,56V208a8,8,0,0,1-8,8H64a8,8,0,0,1-8-8V56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M168,56V40a16,16,0,0,0-16-16H104A16,16,0,0,0,88,40V56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 256 256"><polyline points="168 168 216 168 216 40 88 40 88 88" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><rect x="40" y="88" width="128" height="128" rx="8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
+    <symbol id="i-spinner-gap" viewBox="0 0 256 256"><line x1="128" y1="32" x2="128" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="224" y1="128" x2="192" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="195.88" y1="195.88" x2="173.25" y2="173.25" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="128" y1="224" x2="128" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="60.12" y1="195.88" x2="82.75" y2="173.25" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="32" y1="128" x2="64" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="60.12" y1="60.12" x2="82.75" y2="82.75" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
   </svg>
 
   <!-- Header (scrolls away; nav stays sticky for maximum mobile viewport) -->
@@ -789,9 +792,14 @@
           </span>
         </div>
       </div>
-      <button onclick="window.ClinicApp.toggleChat()" class="touch-target flex items-center justify-center rounded-lg text-stone-400 hover:text-white transition-colors" aria-label="Close chat">
-        <svg class="icon w-5 h-5" aria-hidden="true"><use href="#i-x"/></svg>
-      </button>
+      <div class="flex items-center gap-1">
+        <button type="button" onclick="window.ClinicApp.clearChat()" class="touch-target flex items-center justify-center rounded-lg text-stone-400 hover:text-white transition-colors p-1" title="Clear conversation" aria-label="Clear conversation">
+          <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-trash"/></svg>
+        </button>
+        <button type="button" onclick="window.ClinicApp.toggleChat()" class="touch-target flex items-center justify-center rounded-lg text-stone-400 hover:text-white transition-colors p-1" aria-label="Close chat">
+          <svg class="icon w-5 h-5" aria-hidden="true"><use href="#i-x"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- Quick FAQ chips -->
@@ -815,7 +823,7 @@
       <div class="flex items-start gap-2">
         <svg class="icon w-5 h-5 text-brand-600 mt-0.5 shrink-0" aria-hidden="true"><use href="#i-bot"/></svg>
         <div class="bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
-          Welcome to City Health Clinic. I am your virtual assistant. Ask me about opening hours, booking appointments, specialists, or our location.
+          Welcome to City Health Clinic. I am your virtual assistant. Ask me about opening hours, booking appointments, specialists, general health facts, or our location. (Pwede rin po kayong magtanong sa Tagalog!)
         </div>
       </div>
     </div>
@@ -823,9 +831,10 @@
     <!-- Input -->
     <form onsubmit="window.ClinicApp.sendChatInput(event)" class="p-3 bg-white border-t border-stone-200 flex gap-2 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
       <input type="text" id="chatInput" placeholder="Ask a question or type a message..." aria-label="Chat message" class="input flex-1" autocomplete="off">
-      <button type="submit" class="btn btn-primary !px-3.5" aria-label="Send message">
-        <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-send"/></svg>
-        <span class="hidden sm:inline">Send</span>
+      <button type="submit" id="chatSendBtn" class="btn btn-primary !px-3.5" aria-label="Send message">
+        <svg id="chatSendIcon" class="icon w-4 h-4" aria-hidden="true"><use href="#i-send"/></svg>
+        <svg id="chatSendSpinner" class="icon w-4 h-4 animate-spin hidden" aria-hidden="true"><use href="#i-spinner-gap"/></svg>
+        <span id="chatSendText" class="hidden sm:inline">Send</span>
       </button>
     </form>
   </div>

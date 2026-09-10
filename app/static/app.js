@@ -83,16 +83,16 @@
     };
 
     const toast = document.createElement('div');
-    toast.className = `p-3.5 rounded-xl text-xs font-semibold shadow-lg transition-all duration-300 transtone-x-4 opacity-0 ${colors[type] || colors.info}`;
+    toast.className = `p-3.5 rounded-xl text-xs font-semibold shadow-lg transition-all duration-300 translate-x-4 opacity-0 ${colors[type] || colors.info}`;
     toast.textContent = message;
     container.appendChild(toast);
 
     requestAnimationFrame(() => {
-      toast.classList.remove('transtone-x-4', 'opacity-0');
+      toast.classList.remove('translate-x-4', 'opacity-0');
     });
 
     setTimeout(() => {
-      toast.classList.add('opacity-0', 'transtone-x-4');
+      toast.classList.add('opacity-0', 'translate-x-4');
       setTimeout(() => toast.remove(), 300);
     }, 4000);
   }
@@ -1237,6 +1237,21 @@
   }
 
   // Live Chat Widget
+  const pendingOptimisticMessages = new Set();
+
+  function formatChatTime(dateStr) {
+    if (!dateStr) {
+      const d = new Date();
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    try {
+      const d = new Date(dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T'));
+      return isNaN(d) ? 'Just now' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch (_) {
+      return 'Just now';
+    }
+  }
+
   function toggleChat() {
     const win = document.getElementById('chatWindow');
     const launcher = document.getElementById('chatLauncher');
@@ -1270,23 +1285,80 @@
   }
 
   function initChatWebSocket() {
+    if (state.chatWs && (state.chatWs.readyState === WebSocket.OPEN || state.chatWs.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}${API.chat.ws}/${state.chatSessionId}`;
 
-    state.chatWs = new WebSocket(wsUrl);
+    try {
+      state.chatWs = new WebSocket(wsUrl);
 
-    state.chatWs.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        appendChatMessage(payload);
-      } catch (err) {
-        console.warn('Chat parse error:', err);
-      }
-    };
+      state.chatWs.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          hideTypingIndicator();
+          appendChatMessage(payload);
+        } catch (err) {
+          console.warn('Chat parse error:', err);
+        }
+      };
 
-    state.chatWs.onclose = () => {
-      console.log('Chat WebSocket closed');
-    };
+      state.chatWs.onclose = () => {
+        console.log('Chat WebSocket closed');
+      };
+    } catch (err) {
+      console.warn('WebSocket init failed:', err);
+    }
+  }
+
+  function setChatSendingState(isSending) {
+    const btn = document.getElementById('chatSendBtn');
+    const icon = document.getElementById('chatSendIcon');
+    const spinner = document.getElementById('chatSendSpinner');
+    const text = document.getElementById('chatSendText');
+    if (!btn) return;
+    btn.disabled = isSending;
+    if (isSending) {
+      btn.classList.add('opacity-75', 'cursor-not-allowed');
+      if (icon) icon.classList.add('hidden');
+      if (spinner) spinner.classList.remove('hidden');
+      if (text) text.textContent = 'Thinking...';
+    } else {
+      btn.classList.remove('opacity-75', 'cursor-not-allowed');
+      if (icon) icon.classList.remove('hidden');
+      if (spinner) spinner.classList.add('hidden');
+      if (text) text.textContent = 'Send';
+    }
+  }
+
+  function showTypingIndicator() {
+    const bubble = document.getElementById('chatTypingBubble');
+    if (bubble) return;
+    const box = document.getElementById('chatMessages');
+    if (!box) return;
+
+    const div = document.createElement('div');
+    div.id = 'chatTypingBubble';
+    div.className = 'flex items-start gap-2 justify-start';
+    div.innerHTML = `
+      ${ICONS.bot}
+      <div class="bg-stone-100 text-stone-600 px-3.5 py-2.5 rounded-2xl rounded-tl-none flex items-center gap-1.5 shadow-sm">
+        <span class="w-1.5 h-1.5 rounded-full bg-stone-500 chat-dot inline-block"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-stone-500 chat-dot inline-block"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-stone-500 chat-dot inline-block"></span>
+        <span class="text-[10px] text-stone-400 font-medium ml-1">Thinking...</span>
+      </div>
+    `;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    setChatSendingState(true);
+  }
+
+  function hideTypingIndicator() {
+    const bubble = document.getElementById('chatTypingBubble');
+    if (bubble) bubble.remove();
+    setChatSendingState(false);
   }
 
   function appendChatMessage(msg) {
@@ -1294,35 +1366,52 @@
     if (!box) return;
 
     const isBot = msg.is_bot_reply || msg.role === 'bot' || msg.sender === 'Clinic Assistant Bot';
-    // Identity-based: a message is "mine" only if the server says it came from me
-    const isMe = !isBot && state.user && (msg.sender === state.user.full_name || msg.sender_name === state.user.full_name);
-    const safeText = escapeHTML(msg.message || msg.message_text || '');
+    const isMe = !isBot && (msg.is_optimistic || (state.user && (msg.sender === state.user.full_name || msg.sender_name === state.user.full_name)));
+
+    // Deduplicate optimistic echo
+    const textKey = msg.message || msg.message_text || '';
+    if (!isBot && !msg.is_optimistic && pendingOptimisticMessages.has(textKey)) {
+      pendingOptimisticMessages.delete(textKey);
+      return;
+    }
+
+    const safeText = escapeHTML(textKey);
     const safeSender = escapeHTML(msg.sender || msg.sender_name || 'Staff');
+    const timeStr = formatChatTime(msg.created_at);
 
     const div = document.createElement('div');
-    div.className = `flex items-start gap-2 ${isMe && !isBot ? 'justify-end' : 'justify-start'}`;
+    div.className = `flex items-start gap-2 ${isMe ? 'justify-end' : 'justify-start'}`;
 
     if (isBot) {
+      hideTypingIndicator();
       div.innerHTML = `
         ${ICONS.bot}
-        <div class="bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
-          <span class="text-[10px] font-bold text-stone-500 block mb-0.5">Clinic Virtual Bot</span>
-          ${safeText}
+        <div class="chat-bubble-content bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed group relative shadow-sm" data-raw-text="${safeText}">
+          <div class="flex items-center justify-between gap-3 mb-1">
+            <span class="text-[10px] font-bold text-stone-500">Clinic Virtual Bot</span>
+            <button type="button" onclick="window.ClinicApp.copyChatText(this)" class="opacity-60 hover:opacity-100 transition-opacity p-0.5 rounded text-stone-500 hover:text-stone-900" title="Copy response" aria-label="Copy response">
+              <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-copy"/></svg>
+            </button>
+          </div>
+          <div class="whitespace-pre-wrap">${safeText}</div>
+          <span class="text-[9px] text-stone-400 block mt-1 text-right tabular-nums">${timeStr}</span>
         </div>
       `;
     } else if (isMe) {
       div.innerHTML = `
-        <div class="bg-brand-600 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] leading-relaxed">
-          ${safeText}
+        <div class="bg-brand-600 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] leading-relaxed shadow-sm">
+          <div class="whitespace-pre-wrap">${safeText}</div>
+          <span class="text-[9px] text-brand-200 block mt-1 text-right tabular-nums">${timeStr}</span>
         </div>
         ${ICONS.user}
       `;
     } else {
       div.innerHTML = `
         ${ICONS.staff}
-        <div class="bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
+        <div class="bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed shadow-sm">
           <span class="text-[10px] font-bold text-stone-500 block mb-0.5">${safeSender}</span>
-          ${safeText}
+          <div class="whitespace-pre-wrap">${safeText}</div>
+          <span class="text-[9px] text-stone-400 block mt-1 text-right tabular-nums">${timeStr}</span>
         </div>
       `;
     }
@@ -1331,11 +1420,64 @@
     box.scrollTop = box.scrollHeight;
   }
 
+  async function copyChatText(btn) {
+    const bubble = btn.closest('.chat-bubble-content');
+    if (!bubble) return;
+    const textToCopy = bubble.getAttribute('data-raw-text') || bubble.innerText.trim();
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      btn.innerHTML = `<svg class="icon w-3.5 h-3.5 text-brand-600" aria-hidden="true"><use href="#i-check"/></svg>`;
+      setTimeout(() => {
+        btn.innerHTML = `<svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-copy"/></svg>`;
+      }, 2000);
+    } catch (_) {
+      showToast('Copied to clipboard', 'info');
+    }
+  }
+
+  function clearChat() {
+    if (!confirm('Clear this chat conversation?')) return;
+    state.chatSessionId = crypto.randomUUID();
+    localStorage.setItem('chat_session_id', state.chatSessionId);
+    hideTypingIndicator();
+    const box = document.getElementById('chatMessages');
+    if (box) {
+      box.innerHTML = `
+        <div class="flex items-start gap-2">
+          ${ICONS.bot}
+          <div class="bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
+            Welcome to City Health Clinic. I am your virtual assistant. Ask me about opening hours, booking appointments, specialists, general health facts, or our location. (Pwede rin po kayong magtanong sa Tagalog!)
+          </div>
+        </div>
+      `;
+    }
+    if (state.chatWs) {
+      try { state.chatWs.close(); } catch (_) {}
+      initChatWebSocket();
+    }
+    showToast('Conversation cleared', 'info');
+  }
+
   async function sendChatMessage(text) {
     if (!text || !text.trim()) return;
     const msg = text.trim();
 
-    // Identity (name/role) is derived server-side from the session cookie
+    // 1. Optimistic rendering: Render user bubble immediately
+    pendingOptimisticMessages.add(msg);
+    appendChatMessage({
+      sender: state.user ? state.user.full_name : 'You',
+      sender_name: state.user ? state.user.full_name : 'You',
+      message: msg,
+      message_text: msg,
+      role: 'patient',
+      is_bot_reply: false,
+      is_optimistic: true,
+      created_at: null,
+    });
+
+    // 2. Show in-stream typing indicator
+    showTypingIndicator();
+
     const payload = {
       session_id: state.chatSessionId,
       message: msg,
@@ -1351,16 +1493,18 @@
           method: 'POST',
           body: payload,
         });
-        appendChatMessage(payload);
+        hideTypingIndicator();
         if (res.bot_reply) {
           appendChatMessage({
             sender: 'Clinic Assistant Bot',
             role: 'bot',
             is_bot_reply: true,
             message: res.bot_reply.message || res.bot_reply.message_text,
+            created_at: null,
           });
         }
       } catch (err) {
+        hideTypingIndicator();
         showToast(err.message.includes('authenticated')
           ? 'Please sign in to use live chat'
           : 'Chat service unavailable', 'error');
@@ -1406,6 +1550,13 @@
     loadDoctors();
     fetchQueueStatus();
     initQueueWebSocket();
+
+    // Pre-connect chat websocket when hovering or touching launcher
+    const chatLauncher = document.getElementById('chatLauncher');
+    if (chatLauncher) {
+      chatLauncher.addEventListener('mouseenter', initChatWebSocket, { once: true });
+      chatLauncher.addEventListener('touchstart', initChatWebSocket, { once: true, passive: true });
+    }
 
     // Default appointment date to today
     const appDate = document.getElementById('appointmentDate');
@@ -1469,6 +1620,8 @@
     submitFeedback,
     loadAnalytics,
     toggleChat,
+    clearChat,
+    copyChatText,
     sendChatMessage,
     sendChatInput,
     sendQuickFaq,
