@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clinic-management-api
+  labels:
+    app: clinic-management
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: clinic-management
+  template:
+    metadata:
+      labels:
+        app: clinic-management
+    spec:
+      containers:
+        - name: api
+          image: clinic-management:latest
+          command: ["gunicorn", "-c", "gunicorn_conf.py", "app.main:app"]
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: clinic-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: clinic-management-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: clinic-management-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
