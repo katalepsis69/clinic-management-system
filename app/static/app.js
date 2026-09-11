@@ -1040,7 +1040,7 @@
         <input type="text" placeholder="Drug Name" aria-label="Drug name" class="med-name input !px-2.5 !py-2" required>
         <input type="text" placeholder="Dosage" aria-label="Dosage" class="med-dosage input !px-2.5 !py-2" required>
       </div>
-      <div class="grid grid-cols-3 gap-1.5">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
         <input type="text" placeholder="Frequency" aria-label="Frequency" class="med-freq input !px-2.5 !py-2" required>
         <input type="text" placeholder="Duration" aria-label="Duration" class="med-duration input !px-2.5 !py-2" required>
         <input type="text" placeholder="Instructions" aria-label="Instructions" class="med-instructions input !px-2.5 !py-2">

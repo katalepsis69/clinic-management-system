@@ -104,4 +104,13 @@ def test_security_headers_and_client_protections():
     assert "contextmenu" in res_tv.text
     assert "debugger" in res_tv.text
     assert "-webkit-touch-callout: none" in res.text
-    assert "-webkit-touch-callout: none" in res_tv.text
+    assert "-webkit-touch-callout: none" in res_tv.text
+
+
+def test_mobile_responsive_adaptations():
+    res = client.get("/")
+    assert res.status_code == 200
+    assert "interactive-widget=resizes-content" in res.text
+    assert "font-size: 16px !important" in res.text
+    assert "grid grid-cols-2 sm:flex sm:flex-row gap-1.5" in res.text
+    assert "h-[100dvh] max-h-[100dvh]" in res.text
