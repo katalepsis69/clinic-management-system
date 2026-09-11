@@ -976,17 +976,40 @@
       }
 
       list.innerHTML = data.map(app => `
-        <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs flex justify-between items-center gap-2">
+        <div onclick="window.ClinicApp.selectConsultationPatient(${app.patient_id}, '${escapeHTML(app.patient_name || 'Patient')}')"
+             class="schedule-patient-item p-3 rounded-xl bg-white hover:bg-brand-50/70 border border-stone-200/80 text-xs flex justify-between items-center gap-2 cursor-pointer transition-all shadow-sm hover:border-brand-300"
+             data-patient-id="${app.patient_id}">
           <div class="min-w-0">
-            <span class="font-bold text-stone-800 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
+            <span class="font-bold text-stone-900 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
             <span class="text-stone-500 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
           </div>
-          <span class="pill bg-brand-100 text-brand-800 uppercase shrink-0">${escapeHTML(app.status)}</span>
+          <span class="pill bg-brand-50 text-brand-700 uppercase shrink-0 border border-brand-200/60 text-[10px] font-bold">${escapeHTML(app.status)}</span>
         </div>
       `).join('');
     } catch (err) {
       console.warn('Failed to load schedule:', err);
     }
+  }
+
+  function selectConsultationPatient(patientId, patientName) {
+    if (!patientId) return;
+    document.querySelectorAll('.schedule-patient-item').forEach(item => {
+      const pid = parseInt(item.getAttribute('data-patient-id'), 10);
+      if (pid === patientId) {
+        item.classList.add('ring-2', 'ring-brand-500', 'bg-brand-50');
+      } else {
+        item.classList.remove('ring-2', 'ring-brand-500', 'bg-brand-50');
+      }
+    });
+
+    const emrInput = document.getElementById('emrPatientId');
+    if (emrInput) emrInput.value = patientId;
+    searchPatientEMR(patientId);
+
+    const rxInput = document.getElementById('rxPatientId');
+    if (rxInput) rxInput.value = patientId;
+
+    showToast(`Loaded clinical record for ${patientName || `Patient #${patientId}`}`, 'info');
   }
 
   // EMR & Prescriptions
@@ -999,7 +1022,15 @@
       document.getElementById('emrName').textContent = emr.name || 'Sarah Connor';
       document.getElementById('emrDob').textContent = `${emr.dob || '1990-05-14'} / ${emr.gender || 'Female'}`;
       document.getElementById('emrBlood').textContent = emr.blood_group || 'O+';
-      document.getElementById('emrAllergies').textContent = emr.allergies || 'None';
+      const allergyEl = document.getElementById('emrAllergies');
+      if (allergyEl) {
+        allergyEl.textContent = emr.allergies || 'None';
+        if (emr.allergies && emr.allergies.toLowerCase() !== 'none' && emr.allergies.toLowerCase() !== 'none known') {
+          allergyEl.className = 'text-xs font-bold text-red-700 bg-red-50 border border-red-200/80 px-2.5 py-0.5 rounded-lg';
+        } else {
+          allergyEl.className = 'text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg';
+        }
+      }
       document.getElementById('emrHistory').textContent = emr.medical_history || 'No chronic history';
 
       const rxList = document.getElementById('emrPrescriptionsList');
@@ -1864,6 +1895,7 @@
     registerWalkin,
     submitAppointment,
     loadDoctorSchedule,
+    selectConsultationPatient,
     searchPatientEMR,
     addMedicationRow,
     generatePrescription,
