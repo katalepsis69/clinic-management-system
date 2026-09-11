@@ -705,20 +705,56 @@
     const fnEl = document.getElementById('editFullName');
     const phEl = document.getElementById('editPhone');
     const dobEl = document.getElementById('editDob');
-    const bgEl = document.getElementById('editBloodGroup');
-    const alEl = document.getElementById('editAllergies');
-    const histEl = document.getElementById('editHistory');
     const emNameEl = document.getElementById('editEmergencyName');
     const emPhEl = document.getElementById('editEmergencyPhone');
 
     if (fnEl) fnEl.value = state.user.full_name || '';
     if (phEl) phEl.value = state.user.phone || '';
-    if (dobEl) dobEl.value = prof.date_of_birth || '';
-    if (bgEl) bgEl.value = prof.blood_group || '';
-    if (alEl) alEl.value = prof.allergies || '';
-    if (histEl) histEl.value = prof.medical_history || '';
+    if (dobEl) {
+      dobEl.value = prof.date_of_birth || '';
+      dobEl.max = new Date().toISOString().split('T')[0];
+    }
     if (emNameEl) emNameEl.value = prof.emergency_contact_name || '';
     if (emPhEl) emPhEl.value = prof.emergency_contact_phone || '';
+
+    // Select Gender & Blood Group pills
+    selectProfileGender(prof.gender || '');
+    selectProfileBlood(prof.blood_group || '');
+
+    // Populate and sync preset chips for Allergies
+    selectedAllergyChips.clear();
+    const presetAllergies = ['Penicillin', 'Sulfa', 'Aspirin', 'Peanuts', 'Latex', 'None'];
+    const rawAllergies = (prof.allergies || '').split(',').map(s => s.trim()).filter(Boolean);
+    const customAllergies = [];
+    rawAllergies.forEach(item => {
+      const match = presetAllergies.find(p => p.toLowerCase() === item.toLowerCase());
+      if (match) {
+        selectedAllergyChips.add(match);
+      } else {
+        customAllergies.push(item);
+      }
+    });
+    const customAllergiesEl = document.getElementById('editCustomAllergies');
+    if (customAllergiesEl) customAllergiesEl.value = customAllergies.join(', ');
+    updateAllergyChipsUI();
+
+    // Populate and sync preset chips for Medical History
+    selectedHistoryChips.clear();
+    const presetHistory = ['Hypertension', 'Diabetes', 'Asthma', 'Heart Disease', 'None'];
+    const rawHistory = (prof.medical_history || '').split(',').map(s => s.trim()).filter(Boolean);
+    const customHistory = [];
+    rawHistory.forEach(item => {
+      const match = presetHistory.find(p => p.toLowerCase() === item.toLowerCase());
+      if (match) {
+        selectedHistoryChips.add(match);
+      } else {
+        customHistory.push(item);
+      }
+    });
+    const customHistEl = document.getElementById('editCustomHistory');
+    if (customHistEl) customHistEl.value = customHistory.join(', ');
+    updateHistoryChipsUI();
+
     modal.classList.remove('hidden');
   }
 
@@ -727,19 +763,134 @@
     if (modal) modal.classList.add('hidden');
   }
 
+  // Interactive pill selection state
+  function selectProfileGender(val) {
+    const input = document.getElementById('editGender');
+    if (input) input.value = val;
+    document.querySelectorAll('.gender-pill').forEach(btn => {
+      if (btn.getAttribute('data-gender') === val) {
+        btn.className = 'gender-pill px-2 py-2 rounded-lg border border-brand-600 bg-brand-600 text-white font-bold text-xs shadow-sm transition-all text-center';
+      } else {
+        btn.className = 'gender-pill px-2 py-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 font-semibold text-xs transition-all text-center';
+      }
+    });
+  }
+
+  function selectProfileBlood(val) {
+    const input = document.getElementById('editBloodGroup');
+    if (input) input.value = val;
+    const label = document.getElementById('selectedBloodLabel');
+    if (label) label.textContent = val || 'None';
+    document.querySelectorAll('.blood-pill').forEach(btn => {
+      if (btn.getAttribute('data-blood') === val) {
+        btn.className = 'blood-pill py-2 rounded-lg border border-brand-600 bg-brand-600 text-white font-bold font-mono text-xs shadow-sm transition-all text-center';
+      } else {
+        btn.className = 'blood-pill py-2 rounded-lg border border-stone-200 bg-white text-stone-700 hover:border-brand-500 hover:bg-brand-50 font-bold font-mono text-xs transition-all text-center';
+      }
+    });
+  }
+
+  // Preset Chips State
+  const selectedAllergyChips = new Set();
+  const selectedHistoryChips = new Set();
+
+  function updateAllergyChipsUI() {
+    document.querySelectorAll('.allergy-chip').forEach(btn => {
+      const chip = btn.getAttribute('data-chip');
+      if (selectedAllergyChips.has(chip)) {
+        btn.className = 'allergy-chip px-2.5 py-1 rounded-full text-xs font-semibold border border-brand-600 bg-brand-600 text-white shadow-sm transition-colors';
+      } else {
+        btn.className = 'allergy-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors';
+      }
+    });
+  }
+
+  function toggleProfileAllergyChip(chip) {
+    if (chip === 'None') {
+      if (selectedAllergyChips.has('None')) {
+        selectedAllergyChips.delete('None');
+      } else {
+        selectedAllergyChips.clear();
+        selectedAllergyChips.add('None');
+        const customEl = document.getElementById('editCustomAllergies');
+        if (customEl) customEl.value = '';
+      }
+    } else {
+      selectedAllergyChips.delete('None');
+      if (selectedAllergyChips.has(chip)) {
+        selectedAllergyChips.delete(chip);
+      } else {
+        selectedAllergyChips.add(chip);
+      }
+    }
+    updateAllergyChipsUI();
+  }
+
+  function updateHistoryChipsUI() {
+    document.querySelectorAll('.history-chip').forEach(btn => {
+      const chip = btn.getAttribute('data-chip');
+      if (selectedHistoryChips.has(chip)) {
+        btn.className = 'history-chip px-2.5 py-1 rounded-full text-xs font-semibold border border-brand-600 bg-brand-600 text-white shadow-sm transition-colors';
+      } else {
+        btn.className = 'history-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors';
+      }
+    });
+  }
+
+  function toggleProfileHistoryChip(chip) {
+    if (chip === 'None') {
+      if (selectedHistoryChips.has('None')) {
+        selectedHistoryChips.delete('None');
+      } else {
+        selectedHistoryChips.clear();
+        selectedHistoryChips.add('None');
+        const customEl = document.getElementById('editCustomHistory');
+        if (customEl) customEl.value = '';
+      }
+    } else {
+      selectedHistoryChips.delete('None');
+      if (selectedHistoryChips.has(chip)) {
+        selectedHistoryChips.delete(chip);
+      } else {
+        selectedHistoryChips.add(chip);
+      }
+    }
+    updateHistoryChipsUI();
+  }
+
   async function handleProfileUpdate(e) {
     e.preventDefault();
+
+    // Compile allergies
+    const customAllergies = (document.getElementById('editCustomAllergies')?.value || '')
+      .split(',').map(s => s.trim()).filter(Boolean);
+    const combinedAllergies = Array.from(new Set([...selectedAllergyChips, ...customAllergies]));
+    const finalAllergies = combinedAllergies.length > 0 ? combinedAllergies.join(', ') : null;
+
+    // Compile medical history
+    const customHistory = (document.getElementById('editCustomHistory')?.value || '')
+      .split(',').map(s => s.trim()).filter(Boolean);
+    const combinedHistory = Array.from(new Set([...selectedHistoryChips, ...customHistory]));
+    const finalHistory = combinedHistory.length > 0 ? combinedHistory.join(', ') : null;
+
     const payload = {
       full_name: document.getElementById('editFullName').value.trim(),
-      phone: document.getElementById('editPhone').value.trim(),
+      phone: document.getElementById('editPhone').value.trim() || null,
       date_of_birth: document.getElementById('editDob').value || null,
-      gender: state.user.patient_profile?.gender || null,
+      gender: document.getElementById('editGender').value || null,
       blood_group: document.getElementById('editBloodGroup').value || null,
-      allergies: document.getElementById('editAllergies').value.trim() || null,
-      medical_history: document.getElementById('editHistory').value.trim() || null,
+      allergies: finalAllergies,
+      medical_history: finalHistory,
       emergency_contact_name: document.getElementById('editEmergencyName').value.trim() || null,
       emergency_contact_phone: document.getElementById('editEmergencyPhone').value.trim() || null,
     };
+
+    const submitBtn = document.getElementById('saveProfileSubmitBtn');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-70');
+    }
+
     try {
       const updated = await apiFetch(API.auth.profile, {
         method: 'PUT',
@@ -753,6 +904,11 @@
       showToast('Medical profile updated successfully', 'success');
     } catch (err) {
       showToast(err.message, 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-70');
+      }
     }
   }
   // Queue Live Updates & Tracker
@@ -1759,7 +1915,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.6.0';
+  const APP_BUILD_VERSION = '2.7.0';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
@@ -1956,6 +2112,10 @@
     showProfileModal,
     hideProfileModal,
     handleProfileUpdate,
+    selectProfileGender,
+    selectProfileBlood,
+    toggleProfileAllergyChip,
+    toggleProfileHistoryChip,
     fetchQueueStatus,
     issueMyQueueTicket,
     callNextPatient,
