@@ -1,5 +1,5 @@
 // ClinicCare PWA Service Worker
-const CACHE_NAME = 'cliniccare-pwa-v1.2';
+const CACHE_NAME = 'cliniccare-pwa-v2.6.0';
 const STATIC_ASSETS = [
   '/',
   '/static/index.html',
@@ -25,7 +25,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event: clean up stale caches and claim clients
+// Activate event: clean up stale caches and claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -40,7 +40,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event: Stale-While-Revalidate for UI assets, Network-First for API requests
+// Fetch event: Network-First for API and UI assets, cache fallback when offline
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -65,27 +65,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets & HTML navigation: Stale-While-Revalidate
+  // UI assets & HTML navigation: Network-First (always fresh online, fallback to cache offline)
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // If offline and request is for navigation (HTML page), return cached index
-          if (event.request.mode === 'navigate') {
-            return caches.match('/');
-          }
-        });
-
-      return cachedResponse || fetchPromise;
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(async () => {
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        // If offline navigation, return cached root or index
+        if (event.request.mode === 'navigate') {
+          return (await caches.match('/')) || (await caches.match('/static/index.html'));
+        }
+      })
   );
 });
