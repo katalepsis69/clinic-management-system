@@ -363,3 +363,31 @@
   font-weight: 700 !important;
   box-shadow: 0 1px 2px rgba(45, 106, 63, 0.08) !important;
 }
+
+.spec-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 5px 10px !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  background: #ffffff !important;
+  border: 1px solid #e7e5e4 !important;
+  color: #57534e !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  user-select: none !important;
+}
+.spec-pill:hover {
+  border-color: #77ab84 !important;
+  color: #245432 !important;
+  background: #f4f8f5 !important;
+}
+.spec-pill[aria-selected="true"] {
+  background: #245432 !important;
+  border-color: #245432 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(36, 84, 50, 0.2) !important;
+}

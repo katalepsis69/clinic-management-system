@@ -176,8 +176,9 @@
       if (mobNav) mobNav.classList.add('hidden');
       return;
     } else if (tabName !== 'patient') {
+      const roleTarget = tabName === 'analytics' ? 'admin' : tabName;
       showToast('Please sign in with authorized clinic credentials.', 'info');
-      switchTab('login');
+      openLoginGateway('login', roleTarget);
       return;
     }
 
@@ -418,6 +419,8 @@
     if (historyEl) historyEl.textContent = 'Sign in to view';
     if (emergencyEl) emergencyEl.textContent = 'Sign in to view';
     if (editBtn) editBtn.classList.add('hidden');
+    const guestAuthBtn = document.getElementById('patientGuestAuthBtn');
+    if (guestAuthBtn) guestAuthBtn.classList.remove('hidden');
   }
 
   function renderPatientProfile(user) {
@@ -467,6 +470,8 @@
       emergencyEl.textContent = (name || phone) ? `${name} (${phone})`.trim() : 'None recorded';
     }
     if (editBtn) editBtn.classList.remove('hidden');
+    const guestAuthBtn = document.getElementById('patientGuestAuthBtn');
+    if (guestAuthBtn) guestAuthBtn.classList.add('hidden');
   }
 
   // Dedicated Role-based Login & Sign Up Portal Logic
@@ -551,6 +556,131 @@
     updatePortalHeader();
   }
 
+  // Registration Interactive State & Micro-Component Helpers
+  const selectedRegAllergyChips = new Set();
+  const selectedRegHistoryChips = new Set();
+
+  function selectRegGender(val) {
+    const input = document.getElementById('portalRegGender');
+    if (input) input.value = val;
+    document.querySelectorAll('#regGenderPills .segmented-pill').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-gender') === val ? 'true' : 'false');
+    });
+  }
+
+  function selectRegBlood(val) {
+    const input = document.getElementById('portalRegBloodGroup');
+    if (input) input.value = val;
+    const label = document.getElementById('regSelectedBloodLabel');
+    if (label) label.textContent = val ? `Type ${val}` : '';
+    document.querySelectorAll('#regBloodGroupPills .blood-tile').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-blood') === val ? 'true' : 'false');
+    });
+  }
+
+  function updateRegAllergyChipsUI() {
+    document.querySelectorAll('#regAllergyPresetChips .tag-chip').forEach(btn => {
+      const chip = btn.getAttribute('data-chip');
+      btn.setAttribute('aria-pressed', selectedRegAllergyChips.has(chip) ? 'true' : 'false');
+    });
+  }
+
+  function toggleRegAllergyChip(chip) {
+    if (chip === 'None') {
+      if (selectedRegAllergyChips.has('None')) {
+        selectedRegAllergyChips.delete('None');
+      } else {
+        selectedRegAllergyChips.clear();
+        selectedRegAllergyChips.add('None');
+        const customEl = document.getElementById('portalRegCustomAllergies');
+        if (customEl) customEl.value = '';
+      }
+    } else {
+      selectedRegAllergyChips.delete('None');
+      if (selectedRegAllergyChips.has(chip)) {
+        selectedRegAllergyChips.delete(chip);
+      } else {
+        selectedRegAllergyChips.add(chip);
+      }
+    }
+    updateRegAllergyChipsUI();
+  }
+
+  function updateRegHistoryChipsUI() {
+    document.querySelectorAll('#regHistoryPresetChips .tag-chip').forEach(btn => {
+      const chip = btn.getAttribute('data-chip');
+      btn.setAttribute('aria-pressed', selectedRegHistoryChips.has(chip) ? 'true' : 'false');
+    });
+  }
+
+  function toggleRegHistoryChip(chip) {
+    if (chip === 'None') {
+      if (selectedRegHistoryChips.has('None')) {
+        selectedRegHistoryChips.delete('None');
+      } else {
+        selectedRegHistoryChips.clear();
+        selectedRegHistoryChips.add('None');
+        const customEl = document.getElementById('portalRegCustomHistory');
+        if (customEl) customEl.value = '';
+      }
+    } else {
+      selectedRegHistoryChips.delete('None');
+      if (selectedRegHistoryChips.has(chip)) {
+        selectedRegHistoryChips.delete(chip);
+      } else {
+        selectedRegHistoryChips.add(chip);
+      }
+    }
+    updateRegHistoryChipsUI();
+  }
+
+  function selectRegSpecialization(val) {
+    const input = document.getElementById('portalRegSpecialization');
+    if (input) input.value = val;
+    document.querySelectorAll('#regDoctorSpecChips .spec-pill').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-spec') === val ? 'true' : 'false');
+    });
+  }
+
+  function selectRegRoom(val) {
+    const input = document.getElementById('portalRegRoom');
+    if (input) input.value = val;
+  }
+
+  function selectRegFee(val) {
+    const input = document.getElementById('portalRegFee');
+    if (input) input.value = val;
+    document.querySelectorAll('#regDoctorFeeChips .spec-pill').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-fee') === val ? 'true' : 'false');
+    });
+  }
+
+  function selectRegDepartment(val) {
+    const select = document.getElementById('portalRegDepartment');
+    if (select) select.value = val;
+    document.querySelectorAll('#regStaffDeptPills .spec-pill').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-dept') === val ? 'true' : 'false');
+    });
+  }
+
+  function selectRegAdminTitle(val) {
+    const input = document.getElementById('portalRegAdminTitle');
+    if (input) input.value = val;
+    document.querySelectorAll('#regAdminTitleChips .spec-pill').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-title') === val ? 'true' : 'false');
+    });
+  }
+
+  function openLoginGateway(mode, role) {
+    if (role) switchLoginRole(role);
+    switchPortalMode(mode || 'login');
+    switchTab('login');
+    const loginCard = document.getElementById('loginGatewayCard');
+    if (loginCard) {
+      loginCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
   function switchLoginRole(role) {
     if (!roleMeta[role]) role = 'patient';
     currentLoginRole = role;
@@ -566,10 +696,33 @@
     const btnTextEl = document.getElementById('portalLoginBtnText');
     const regBtnTextEl = document.getElementById('portalRegBtnText');
     const emailInput = document.getElementById('portalLoginEmail');
+    const nameInput = document.getElementById('portalRegFullName');
+    const roleBadge = document.getElementById('regRoleBadge');
 
     if (btnTextEl) btnTextEl.textContent = meta.btnText;
     if (regBtnTextEl) regBtnTextEl.textContent = meta.regBtnText;
     if (emailInput) emailInput.placeholder = meta.emailPlaceholder;
+
+    if (nameInput) {
+      const placeholders = {
+        patient: 'e.g. Eleanor Vance',
+        doctor: 'e.g. Dr. Emily Stone, MD',
+        staff: 'e.g. James Wilson, RN',
+        admin: 'e.g. Arthur Mitchell, Director',
+      };
+      nameInput.placeholder = placeholders[role] || 'e.g. John Doe';
+    }
+
+    if (roleBadge) {
+      roleBadge.textContent = role.toUpperCase();
+      const roleColors = {
+        patient: 'bg-emerald-100 text-emerald-800',
+        doctor: 'bg-violet-100 text-violet-800',
+        staff: 'bg-amber-100 text-amber-800',
+        admin: 'bg-rose-100 text-rose-800',
+      };
+      roleBadge.className = `text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${roleColors[role] || 'bg-brand-100 text-brand-800'}`;
+    }
 
     // Toggle role-specific registration fields
     const patFields = document.getElementById('portalRegPatientFields');
@@ -625,22 +778,30 @@
     };
 
     if (currentLoginRole === 'patient') {
-      payload.date_of_birth = document.getElementById('portalRegDob').value || null;
-      payload.gender = document.getElementById('portalRegGender').value || null;
-      payload.blood_group = document.getElementById('portalRegBloodGroup').value || null;
-      payload.emergency_contact_name = document.getElementById('portalRegEmergencyName').value.trim() || null;
-      payload.emergency_contact_phone = document.getElementById('portalRegEmergencyPhone').value.trim() || null;
-      payload.allergies = document.getElementById('portalRegAllergies').value.trim() || null;
-      payload.medical_history = document.getElementById('portalRegHistory').value.trim() || null;
+      const customAllergies = (document.getElementById('portalRegCustomAllergies')?.value || '')
+        .split(',').map(s => s.trim()).filter(Boolean);
+      const combinedAllergies = Array.from(new Set([...selectedRegAllergyChips, ...customAllergies]));
+      payload.allergies = combinedAllergies.length > 0 ? combinedAllergies.join(', ') : null;
+
+      const customHistory = (document.getElementById('portalRegCustomHistory')?.value || '')
+        .split(',').map(s => s.trim()).filter(Boolean);
+      const combinedHistory = Array.from(new Set([...selectedRegHistoryChips, ...customHistory]));
+      payload.medical_history = combinedHistory.length > 0 ? combinedHistory.join(', ') : null;
+
+      payload.date_of_birth = document.getElementById('portalRegDob')?.value || null;
+      payload.gender = document.getElementById('portalRegGender')?.value || null;
+      payload.blood_group = document.getElementById('portalRegBloodGroup')?.value || null;
+      payload.emergency_contact_name = document.getElementById('portalRegEmergencyName')?.value.trim() || null;
+      payload.emergency_contact_phone = document.getElementById('portalRegEmergencyPhone')?.value.trim() || null;
     } else if (currentLoginRole === 'doctor') {
-      payload.specialization = document.getElementById('portalRegSpecialization').value.trim() || 'General Medicine';
-      payload.license_number = document.getElementById('portalRegLicense').value.trim() || 'MD-REG';
-      payload.room_number = document.getElementById('portalRegRoom').value.trim() || 'Room 101';
-      payload.consultation_fee = parseFloat(document.getElementById('portalRegFee').value) || 60.00;
+      payload.specialization = document.getElementById('portalRegSpecialization')?.value.trim() || 'General Medicine';
+      payload.license_number = document.getElementById('portalRegLicense')?.value.trim() || 'MD-REG';
+      payload.room_number = document.getElementById('portalRegRoom')?.value.trim() || 'Room 101';
+      payload.consultation_fee = parseFloat(document.getElementById('portalRegFee')?.value) || 60.00;
     } else if (currentLoginRole === 'staff') {
-      payload.department = document.getElementById('portalRegDepartment').value;
+      payload.department = document.getElementById('portalRegDepartment')?.value || 'Front Desk & Reception';
     } else if (currentLoginRole === 'admin') {
-      payload.admin_title = document.getElementById('portalRegAdminTitle').value.trim() || 'Clinic Administrator';
+      payload.admin_title = document.getElementById('portalRegAdminTitle')?.value.trim() || 'Clinic Administrator';
     }
 
     try {
@@ -670,16 +831,23 @@
     }
   }
 
-  function showcaseSelectRole(role) {
+  function showcaseSelectRole(role, mode) {
     switchLoginRole(role);
-    switchPortalMode('login');
+    switchPortalMode(mode || 'login');
     const loginCard = document.getElementById('loginGatewayCard');
     if (loginCard) {
       loginCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    const emailInput = document.getElementById('portalLoginEmail');
-    if (emailInput) {
-      setTimeout(() => emailInput.focus(), 350);
+    if (mode === 'register') {
+      const nameInput = document.getElementById('portalRegFullName');
+      if (nameInput) {
+        setTimeout(() => nameInput.focus(), 350);
+      }
+    } else {
+      const emailInput = document.getElementById('portalLoginEmail');
+      if (emailInput) {
+        setTimeout(() => emailInput.focus(), 350);
+      }
     }
   }
 
@@ -1899,7 +2067,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.8.0';
+  const APP_BUILD_VERSION = '2.9.0';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
@@ -2124,6 +2292,16 @@
     sendQuickFaq,
     showcaseSelectRole,
     showcaseOpenChat,
+    openLoginGateway,
+    selectRegGender,
+    selectRegBlood,
+    toggleRegAllergyChip,
+    toggleRegHistoryChip,
+    selectRegSpecialization,
+    selectRegRoom,
+    selectRegFee,
+    selectRegDepartment,
+    selectRegAdminTitle,
     installPWA,
     dismissPWABanner,
   };

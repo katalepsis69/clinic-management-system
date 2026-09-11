@@ -123,6 +123,11 @@
             <span class="hidden md:inline text-xs font-semibold">TV Display</span>
           </a>
 
+          <button id="manualLoginBtn" onclick="window.ClinicApp.openLoginGateway('login')" class="btn btn-ghost btn-sm !px-2.5 sm:!px-3 text-stone-700 hover:text-stone-900 font-semibold" aria-label="Sign In">Sign In</button>
+          <button id="registerNavBtn" onclick="window.ClinicApp.openLoginGateway('register')" class="btn btn-primary btn-sm !px-3 sm:!px-3.5 !rounded-full font-semibold shadow-sm inline-flex items-center gap-1.5" aria-label="Sign Up">
+            <span>Sign Up</span>
+          </button>
+
           <button id="logoutBtn" onclick="window.ClinicApp.logout()" class="btn btn-ghost btn-sm !px-2.5 sm:!px-3 hidden text-rose-600 hover:bg-rose-50 hover:text-rose-700 inline-flex items-center gap-1.5" aria-label="Log out" title="Log out">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-logout"/></svg>
             <span class="hidden sm:inline text-xs font-semibold">Logout</span>
@@ -221,132 +226,224 @@
 
         <!-- Mode 2: Role-Based Sign Up Form -->
         <form id="portalRegisterForm" onsubmit="window.ClinicApp.handlePortalRegister(event)" class="hidden mt-5 space-y-4">
-          <!-- Shared Account Fields -->
-          <div class="space-y-3">
+          <!-- Card 1: Shared Account Credentials -->
+          <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400">01 Account Credentials</span>
+              <span id="regRoleBadge" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-100 text-brand-800">Patient</span>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="portalRegFullName" class="label">Full Legal Name *</label>
-                <input type="text" id="portalRegFullName" required placeholder="e.g. John Doe" class="input">
+                <label for="portalRegFullName" class="label !text-xs !mb-1">Full Legal Name *</label>
+                <input type="text" id="portalRegFullName" required placeholder="e.g. John Doe" class="input !text-sm !py-2 bg-white">
               </div>
               <div>
-                <label for="portalRegPhone" class="label">Phone Number *</label>
-                <input type="tel" id="portalRegPhone" required placeholder="555-0142" class="input">
+                <label for="portalRegPhone" class="label !text-xs !mb-1">Phone Number *</label>
+                <input type="tel" id="portalRegPhone" required placeholder="+1 555-0142" class="input !text-sm !py-2 bg-white">
               </div>
             </div>
             <div>
-              <label for="portalRegEmail" class="label">Email Address *</label>
-              <input type="email" id="portalRegEmail" required placeholder="your.name@example.com" class="input">
+              <label for="portalRegEmail" class="label !text-xs !mb-1">Official Email Address *</label>
+              <input type="email" id="portalRegEmail" required autocomplete="email" placeholder="your.name@example.com" class="input !text-sm !py-2 bg-white">
             </div>
             <div>
-              <label for="portalRegPassword" class="label">Password (Min. 6 chars) *</label>
-              <input type="password" id="portalRegPassword" required minlength="6" placeholder="••••••••" class="input">
+              <label for="portalRegPassword" class="label !text-xs !mb-1">Password (Min. 6 chars) *</label>
+              <input type="password" id="portalRegPassword" required minlength="6" autocomplete="new-password" placeholder="••••••••" class="input !text-sm !py-2 bg-white">
             </div>
           </div>
 
           <!-- Role-Specific: Patient Demographics & Medical History -->
-          <div id="portalRegPatientFields" class="space-y-3 pt-2 border-t border-stone-200/80">
-            <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Clinical Demographics</span>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div id="portalRegPatientFields" class="space-y-3">
+            <!-- Patient Card 1: Clinical Demographics -->
+            <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">02 Clinical Demographics</span>
               <div>
-                <label for="portalRegDob" class="label">Date of Birth</label>
-                <input type="date" id="portalRegDob" class="input">
+                <label for="portalRegDob" class="label !text-xs !mb-1">Date of Birth</label>
+                <input type="date" id="portalRegDob" class="input !text-sm !py-2 bg-white">
               </div>
               <div>
-                <label for="portalRegGender" class="label">Gender</label>
-                <select id="portalRegGender" class="input">
-                  <option value="">Select</option>
-                  <option value="Female">Female</option>
-                  <option value="Male">Male</option>
-                  <option value="Other">Other</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
-                </select>
+                <label class="label !text-xs !mb-1.5">Gender</label>
+                <div class="segmented-track" id="regGenderPills" role="radiogroup" aria-label="Gender">
+                  <button type="button" onclick="window.ClinicApp.selectRegGender('Male')" data-gender="Male" class="segmented-pill" aria-selected="false">Male</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegGender('Female')" data-gender="Female" class="segmented-pill" aria-selected="false">Female</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegGender('Other')" data-gender="Other" class="segmented-pill" aria-selected="false">Other</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegGender('Prefer not to say')" data-gender="Prefer not to say" class="segmented-pill" aria-selected="false">Prefer not to say</button>
+                </div>
+                <input type="hidden" id="portalRegGender" value="">
               </div>
               <div>
-                <label for="portalRegBloodGroup" class="label">Blood Group</label>
-                <select id="portalRegBloodGroup" class="input">
-                  <option value="">Select</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                </select>
-              </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label for="portalRegEmergencyName" class="label">Emergency Contact Name</label>
-                <input type="text" id="portalRegEmergencyName" placeholder="Contact person" class="input">
-              </div>
-              <div>
-                <label for="portalRegEmergencyPhone" class="label">Emergency Contact Phone</label>
-                <input type="tel" id="portalRegEmergencyPhone" placeholder="555-9999" class="input">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="label !text-xs !mb-0">Blood Group</label>
+                  <span id="regSelectedBloodLabel" class="text-[11px] font-mono font-bold text-brand-700"></span>
+                </div>
+                <div class="blood-grid" id="regBloodGroupPills" role="radiogroup" aria-label="Blood Group">
+                  <button type="button" onclick="window.ClinicApp.selectRegBlood('A+')" data-blood="A+" class="blood-tile" aria-selected="false">A+</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegBlood('A-')" data-blood="A-" class="blood-tile" aria-selected="false">A-</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegBlood('B+')" data-blood="B+" class="blood-tile" aria-selected="false">B+</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegBlood('B-')" data-blood="B-" class="blood-tile" aria-selected="false">B-</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegBlood('AB+')" data-blood="AB+" class="blood-tile" aria-selected="false">AB+</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegBlood('AB-')" data-blood="AB-" class="blood-tile" aria-selected="false">AB-</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegBlood('O+')" data-blood="O+" class="blood-tile" aria-selected="false">O+</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegBlood('O-')" data-blood="O-" class="blood-tile" aria-selected="false">O-</button>
+                </div>
+                <input type="hidden" id="portalRegBloodGroup" value="">
               </div>
             </div>
-            <div>
-              <label for="portalRegAllergies" class="label">Known Drug/Food Allergies</label>
-              <input type="text" id="portalRegAllergies" placeholder="e.g. Penicillin, Latex (or None)" class="input">
+
+            <!-- Patient Card 2: Medical History & Allergies -->
+            <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">03 Clinical History & Allergies</span>
+              <div>
+                <label for="portalRegCustomAllergies" class="label !text-xs !mb-1.5">Known Allergies</label>
+                <div class="flex flex-wrap gap-1.5 mb-2" id="regAllergyPresetChips">
+                  <button type="button" onclick="window.ClinicApp.toggleRegAllergyChip('Penicillin')" data-chip="Penicillin" class="tag-chip">+ Penicillin</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegAllergyChip('Sulfa')" data-chip="Sulfa" class="tag-chip">+ Sulfa</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegAllergyChip('Aspirin')" data-chip="Aspirin" class="tag-chip">+ Aspirin</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegAllergyChip('Peanuts')" data-chip="Peanuts" class="tag-chip">+ Peanuts</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegAllergyChip('Latex')" data-chip="Latex" class="tag-chip">+ Latex</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegAllergyChip('None')" data-chip="None" class="tag-chip">None</button>
+                </div>
+                <input type="text" id="portalRegCustomAllergies" class="input !text-xs !py-2 bg-white" placeholder="Type additional allergies (e.g. Shellfish, Pollen)...">
+                <input type="hidden" id="portalRegAllergies" value="">
+              </div>
+              <div>
+                <label for="portalRegCustomHistory" class="label !text-xs !mb-1.5">Medical Conditions & History</label>
+                <div class="flex flex-wrap gap-1.5 mb-2" id="regHistoryPresetChips">
+                  <button type="button" onclick="window.ClinicApp.toggleRegHistoryChip('Hypertension')" data-chip="Hypertension" class="tag-chip">+ Hypertension</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegHistoryChip('Diabetes')" data-chip="Diabetes" class="tag-chip">+ Diabetes</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegHistoryChip('Asthma')" data-chip="Asthma" class="tag-chip">+ Asthma</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegHistoryChip('Heart Disease')" data-chip="Heart Disease" class="tag-chip">+ Heart Disease</button>
+                  <button type="button" onclick="window.ClinicApp.toggleRegHistoryChip('None')" data-chip="None" class="tag-chip">None</button>
+                </div>
+                <textarea id="portalRegCustomHistory" rows="2" class="input !text-xs !py-2 bg-white" placeholder="Chronic conditions, prior surgeries, medications..."></textarea>
+                <input type="hidden" id="portalRegHistory" value="">
+              </div>
             </div>
-            <div>
-              <label for="portalRegHistory" class="label">Medical History &amp; Conditions</label>
-              <textarea id="portalRegHistory" rows="2" placeholder="e.g. Asthma, Hypertension" class="input !h-auto py-2"></textarea>
+
+            <!-- Patient Card 3: Emergency Contact -->
+            <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">04 Emergency Contact</span>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="portalRegEmergencyName" class="label !text-xs !mb-1">Contact Name</label>
+                  <input type="text" id="portalRegEmergencyName" placeholder="Contact person" class="input !text-sm !py-2 bg-white">
+                </div>
+                <div>
+                  <label for="portalRegEmergencyPhone" class="label !text-xs !mb-1">Contact Phone</label>
+                  <input type="tel" id="portalRegEmergencyPhone" placeholder="+1 555-9999" class="input !text-sm !py-2 bg-white">
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Role-Specific: Doctor Credentials -->
-          <div id="portalRegDoctorFields" class="hidden space-y-3 pt-2 border-t border-stone-200/80">
-            <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Doctor Credentials &amp; Practice</span>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div id="portalRegDoctorFields" class="hidden space-y-3">
+            <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">02 Clinical Practice & Credentials</span>
               <div>
-                <label for="portalRegSpecialization" class="label">Specialization *</label>
-                <input type="text" id="portalRegSpecialization" placeholder="e.g. Cardiology &amp; General Medicine" class="input">
+                <label for="portalRegSpecialization" class="label !text-xs !mb-1.5">Specialization *</label>
+                <div class="flex flex-wrap gap-1.5 mb-2" id="regDoctorSpecChips">
+                  <button type="button" onclick="window.ClinicApp.selectRegSpecialization('General Medicine')" data-spec="General Medicine" class="spec-pill" aria-selected="true">General Medicine</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegSpecialization('Cardiology')" data-spec="Cardiology" class="spec-pill">Cardiology</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegSpecialization('Pediatrics')" data-spec="Pediatrics" class="spec-pill">Pediatrics</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegSpecialization('Internal Medicine')" data-spec="Internal Medicine" class="spec-pill">Internal Medicine</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegSpecialization('Dermatology')" data-spec="Dermatology" class="spec-pill">Dermatology</button>
+                </div>
+                <input type="text" id="portalRegSpecialization" value="General Medicine" placeholder="e.g. Cardiology & General Medicine" class="input !text-sm !py-2 bg-white">
               </div>
-              <div>
-                <label for="portalRegLicense" class="label">Medical License Number *</label>
-                <input type="text" id="portalRegLicense" placeholder="e.g. MD-98421" class="input">
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="portalRegLicense" class="label !text-xs !mb-1">Medical License Number *</label>
+                  <input type="text" id="portalRegLicense" placeholder="e.g. MD-98421" class="input !text-sm !py-2 bg-white">
+                </div>
+                <div>
+                  <label for="portalRegRoom" class="label !text-xs !mb-1">Assigned Consultation Room *</label>
+                  <input type="text" id="portalRegRoom" value="Room 101" placeholder="e.g. Room 102" class="input !text-sm !py-2 bg-white">
+                </div>
               </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
               <div>
-                <label for="portalRegRoom" class="label">Assigned Room Number *</label>
-                <input type="text" id="portalRegRoom" placeholder="e.g. Room 102" class="input">
-              </div>
-              <div>
-                <label for="portalRegFee" class="label">Consultation Fee ($) *</label>
-                <input type="number" id="portalRegFee" step="0.01" value="60.00" class="input">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label for="portalRegFee" class="label !text-xs !mb-0">Consultation Fee ($ USD) *</label>
+                  <span class="text-[11px] text-stone-400">Quick Select:</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5 mb-2" id="regDoctorFeeChips">
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('40.00')" data-fee="40.00" class="spec-pill">$40.00</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('60.00')" data-fee="60.00" class="spec-pill" aria-selected="true">$60.00</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('75.00')" data-fee="75.00" class="spec-pill">$75.00</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('100.00')" data-fee="100.00" class="spec-pill">$100.00</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('120.00')" data-fee="120.00" class="spec-pill">$120.00</button>
+                </div>
+                <input type="number" id="portalRegFee" step="0.01" value="60.00" class="input !text-sm !py-2 bg-white">
               </div>
             </div>
           </div>
 
           <!-- Role-Specific: Staff Department -->
-          <div id="portalRegStaffFields" class="hidden space-y-3 pt-2 border-t border-stone-200/80">
-            <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Staff Department</span>
-            <div>
-              <label for="portalRegDepartment" class="label">Department / Desk</label>
-              <select id="portalRegDepartment" class="input">
-                <option value="Front Desk & Reception">Front Desk &amp; Reception</option>
-                <option value="Billing & Invoicing">Billing &amp; Invoicing</option>
-                <option value="Triage & Nursing">Triage &amp; Nursing</option>
-                <option value="Pharmacy Desk">Pharmacy Desk</option>
-              </select>
+          <div id="portalRegStaffFields" class="hidden space-y-3">
+            <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">02 Workspace & Department Assignment</span>
+              <div>
+                <label for="portalRegDepartment" class="label !text-xs !mb-1.5">Department / Operational Desk *</label>
+                <div class="grid grid-cols-2 gap-2 mb-2" id="regStaffDeptPills">
+                  <button type="button" onclick="window.ClinicApp.selectRegDepartment('Front Desk & Reception')" data-dept="Front Desk & Reception" class="spec-pill !py-2 !text-xs" aria-selected="true">Front Desk</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegDepartment('Billing & Invoicing')" data-dept="Billing & Invoicing" class="spec-pill !py-2 !text-xs">Billing & Invoicing</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegDepartment('Triage & Nursing')" data-dept="Triage & Nursing" class="spec-pill !py-2 !text-xs">Triage & Nursing</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegDepartment('Pharmacy Desk')" data-dept="Pharmacy Desk" class="spec-pill !py-2 !text-xs">Pharmacy Desk</button>
+                </div>
+                <select id="portalRegDepartment" class="input !text-sm !py-2 bg-white hidden">
+                  <option value="Front Desk & Reception" selected>Front Desk &amp; Reception</option>
+                  <option value="Billing & Invoicing">Billing &amp; Invoicing</option>
+                  <option value="Triage & Nursing">Triage &amp; Nursing</option>
+                  <option value="Pharmacy Desk">Pharmacy Desk</option>
+                </select>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="portalRegStaffDesk" class="label !text-xs !mb-1">Desk Station / Counter</label>
+                  <input type="text" id="portalRegStaffDesk" placeholder="e.g. Counter 1 - Reception" class="input !text-sm !py-2 bg-white">
+                </div>
+                <div>
+                  <label for="portalRegStaffShift" class="label !text-xs !mb-1">Shift Schedule</label>
+                  <select id="portalRegStaffShift" class="input !text-sm !py-2 bg-white">
+                    <option value="Day Shift (08:00 - 16:00)">Day Shift (08:00 - 16:00)</option>
+                    <option value="Evening Shift (16:00 - 00:00)">Evening Shift (16:00 - 00:00)</option>
+                    <option value="Rotating / On-Call">Rotating / On-Call</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Role-Specific: Admin Title -->
-          <div id="portalRegAdminFields" class="hidden space-y-3 pt-2 border-t border-stone-200/80">
-            <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">Administrator Role</span>
-            <div>
-              <label for="portalRegAdminTitle" class="label">Administrative Title</label>
-              <input type="text" id="portalRegAdminTitle" placeholder="e.g. Operations Director / Clinic Manager" class="input">
+          <div id="portalRegAdminFields" class="hidden space-y-3">
+            <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">02 Governance & Security Access</span>
+              <div>
+                <label for="portalRegAdminTitle" class="label !text-xs !mb-1.5">Administrative Title *</label>
+                <div class="flex flex-wrap gap-1.5 mb-2" id="regAdminTitleChips">
+                  <button type="button" onclick="window.ClinicApp.selectRegAdminTitle('Operations Director')" data-title="Operations Director" class="spec-pill" aria-selected="true">Operations Director</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegAdminTitle('Clinic Manager')" data-title="Clinic Manager" class="spec-pill">Clinic Manager</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegAdminTitle('Chief Medical Officer')" data-title="Chief Medical Officer" class="spec-pill">Chief Medical Officer</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegAdminTitle('IT Administrator')" data-title="IT Administrator" class="spec-pill">IT Administrator</button>
+                </div>
+                <input type="text" id="portalRegAdminTitle" value="Operations Director" placeholder="e.g. Operations Director / Clinic Manager" class="input !text-sm !py-2 bg-white">
+              </div>
+              <div class="p-3 rounded-xl bg-rose-50/70 border border-rose-200/60 flex items-start gap-2.5">
+                <svg class="icon w-4 h-4 text-rose-600 shrink-0 mt-0.5" aria-hidden="true"><use href="#i-chart"/></svg>
+                <div class="min-w-0 text-xs">
+                  <span class="font-bold text-rose-900 block">Full Administrator Console Clearance</span>
+                  <span class="text-rose-700 text-[11px] block mt-0.5">Grants audit log access, staff oversight, and clinical analytics management.</span>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Submit Register Button -->
-          <button type="submit" id="portalRegSubmitBtn" class="btn btn-primary w-full shadow-md shadow-brand-900/10">
-            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-user-plus"/></svg>
+          <button type="submit" id="portalRegSubmitBtn" class="btn btn-primary w-full !py-3 !rounded-xl font-semibold shadow-md shadow-brand-900/15 inline-flex items-center justify-center gap-2">
+            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-user"/></svg>
             <span id="portalRegBtnText">Create Patient Account</span>
           </button>
         </form>
@@ -578,6 +675,10 @@
                   <button id="editProfileBtn" onclick="window.ClinicApp.showProfileModal()" class="btn btn-ghost btn-sm !min-h-[30px] !py-0.5 !px-2 text-xs text-brand-700 hover:bg-brand-50 rounded-lg inline-flex items-center gap-1" title="Edit Medical Profile">
                     <svg class="icon w-3.5 h-3.5"><use href="#i-user"/></svg>
                     <span>Edit Profile</span>
+                  </button>
+                  <button id="patientGuestAuthBtn" onclick="window.ClinicApp.openLoginGateway('register', 'patient')" class="btn btn-primary btn-sm !min-h-[28px] !py-0.5 !px-2.5 text-xs !rounded-full shadow-sm inline-flex items-center gap-1" title="Sign Up as Patient">
+                    <svg class="icon w-3.5 h-3.5"><use href="#i-user-plus"/></svg>
+                    <span>Create Account / Sign In</span>
                   </button>
                 </div>
                 <p class="text-xs text-stone-500 mt-0.5" id="patientCardSub">Sign in to view your verified medical profile</p>
@@ -1559,6 +1660,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.8.0"></script>
+  <script src="/static/app.js?v=2.9.0"></script>
 </body>
 </html>
