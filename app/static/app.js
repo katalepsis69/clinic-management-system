@@ -417,115 +417,6 @@
     if (editBtn) editBtn.classList.remove('hidden');
   }
 
-  // Auth & Profile Modals
-  function showAuthModal(tab = 'login') {
-    const modal = document.getElementById('authModal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    switchAuthTab(tab);
-  }
-
-  function hideAuthModal() {
-    const modal = document.getElementById('authModal');
-    if (modal) modal.classList.add('hidden');
-    const errLogin = document.getElementById('loginErrorMsg');
-    if (errLogin) errLogin.classList.add('hidden');
-    const errReg = document.getElementById('registerErrorMsg');
-    if (errReg) errReg.classList.add('hidden');
-  }
-
-  function switchAuthTab(tab) {
-    const loginPanel = document.getElementById('authLoginPanel');
-    const regPanel = document.getElementById('authRegisterPanel');
-    const loginBtn = document.getElementById('authTabLoginBtn');
-    const regBtn = document.getElementById('authTabRegisterBtn');
-
-    if (tab === 'login') {
-      if (loginPanel) loginPanel.classList.remove('hidden');
-      if (regPanel) regPanel.classList.add('hidden');
-      if (loginBtn) {
-        loginBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition-colors';
-      }
-      if (regBtn) {
-        regBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-stone-600 hover:bg-stone-100 transition-colors';
-      }
-      const emailInput = document.getElementById('loginEmail');
-      if (emailInput) emailInput.focus();
-    } else {
-      if (loginPanel) loginPanel.classList.add('hidden');
-      if (regPanel) regPanel.classList.remove('hidden');
-      if (regBtn) {
-        regBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition-colors';
-      }
-      if (loginBtn) {
-        loginBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-stone-600 hover:bg-stone-100 transition-colors';
-      }
-      const nameInput = document.getElementById('regFullName');
-      if (nameInput) nameInput.focus();
-    }
-  }
-
-  async function handleManualLogin(e) {
-    e.preventDefault();
-    const errEl = document.getElementById('loginErrorMsg');
-    if (errEl) errEl.classList.add('hidden');
-
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    try {
-      await login(email, password);
-      hideAuthModal();
-    } catch (err) {
-      if (errEl) {
-        errEl.textContent = err.message || 'Incorrect email or password.';
-        errEl.classList.remove('hidden');
-      }
-    }
-  }
-
-  async function handlePatientRegister(e) {
-    e.preventDefault();
-    const errEl = document.getElementById('registerErrorMsg');
-    if (errEl) errEl.classList.add('hidden');
-
-    const payload = {
-      full_name: document.getElementById('regFullName').value.trim(),
-      email: document.getElementById('regEmail').value.trim(),
-      password: document.getElementById('regPassword').value,
-      phone: document.getElementById('regPhone').value.trim(),
-      date_of_birth: document.getElementById('regDob').value || null,
-      gender: document.getElementById('regGender').value || null,
-      blood_group: document.getElementById('regBloodGroup').value || null,
-      allergies: document.getElementById('regAllergies').value.trim() || null,
-      medical_history: document.getElementById('regHistory').value.trim() || null,
-      emergency_contact_name: document.getElementById('regEmergencyName').value.trim() || null,
-      emergency_contact_phone: document.getElementById('regEmergencyPhone').value.trim() || null,
-    };
-
-    try {
-      const data = await apiFetch(API.auth.register, {
-        method: 'POST',
-        body: payload,
-      });
-      state.user = data.user;
-      localStorage.setItem('user_profile', JSON.stringify(state.user));
-      state.chatSessionId = crypto.randomUUID();
-      localStorage.setItem('chat_session_id', state.chatSessionId);
-
-      hideAuthModal();
-      updateUserUI();
-      showToast(`Welcome to MediFlow, ${state.user.full_name}! Your clinical profile is ready.`, 'success');
-      switchTab('patient');
-    } catch (err) {
-      if (errEl) {
-        errEl.textContent = err.message || 'Registration failed. Please check your details.';
-        errEl.classList.remove('hidden');
-      } else {
-        showToast(err.message, 'error');
-      }
-    }
-  }
-
   // Dedicated Role-based Login & Sign Up Portal Logic
   let currentLoginRole = 'patient';
   let currentPortalMode = 'login'; // 'login' | 'register'
@@ -753,7 +644,7 @@
 
   function showProfileModal() {
     if (!state.user) {
-      showAuthModal('login');
+      switchTab('login');
       return;
     }
     const modal = document.getElementById('profileModal');
@@ -869,7 +760,7 @@
   async function issueMyQueueTicket() {
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to get a queue ticket', 'error');
-      showAuthModal('login');
+      switchTab('login');
       return;
     }
     const doctorId = parseInt(document.getElementById('appointmentDoctorSelect')?.value, 10);
@@ -1011,7 +902,7 @@
     e.preventDefault();
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to book an appointment', 'error');
-      showAuthModal('login');
+      switchTab('login');
       return;
     }
     const doctorId = parseInt(document.getElementById('appointmentDoctorSelect').value, 10);
@@ -1269,7 +1160,7 @@
     e.preventDefault();
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to submit feedback', 'error');
-      showAuthModal('login');
+      switchTab('login');
       return;
     }
     const comment = document.getElementById('feedbackComment').value;
@@ -1772,11 +1663,6 @@
   // Close overlays with the Escape key
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    const authModal = document.getElementById('authModal');
-    if (authModal && !authModal.classList.contains('hidden')) {
-      hideAuthModal();
-      return;
-    }
     const profileModal = document.getElementById('profileModal');
     if (profileModal && !profileModal.classList.contains('hidden')) {
       hideProfileModal();
@@ -1943,11 +1829,6 @@
     switchPortalMode,
     handlePortalLogin,
     handlePortalRegister,
-    showAuthModal,
-    hideAuthModal,
-    switchAuthTab,
-    handleManualLogin,
-    handlePatientRegister,
     showProfileModal,
     hideProfileModal,
     handleProfileUpdate,

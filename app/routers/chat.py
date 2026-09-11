@@ -66,6 +66,85 @@ class ChatConnectionHub:
 chat_hub = ChatConnectionHub()
 
 
+def _get_guest_count(db: Session, session_id: str) -> int:
+    return (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session_id, ChatMessage.is_bot_reply == False)
+        .count()
+    )
+
+
+async def _dispatch_chat_message(
+    db: Session,
+    session_id: str,
+    msg_text: str,
+    user: Optional[User],
+    guest_count: int,
+):
+    is_guest = user is None
+    sender_name = user.full_name if user else "Guest"
+    sender_role = (user.role.value if hasattr(user.role, "value") else str(user.role)) if user else "patient"
+    sender_id = user.id if user else None
+
+    # 1. Persist user message
+    user_msg = ChatMessage(
+        session_id=session_id,
+        sender_id=sender_id,
+        sender_name=sender_name,
+        sender_role=sender_role,
+        message_text=msg_text,
+        is_bot_reply=False,
+    )
+    db.add(user_msg)
+    db.commit()
+    db.refresh(user_msg)
+
+    # 2. Broadcast user message to room
+    user_payload = {
+        "sender": sender_name,
+        "sender_name": sender_name,
+        "message": msg_text,
+        "message_text": msg_text,
+        "role": sender_role,
+        "sender_role": sender_role,
+        "is_bot_reply": False,
+    }
+    await chat_hub.send_to_room(session_id, user_payload)
+
+    # 3. If patient inquiry, trigger automated FAQ bot reply
+    bot_payload = None
+    if sender_role.lower() not in ("staff", "doctor", "admin", "bot"):
+        bot_reply = get_bot_response(msg_text)
+        bot_msg = ChatMessage(
+            session_id=session_id,
+            sender_name="Clinic Assistant Bot",
+            sender_role="bot",
+            message_text=bot_reply,
+            is_bot_reply=True,
+        )
+        db.add(bot_msg)
+        db.commit()
+        db.refresh(bot_msg)
+
+        guest_count_after = (guest_count + 1) if is_guest else 0
+        guest_remaining = max(0, GUEST_CHAT_LIMIT - guest_count_after) if is_guest else None
+
+        bot_payload = {
+            "sender": "Clinic Assistant Bot",
+            "sender_name": "Clinic Assistant Bot",
+            "message": bot_reply,
+            "message_text": bot_reply,
+            "role": "bot",
+            "sender_role": "bot",
+            "is_bot_reply": True,
+            "guest_remaining": guest_remaining,
+            "limit_reached": (guest_remaining == 0) if is_guest else False,
+        }
+        await chat_hub.send_to_room(session_id, bot_payload)
+
+    return user_msg, user_payload, bot_payload
+
+
 class SendMessageRequest(BaseModel):
     session_id: str = Field(min_length=8, max_length=128)
     message: str = Field(min_length=1, max_length=2000)
@@ -75,14 +154,10 @@ class SendMessageRequest(BaseModel):
 async def chat_websocket(
     websocket: WebSocket,
     session_id: str = Path(min_length=8, max_length=128),
-    db: Session = Depends(get_db),  # ponytail: session pinned per socket; per-message SessionLocal if chat volume grows
+    db: Session = Depends(get_db),
 ):
-    # Identity comes from the auth cookie if authenticated, otherwise Guest.
     user = _user_from_websocket(websocket, db)
-    is_guest = (user is None)
-    sender_name = user.full_name if user else "Guest"
-    sender_role = (user.role.value if hasattr(user.role, "value") else str(user.role)) if user else "patient"
-    sender_id = user.id if user else None
+    is_guest = user is None
 
     await chat_hub.connect(session_id, websocket)
     try:
@@ -97,80 +172,21 @@ async def chat_websocket(
             if not msg_text.strip():
                 continue
 
-            if is_guest:
-                guest_count = (
-                    db.query(ChatMessage)
-                    .filter(ChatMessage.session_id == session_id, ChatMessage.is_bot_reply == False)
-                    .count()
-                )
-                if guest_count >= GUEST_CHAT_LIMIT:
-                    limit_payload = {
-                        "sender": "Clinic Assistant Bot",
-                        "sender_name": "Clinic Assistant Bot",
-                        "message": f"You have reached the guest limit of {GUEST_CHAT_LIMIT} messages. Please sign in or create an account to continue chatting!",
-                        "role": "bot",
-                        "sender_role": "bot",
-                        "is_bot_reply": True,
-                        "limit_reached": True,
-                        "guest_remaining": 0,
-                    }
-                    await websocket.send_json(limit_payload)
-                    continue
-            else:
-                guest_count = 0
-
-            # 1. Persist user message
-            user_msg = ChatMessage(
-                session_id=session_id,
-                sender_id=sender_id,
-                sender_name=sender_name,
-                sender_role=sender_role,
-                message_text=msg_text,
-                is_bot_reply=False,
-            )
-            db.add(user_msg)
-            db.commit()
-
-            # 2. Broadcast user message to room
-            user_payload = {
-                "sender": sender_name,
-                "sender_name": sender_name,
-                "message": msg_text,
-                "message_text": msg_text,
-                "role": sender_role,
-                "sender_role": sender_role,
-                "is_bot_reply": False,
-            }
-            await chat_hub.send_to_room(session_id, user_payload)
-
-            # 3. If patient inquiry, trigger automated FAQ bot reply
-            if sender_role.lower() not in ("staff", "doctor", "admin", "bot"):
-                bot_reply = get_bot_response(msg_text)
-                bot_msg = ChatMessage(
-                    session_id=session_id,
-                    sender_name="Clinic Assistant Bot",
-                    sender_role="bot",
-                    message_text=bot_reply,
-                    is_bot_reply=True,
-                )
-                db.add(bot_msg)
-                db.commit()
-
-                guest_count_after = (guest_count + 1) if is_guest else 0
-                guest_remaining = max(0, GUEST_CHAT_LIMIT - guest_count_after) if is_guest else None
-
-                bot_payload = {
+            guest_count = _get_guest_count(db, session_id) if is_guest else 0
+            if is_guest and guest_count >= GUEST_CHAT_LIMIT:
+                await websocket.send_json({
                     "sender": "Clinic Assistant Bot",
                     "sender_name": "Clinic Assistant Bot",
-                    "message": bot_reply,
-                    "message_text": bot_reply,
+                    "message": f"You have reached the guest limit of {GUEST_CHAT_LIMIT} messages. Please sign in or create an account to continue chatting!",
                     "role": "bot",
                     "sender_role": "bot",
                     "is_bot_reply": True,
-                    "guest_remaining": guest_remaining,
-                    "limit_reached": (guest_remaining == 0) if is_guest else False,
-                }
-                await chat_hub.send_to_room(session_id, bot_payload)
+                    "limit_reached": True,
+                    "guest_remaining": 0,
+                })
+                continue
+
+            await _dispatch_chat_message(db, session_id, msg_text, user, guest_count)
 
     except WebSocketDisconnect:
         pass
@@ -232,85 +248,18 @@ async def send_rest_message(
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ):
-    """REST fallback for sending a chat message with automated bot reply.
-
-    Identity is taken from authenticated user if available, otherwise Guest.
-    Guests are limited to GUEST_CHAT_LIMIT (5) messages per session.
-    """
-    is_guest = (current_user is None)
-    if is_guest:
-        guest_count = (
-            db.query(ChatMessage)
-            .filter(ChatMessage.session_id == data.session_id, ChatMessage.is_bot_reply == False)
-            .count()
+    """REST fallback for sending a chat message with automated bot reply."""
+    is_guest = current_user is None
+    guest_count = _get_guest_count(db, data.session_id) if is_guest else 0
+    if is_guest and guest_count >= GUEST_CHAT_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Guest chat limit reached ({GUEST_CHAT_LIMIT}/{GUEST_CHAT_LIMIT} messages). Please sign in or create an account to continue chatting.",
         )
-        if guest_count >= GUEST_CHAT_LIMIT:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Guest chat limit reached ({GUEST_CHAT_LIMIT}/{GUEST_CHAT_LIMIT} messages). Please sign in or create an account to continue chatting.",
-            )
-        sender_name = "Guest"
-        sender_role = "patient"
-        sender_id = None
-    else:
-        guest_count = 0
-        sender_name = current_user.full_name
-        sender_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-        sender_id = current_user.id
 
-    # Persist user message
-    user_msg = ChatMessage(
-        session_id=data.session_id,
-        sender_id=sender_id,
-        sender_name=sender_name,
-        sender_role=sender_role,
-        message_text=data.message,
-        is_bot_reply=False,
+    user_msg, user_payload, bot_payload = await _dispatch_chat_message(
+        db, data.session_id, data.message, current_user, guest_count
     )
-    db.add(user_msg)
-    db.commit()
-    db.refresh(user_msg)
-
-    user_payload = {
-        "sender": sender_name,
-        "sender_name": sender_name,
-        "message": data.message,
-        "message_text": data.message,
-        "role": sender_role,
-        "sender_role": sender_role,
-        "is_bot_reply": False,
-    }
-    await chat_hub.send_to_room(data.session_id, user_payload)
-
-    bot_payload = None
-    if sender_role.lower() not in ("staff", "doctor", "admin", "bot"):
-        bot_reply = get_bot_response(data.message)
-        bot_msg = ChatMessage(
-            session_id=data.session_id,
-            sender_name="Clinic Assistant Bot",
-            sender_role="bot",
-            message_text=bot_reply,
-            is_bot_reply=True,
-        )
-        db.add(bot_msg)
-        db.commit()
-        db.refresh(bot_msg)
-
-        guest_count_after = (guest_count + 1) if is_guest else 0
-        guest_remaining = max(0, GUEST_CHAT_LIMIT - guest_count_after) if is_guest else None
-
-        bot_payload = {
-            "sender": "Clinic Assistant Bot",
-            "sender_name": "Clinic Assistant Bot",
-            "message": bot_reply,
-            "message_text": bot_reply,
-            "role": "bot",
-            "sender_role": "bot",
-            "is_bot_reply": True,
-            "guest_remaining": guest_remaining,
-            "limit_reached": (guest_remaining == 0) if is_guest else False,
-        }
-        await chat_hub.send_to_room(data.session_id, bot_payload)
 
     return {
         "status": "success",
@@ -336,11 +285,7 @@ def get_chat_status(
             "remaining": None,
             "limit_reached": False,
         }
-    guest_count = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.session_id == session_id, ChatMessage.is_bot_reply == False)
-        .count()
-    )
+    guest_count = _get_guest_count(db, session_id)
     remaining = max(0, GUEST_CHAT_LIMIT - guest_count)
     return {
         "is_guest": True,
@@ -349,3 +294,4 @@ def get_chat_status(
         "remaining": remaining,
         "limit_reached": remaining <= 0,
     }
+

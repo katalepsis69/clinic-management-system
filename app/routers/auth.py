@@ -65,6 +65,17 @@ def _user_profile(user: User) -> dict:
     return data
 
 
+def _set_auth_cookie(response: Response, token: str):
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token}",
+        httponly=True,
+        secure=not settings.DEMO_MODE,
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
 @router.post("/login")
 async def login(
     request: Request,
@@ -104,15 +115,7 @@ async def login(
     _FAILED_LOGINS.pop(email, None)
     role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
     token = create_access_token({"sub": user.email, "role": role_val})
-
-    response.set_cookie(
-        key="access_token",
-        value=f"Bearer {token}",
-        httponly=True,
-        secure=not settings.DEMO_MODE,
-        samesite="strict",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    )
+    _set_auth_cookie(response, token)
 
     return {
         "access_token": token,
@@ -151,9 +154,6 @@ class RegisterUserPayload(BaseModel):
     license_number: Optional[str] = None
     room_number: Optional[str] = None
     consultation_fee: Optional[float] = 60.00
-    # Staff / Admin fields
-    department: Optional[str] = None
-    admin_title: Optional[str] = None
 
 
 # Backwards compatibility alias
@@ -238,14 +238,7 @@ def register_user(
 
     role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
     token = create_access_token({"sub": user.email, "role": role_val})
-    response.set_cookie(
-        key="access_token",
-        value=f"Bearer {token}",
-        httponly=True,
-        secure=not settings.DEMO_MODE,
-        samesite="strict",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    )
+    _set_auth_cookie(response, token)
 
     return {
         "access_token": token,

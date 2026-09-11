@@ -1,5 +1,3 @@
-import base64
-import io
 import json
 import uuid
 from typing import List, Optional
@@ -30,14 +28,6 @@ class CreatePrescriptionRequest(BaseModel):
     diagnosis: str
     clinical_notes: Optional[str] = ""
     medications: List[MedicationItem]
-
-
-def _qr_code_data_url(url: str) -> str:
-    import qrcode
-
-    buf = io.BytesIO()
-    qrcode.make(url).save(buf, format="PNG")
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 @router.get("/patient/{patient_id}")
@@ -117,17 +107,10 @@ def create_prescription(
     db.commit()
     db.refresh(rx)
 
-    qr_data_url = None
-    if settings.DEMO_MODE:
-        # ponytail: verification URL is demo-relative; add PUBLIC_BASE_URL setting if deployed
-        try:
-            qr_data_url = _qr_code_data_url(f"/api/emr/prescription/verify/{qr_hash}")
-        except Exception:
-            qr_data_url = None
-
     return {
         "status": "success",
         "prescription_id": rx.id,
         "qr_code_hash": rx.qr_code_hash,
-        "qr_code_image": qr_data_url,
+        "qr_code_image": None,
     }
+

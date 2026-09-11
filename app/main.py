@@ -41,8 +41,6 @@ app.include_router(auth.router)
 app.include_router(feedback.router)
 app.include_router(queue.router)
 app.include_router(appointments.router)
-if hasattr(appointments, "doctors_router"):
-    app.include_router(appointments.doctors_router)
 app.include_router(emr.router)
 app.include_router(billing.router)
 app.include_router(chat.router)

@@ -172,30 +172,25 @@ def get_bot_response(message: str) -> str:
                     client = genai.Client(api_key=active_key)
                     tools = [types.Tool(google_search=types.GoogleSearch())] if use_search else None
 
-                    # Disable thinking budget (budget=0) to cut latency from ~10s to ~1.8s and prevent
-                    # invisible thought tokens from exhausting max_output_tokens and cutting off answers.
+                    # Disable thinking budget (budget=0) to cut latency from ~10s to ~1.8s
+                    cfg_kwargs = {
+                        "system_instruction": SYSTEM_PROMPT,
+                        "tools": tools,
+                        "temperature": 0.7,
+                        "max_output_tokens": 1024,
+                    }
                     try:
                         cfg = types.GenerateContentConfig(
-                            system_instruction=SYSTEM_PROMPT,
-                            tools=tools,
-                            temperature=0.7,
-                            thinking_config=types.ThinkingConfig(thinking_budget=0),
-                            max_output_tokens=1024,
+                            thinking_config=types.ThinkingConfig(thinking_budget=0), **cfg_kwargs
                         )
                         chat = client.chats.create(model=model_name, config=cfg)
                         response = chat.send_message(str(message).strip())
                     except Exception as cfg_exc:
                         if "400" in str(cfg_exc) and "invalid_argument" in str(cfg_exc).lower():
-                            cfg = types.GenerateContentConfig(
-                                system_instruction=SYSTEM_PROMPT,
-                                tools=tools,
-                                temperature=0.7,
-                                max_output_tokens=1024,
-                            )
-                            chat = client.chats.create(model=model_name, config=cfg)
+                            chat = client.chats.create(model=model_name, config=types.GenerateContentConfig(**cfg_kwargs))
                             response = chat.send_message(str(message).strip())
                         else:
-                            raise cfg_exc
+                            raise
 
                     if response.text and response.text.strip():
                         cleaned_text = response.text.strip()

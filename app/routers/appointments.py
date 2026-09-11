@@ -9,7 +9,6 @@ from app.models import Appointment, AppointmentStatus, Doctor, Patient, User, Us
 from app.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/appointments", tags=["Appointments & Schedule"])
-doctors_router = APIRouter(prefix="/api/doctors", tags=["Doctors"])
 
 
 class BookAppointmentRequest(BaseModel):
@@ -32,12 +31,6 @@ def list_doctors(db: Session = Depends(get_db)):
         }
         for d in doctors
     ]
-
-
-@doctors_router.get("/list")
-def list_doctors_alias(db: Session = Depends(get_db)):
-    """Alias for /api/doctors/list returning available doctors."""
-    return list_doctors(db=db)
 
 
 @router.post("/book")

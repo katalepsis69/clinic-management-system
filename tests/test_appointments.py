@@ -17,7 +17,7 @@ from app.models import (
     AppointmentStatus,
 )
 from app.auth import create_access_token
-from app.routers.appointments import router as appointments_router, doctors_router
+from app.routers.appointments import router as appointments_router
 
 
 @pytest.fixture
@@ -39,7 +39,6 @@ def db_session():
 
 app = FastAPI()
 app.include_router(appointments_router)
-app.include_router(doctors_router)
 
 client = TestClient(app)
 
@@ -115,13 +114,6 @@ def test_list_doctors_with_availability(db_session):
     assert data[0]["specialization"] == "Cardiology"
     assert data[0]["room_number"] == "Room 201"
     assert data[0]["fee"] == 75.50
-
-    # Also test the alias endpoint /api/doctors/list
-    alias_resp = client.get("/api/doctors/list")
-    assert alias_resp.status_code == 200
-    alias_data = alias_resp.json()
-    assert len(alias_data) == 1
-    assert alias_data[0]["id"] == doc1.id
 
 
 # --- Appointment Booking Tests ---

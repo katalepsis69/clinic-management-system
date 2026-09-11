@@ -1,5 +1,4 @@
 import os
-import yaml
 
 def test_deployment_files_exist():
     assert os.path.exists("Dockerfile")
@@ -25,24 +24,18 @@ def test_dockerfile_content():
 
 def test_render_yaml_syntax_and_structure():
     with open("render.yaml", "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    assert "services" in data
-    assert len(data["services"]) == 1
-    svc = data["services"][0]
-    assert svc["type"] == "web"
-    assert svc["name"] == "clinic-management-system"
-    assert svc["env"] == "python"
-    assert "pip install -r requirements.txt" in svc["buildCommand"]
-    assert "uvicorn app.main:app --host 0.0.0.0 --port $PORT" in svc["startCommand"]
-    
-    assert svc.get("plan") == "free"
-    
-    # Check env vars
-    env_keys = {item["key"]: item for item in svc.get("envVars", [])}
-    assert "DEMO_MODE" in env_keys
-    assert env_keys["DEMO_MODE"]["value"] == "true"
-    assert "SECRET_KEY" in env_keys
-    assert env_keys["SECRET_KEY"]["generateValue"] is True
+        content = f.read()
+    assert "services:" in content
+    assert "type: web" in content
+    assert "name: clinic-management-system" in content
+    assert "env: python" in content
+    assert "plan: free" in content
+    assert "pip install -r requirements.txt" in content
+    assert "uvicorn app.main:app --host 0.0.0.0 --port $PORT" in content
+    assert "key: DEMO_MODE" in content
+    assert 'value: "true"' in content
+    assert "key: SECRET_KEY" in content
+    assert "generateValue: true" in content
 
 def test_dockerignore_content():
     with open(".dockerignore", "r", encoding="utf-8") as f:

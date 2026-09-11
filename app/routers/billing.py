@@ -96,15 +96,7 @@ def list_invoices(
     ]
 
 
-@router.get("/receipt/{receipt_number}")
-def get_invoice_by_receipt(
-    receipt_number: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN])),
-):
-    inv = db.query(Invoice).filter(Invoice.receipt_number == receipt_number).first()
-    if not inv:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+def _serialize_invoice(inv: Invoice) -> dict:
     return {
         "id": inv.id,
         "receipt_number": inv.receipt_number,
@@ -119,6 +111,18 @@ def get_invoice_by_receipt(
         "payment_status": inv.payment_status,
         "paid_at": inv.paid_at.strftime("%Y-%m-%d %H:%M") if inv.paid_at else None,
     }
+
+
+@router.get("/receipt/{receipt_number}")
+def get_invoice_by_receipt(
+    receipt_number: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN])),
+):
+    inv = db.query(Invoice).filter(Invoice.receipt_number == receipt_number).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return _serialize_invoice(inv)
 
 
 @router.get("/{invoice_id}")
@@ -130,17 +134,5 @@ def get_invoice_by_id(
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    return {
-        "id": inv.id,
-        "receipt_number": inv.receipt_number,
-        "patient_id": inv.patient_id,
-        "patient_name": inv.patient.user.full_name if (inv.patient and inv.patient.user) else "Walk-in",
-        "consultation_fee": float(inv.consultation_fee or 0.0),
-        "medication_fee": float(inv.medication_fee or 0.0),
-        "other_fees": float(inv.other_fees or 0.0),
-        "discount_amount": float(inv.discount_amount or 0.0),
-        "total_amount": float(inv.total_amount),
-        "payment_method": inv.payment_method,
-        "payment_status": inv.payment_status,
-        "paid_at": inv.paid_at.strftime("%Y-%m-%d %H:%M") if inv.paid_at else None,
-    }
+    return _serialize_invoice(inv)
+
