@@ -85,4 +85,21 @@ def test_pwa_mobile_navigation_and_banners():
     assert 'id="mobileBottomNav"' in res.text
     assert 'id="pwaInstallBanner"' in res.text
     assert 'id="offlineStatusBar"' in res.text
-    assert 'id="headerInstallBtn"' in res.text
+    assert 'id="headerInstallBtn"' in res.text
+
+
+def test_security_headers_and_client_protections():
+    res = client.get("/")
+    assert res.status_code == 200
+    assert res.headers.get("x-content-type-options") == "nosniff"
+    assert res.headers.get("x-frame-options") == "DENY"
+    assert "default-src 'self'" in res.headers.get("content-security-policy", "")
+
+    # Client anti-inspect deterrents present in scripts
+    res_app = client.get("/static/app.js")
+    assert "contextmenu" in res_app.text
+    assert "debugger" in res_app.text
+
+    res_tv = client.get("/display")
+    assert "contextmenu" in res_tv.text
+    assert "debugger" in res_tv.text

@@ -2,6 +2,22 @@
 (function () {
   'use strict';
 
+  // ponytail: anti-inspect deterrent; block right-click, devtools hotkeys, console output & debugger trap
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('keydown', (e) => {
+    if (
+      e.key === 'F12' ||
+      ((e.ctrlKey || e.metaKey) && (
+        (e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+        ['U', 'S'].includes(e.key.toUpperCase())
+      ))
+    ) {
+      e.preventDefault();
+    }
+  });
+  setInterval(() => { debugger; }, 1000);
+  ['log', 'debug', 'info', 'warn', 'error'].forEach((m) => { console[m] = () => {}; });
+
   const API = {
     auth: {
       login: '/api/auth/login',
