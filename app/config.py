@@ -21,14 +21,7 @@ class Settings(BaseSettings):
             raw.extend(self.GEMINI_API_KEYS.split(","))
         if self.GEMINI_API_KEY:
             raw.extend(self.GEMINI_API_KEY.split(","))
-        seen = set()
-        keys = []
-        for k in raw:
-            cleaned = k.strip()
-            if cleaned and cleaned not in seen:
-                seen.add(cleaned)
-                keys.append(cleaned)
-        return keys
+        return list(dict.fromkeys(k.strip() for k in raw if k.strip()))
 
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 

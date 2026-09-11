@@ -14,11 +14,8 @@ from app.middleware.audit import AuditLoggingMiddleware
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     if settings.DEMO_MODE:
-        db = SessionLocal()
-        try:
+        with SessionLocal() as db:
             seed_demo_data(db)
-        finally:
-            db.close()
     yield
 
 

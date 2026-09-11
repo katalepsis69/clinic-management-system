@@ -48,9 +48,17 @@ def get_feedback_analytics(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN, UserRole.DOCTOR])),
 ):
-    from sqlalchemy import func
+    from sqlalchemy import func, case
 
-    total = db.query(func.count(PatientFeedback.id)).scalar() or 0
+    stats = db.query(
+        func.count(PatientFeedback.id),
+        func.avg(PatientFeedback.rating),
+        func.sum(case((PatientFeedback.sentiment_label == "positive", 1), else_=0)),
+        func.sum(case((PatientFeedback.sentiment_label == "negative", 1), else_=0)),
+        func.sum(case((PatientFeedback.flagged_critical == True, 1), else_=0)),  # noqa: E712
+    ).first()
+
+    total = stats[0] or 0
     if total == 0:
         return {
             "total": 0,
@@ -61,22 +69,11 @@ def get_feedback_analytics(
             "items": [],
         }
 
-    avg_rating = round(float(db.query(func.avg(PatientFeedback.rating)).scalar() or 0), 2)
-    pos_count = (
-        db.query(func.count(PatientFeedback.id))
-        .filter(PatientFeedback.sentiment_label == "positive")
-        .scalar() or 0
-    )
-    neg_count = (
-        db.query(func.count(PatientFeedback.id))
-        .filter(PatientFeedback.sentiment_label == "negative")
-        .scalar() or 0
-    )
-    critical_count = (
-        db.query(func.count(PatientFeedback.id))
-        .filter(PatientFeedback.flagged_critical == True)  # noqa: E712
-        .scalar() or 0
-    )
+    avg_rating = round(float(stats[1] or 0), 2)
+    pos_count = stats[2] or 0
+    neg_count = stats[3] or 0
+    critical_count = stats[4] or 0
+
     recent = (
         db.query(PatientFeedback)
         .order_by(PatientFeedback.id.desc())

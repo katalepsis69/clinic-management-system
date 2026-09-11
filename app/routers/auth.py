@@ -1,3 +1,4 @@
+import time
 from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -27,8 +28,6 @@ class LoginPayload(BaseModel):
 
 
 def _rate_limited(email: str) -> bool:
-    import time
-
     now = time.monotonic()
     attempts = [t for t in _FAILED_LOGINS.get(email, []) if now - t < 900]
     _FAILED_LOGINS[email] = attempts
@@ -36,8 +35,6 @@ def _rate_limited(email: str) -> bool:
 
 
 def _record_failure(email: str):
-    import time
-
     _FAILED_LOGINS.setdefault(email, []).append(time.monotonic())
 
 
@@ -155,9 +152,6 @@ class RegisterUserPayload(BaseModel):
     room_number: Optional[str] = None
     consultation_fee: Optional[float] = 60.00
 
-
-# Backwards compatibility alias
-RegisterPatientPayload = RegisterUserPayload
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)

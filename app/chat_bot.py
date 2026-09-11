@@ -141,9 +141,7 @@ def get_bot_response(message: str) -> str:
 
     settings = get_settings()
     configured_model = settings.GEMINI_MODEL or "gemini-3-flash-preview"
-    model_candidates = [configured_model, "gemini-3-flash-preview", "gemini-flash-latest", "gemini-3.6-flash"]
-    seen = set()
-    models = [m for m in model_candidates if not (m in seen or seen.add(m))]
+    models = list(dict.fromkeys([configured_model, "gemini-3-flash-preview", "gemini-flash-latest", "gemini-3.6-flash"]))
 
     enable_search = getattr(settings, "ENABLE_WEB_SEARCH", True)
 

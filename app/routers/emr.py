@@ -4,13 +4,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from app.config import get_settings
 from app.database import get_db
 from app.models import Patient, Doctor, Prescription, User, UserRole
-from app.auth import get_current_user, require_roles
+from app.auth import require_roles
 
 router = APIRouter(prefix="/api/emr", tags=["EMR & Prescriptions"])
-settings = get_settings()
 
 
 class MedicationItem(BaseModel):
@@ -23,7 +21,6 @@ class MedicationItem(BaseModel):
 
 class CreatePrescriptionRequest(BaseModel):
     patient_id: int
-    # Only honored for ADMIN creating on behalf of a doctor; doctors are derived from the token.
     doctor_id: Optional[int] = None
     diagnosis: str
     clinical_notes: Optional[str] = ""
@@ -84,10 +81,7 @@ def create_prescription(
         raise HTTPException(status_code=403, detail="Current user is not registered as a doctor")
 
     qr_hash = uuid.uuid4().hex[:16].upper()
-    medications_data = [
-        m.model_dump() if hasattr(m, "model_dump") else m.dict()
-        for m in data.medications
-    ]
+    medications_data = [m.model_dump() for m in data.medications]
     rx = Prescription(
         patient_id=patient.id,
         doctor_id=doctor.id,
