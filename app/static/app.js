@@ -296,8 +296,9 @@
 
     if (state.user) {
       if (nav) nav.classList.remove('hidden');
-      if (mobNav && state.activeTab !== 'login') mobNav.classList.remove('hidden');
-      if (badge) badge.classList.remove('hidden');
+      if (badge) {
+        badge.className = 'hidden sm:flex items-center gap-2 bg-stone-100 py-1.5 px-3 rounded-full text-xs font-medium text-stone-700';
+      }
       if (nameEl) nameEl.textContent = state.user.full_name || state.user.email;
       if (roleEl) {
         const roleColors = {
@@ -342,6 +343,24 @@
         showTab(tabStaff, mobTabStaff, true);
         showTab(tabAnalytics, mobTabAnalytics, true);
       }
+
+      // Sync mobile bottom nav: only show when user has >1 accessible tab on mobile
+      const visibleMobileTabs = [mobTabPatient, mobTabDoctor, mobTabStaff, mobTabAnalytics].filter(
+        (t) => t && !t.classList.contains('hidden')
+      );
+      const shouldShowMobNav = state.activeTab !== 'login' && visibleMobileTabs.length > 1;
+      if (mobNav) mobNav.classList.toggle('hidden', !shouldShowMobNav);
+
+      const chatWrap = document.getElementById('chatLauncherWrap');
+      if (chatWrap) {
+        if (shouldShowMobNav) {
+          chatWrap.classList.add('bottom-20');
+          chatWrap.classList.remove('bottom-4');
+        } else {
+          chatWrap.classList.add('bottom-4');
+          chatWrap.classList.remove('bottom-20');
+        }
+      }
     } else {
       if (state.activeTab === 'login') {
         if (nav) nav.classList.add('hidden');
@@ -351,7 +370,13 @@
         if (mobNav) mobNav.classList.remove('hidden');
       }
 
-      if (badge) badge.classList.add('hidden');
+      const chatWrap = document.getElementById('chatLauncherWrap');
+      if (chatWrap) {
+        chatWrap.classList.add('bottom-4');
+        chatWrap.classList.remove('bottom-20');
+      }
+
+      if (badge) badge.className = 'hidden';
       if (manualLoginBtn) manualLoginBtn.classList.remove('hidden');
       if (registerNavBtn) registerNavBtn.classList.remove('hidden');
       if (logoutBtn) logoutBtn.classList.add('hidden');
@@ -388,7 +413,7 @@
     if (bloodEl) bloodEl.textContent = 'Sign in to view';
     if (allergiesEl) {
       allergiesEl.textContent = 'Sign in to view';
-      allergiesEl.className = 'font-semibold text-stone-500';
+      allergiesEl.className = 'font-semibold text-stone-500 block text-xs sm:text-sm mt-0.5 truncate';
     }
     if (historyEl) historyEl.textContent = 'Sign in to view';
     if (emergencyEl) emergencyEl.textContent = 'Sign in to view';
@@ -427,11 +452,12 @@
     if (dobEl) dobEl.textContent = prof.date_of_birth || 'Not recorded';
     if (bloodEl) bloodEl.textContent = prof.blood_group || 'Unknown';
     if (allergiesEl) {
-      allergiesEl.textContent = prof.allergies || 'None known';
+      const allergyVal = prof.allergies || 'None known';
+      allergiesEl.textContent = allergyVal;
       if (prof.allergies && prof.allergies.toLowerCase() !== 'none' && prof.allergies.toLowerCase() !== 'none known') {
-        allergiesEl.className = 'font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-md';
+        allergiesEl.className = 'font-bold text-rose-600 block text-xs sm:text-sm mt-0.5 truncate';
       } else {
-        allergiesEl.className = 'font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md';
+        allergiesEl.className = 'font-semibold text-stone-700 block text-xs sm:text-sm mt-0.5 truncate';
       }
     }
     if (historyEl) historyEl.textContent = prof.medical_history || 'None recorded';

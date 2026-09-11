@@ -37,7 +37,7 @@
     <symbol id="i-stethoscope" viewBox="0 0 256 256"><circle cx="208" cy="160" r="12"/><circle cx="208" cy="160" r="32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M104,144v48a40,40,0,0,0,40,40h24a40,40,0,0,0,40-40h0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M136,40h24V87.17c0,30.77-24.48,56.43-55.26,56.83A56,56,0,0,1,48,88V40H72" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-clipboard" viewBox="0 0 256 256"><line x1="96" y1="152" x2="160" y2="152" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="96" y1="120" x2="160" y2="120" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M160,40h40a8,8,0,0,1,8,8V216a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8V48a8,8,0,0,1,8-8H96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M88,72V64a40,40,0,0,1,80,0v8Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-chart" viewBox="0 0 256 256"><polyline points="48 208 48 136 96 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="224" y1="208" x2="32" y2="208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="96 208 96 88 152 88" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="152 208 152 40 208 40 208 208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
-    <symbol id="i-tv" viewBox="0 0 256 256"><polyline points="80 24 128 72 176 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><circle cx="188" cy="116" r="12"/><circle cx="188" cy="164" r="12"/><line x1="152" y1="208" x2="152" y2="72" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
+    <symbol id="i-tv" viewBox="0 0 256 256"><rect x="32" y="72" width="192" height="136" rx="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="80 24 128 72 176 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><circle cx="188" cy="116" r="12"/><circle cx="188" cy="164" r="12"/><line x1="152" y1="208" x2="152" y2="72" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-login" viewBox="0 0 256 256"><line x1="24" y1="128" x2="136" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="96 88 136 128 96 168" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="136 40 200 40 200 216 136 216" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-logout" viewBox="0 0 256 256"><polyline points="112 40 48 40 48 216 112 216" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="112" y1="128" x2="224" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="184 88 224 128 184 168" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 256 256"><line x1="176" y1="24" x2="176" y2="56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="80" y1="24" x2="80" y2="56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="40" y1="88" x2="216" y2="88" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
@@ -90,11 +90,12 @@
   </div>
 
   <!-- Header (scrolls away; nav stays sticky for maximum mobile viewport) -->
+  <!-- Header (scrolls away; nav stays sticky for maximum mobile viewport) -->
   <header class="bg-white/90 backdrop-blur border-b border-stone-200/80">
     <div class="container-page">
-      <div class="flex justify-between items-center gap-3 h-14 sm:h-16">
+      <div class="flex justify-between items-center gap-2 sm:gap-3 h-14 sm:h-16">
         <!-- Brand -->
-        <div class="flex items-center gap-2.5 min-w-0">
+        <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-lift shrink-0" aria-hidden="true">
             <svg class="icon w-5 h-5"><use href="#i-cross"/></svg>
           </div>
@@ -104,7 +105,7 @@
         </div>
 
         <!-- User profile & auth -->
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <!-- Install App header button (revealed when installable on mobile / desktop) -->
           <button id="headerInstallBtn" onclick="window.ClinicApp.installPWA()" class="btn btn-outline btn-sm hidden text-brand-700 hover:bg-brand-50 border-brand-300" aria-label="Install ClinicCare App">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-ticket"/></svg>
@@ -117,14 +118,14 @@
             <span id="currentUserRole" class="uppercase px-2 py-0.5 rounded-full text-[10px] bg-stone-200 text-stone-800 font-bold">Guest</span>
           </div>
 
-          <a href="/display" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" aria-label="Open public TV queue display in a new tab">
+          <a href="/display" target="_blank" rel="noopener" class="btn btn-ghost btn-sm !px-2.5 sm:!px-3 text-stone-600 hover:text-stone-900 inline-flex items-center gap-1.5" aria-label="Open public TV queue display in a new tab" title="Open Public TV Queue Display">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-tv"/></svg>
-            <span class="hidden lg:inline">TV Display</span>
+            <span class="hidden md:inline text-xs font-semibold">TV Display</span>
           </a>
 
-          <button id="logoutBtn" onclick="window.ClinicApp.logout()" class="btn btn-ghost btn-sm hidden text-rose-600 hover:bg-rose-50 hover:text-rose-700" aria-label="Log out">
+          <button id="logoutBtn" onclick="window.ClinicApp.logout()" class="btn btn-ghost btn-sm !px-2.5 sm:!px-3 hidden text-rose-600 hover:bg-rose-50 hover:text-rose-700 inline-flex items-center gap-1.5" aria-label="Log out" title="Log out">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-logout"/></svg>
-            <span class="hidden sm:inline">Logout</span>
+            <span class="hidden sm:inline text-xs font-semibold">Logout</span>
           </button>
         </div>
       </div>
@@ -132,7 +133,7 @@
   </header>
 
   <!-- Sticky navigation tabs (Desktop & Tablet) -->
-  <nav id="portalNav" class="hidden bg-[#FAF8F5]/90 backdrop-blur border-b border-stone-200/80 sticky top-0 z-40" aria-label="Portal sections">
+  <nav id="portalNav" class="hidden sm:block bg-[#FAF8F5]/90 backdrop-blur border-b border-stone-200/80 sticky top-0 z-40" aria-label="Portal sections">
     <div class="container-page">
       <div class="flex gap-1 overflow-x-auto no-scrollbar" id="portalTabs" role="tablist">
         <button onclick="window.ClinicApp.switchTab('patient')" id="tab-patient" role="tab" aria-selected="true" aria-controls="portal-patient" class="tab-btn">
@@ -160,7 +161,7 @@
     <!-- ================================================================= -->
     <!-- PORTAL 0: LOGIN GATEWAY & FEATURE SHOWCASE -->
     <!-- ================================================================= -->
-    <section id="portal-login" role="tabpanel" aria-label="Clinic Login Portal" class="tab-content w-full py-4 sm:py-8">
+    <section id="portal-login" role="tabpanel" aria-label="Clinic Login Portal" class="tab-content w-full py-4 sm:py-8 pb-16 sm:pb-8">
       <div id="loginGatewayCard" class="max-w-lg mx-auto">
         <div class="card card-pad shadow-xl border border-stone-200/90 relative overflow-hidden">
         <!-- Brand / Welcome Header -->
@@ -562,84 +563,96 @@
     <!-- ================================================================= -->
     <section id="portal-patient" role="tabpanel" aria-labelledby="tab-patient" class="tab-content hidden space-y-6">
       
-      <!-- Top Patient Care & Live Queue Banner -->
-      <div class="card card-pad border-stone-200/80 bg-white shadow-sm overflow-hidden relative">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          
-          <!-- Left: Patient Identity & Medical Demographics Summary (7 cols) -->
-          <div class="lg:col-span-7 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div id="patientCardInitials" class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-700 border border-brand-200/70 flex items-center justify-center font-extrabold text-lg shrink-0 shadow-sm" aria-hidden="true">--</div>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2.5 flex-wrap">
-                <h2 class="text-lg sm:text-xl font-bold text-stone-900 tracking-tight truncate" id="patientCardName">Guest Patient</h2>
-                <button id="editProfileBtn" onclick="window.ClinicApp.showProfileModal()" class="btn btn-ghost btn-sm !min-h-[32px] !py-1 !px-2.5 text-xs text-brand-700 hover:bg-brand-50 rounded-lg" title="Edit Medical Profile">
-                  <svg class="icon w-3.5 h-3.5"><use href="#i-user"/></svg>
-                  <span>Edit Profile</span>
-                </button>
-              </div>
-              <p class="text-xs text-stone-500 mt-0.5" id="patientCardSub">Sign in to view your verified medical profile</p>
-              
-              <!-- Quick Demographic Badges -->
-              <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-stone-100 text-xs">
-                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-50 border border-stone-200/60">
-                  <span class="text-stone-400 font-medium">Blood:</span>
-                  <span class="font-bold text-stone-700" id="patientCardBlood">--</span>
+      <!-- Top Patient Care & Live Queue Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
+        
+        <!-- Left: Patient Identity & Medical Demographics Summary (7 cols) -->
+        <div class="lg:col-span-7 card card-pad border-stone-200/80 bg-white shadow-sm flex flex-col justify-between">
+          <div>
+            <!-- Header: Always horizontal Avatar + Name/Edit Info -->
+            <div class="flex items-center gap-3.5 sm:gap-4">
+              <div id="patientCardInitials" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-brand-50 text-brand-700 border border-brand-200/70 flex items-center justify-center font-extrabold text-base sm:text-lg shrink-0 shadow-sm" aria-hidden="true">--</div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h2 class="text-lg sm:text-xl font-bold text-stone-900 tracking-tight truncate" id="patientCardName">Guest Patient</h2>
+                  <button id="editProfileBtn" onclick="window.ClinicApp.showProfileModal()" class="btn btn-ghost btn-sm !min-h-[30px] !py-0.5 !px-2 text-xs text-brand-700 hover:bg-brand-50 rounded-lg inline-flex items-center gap-1" title="Edit Medical Profile">
+                    <svg class="icon w-3.5 h-3.5"><use href="#i-user"/></svg>
+                    <span>Edit Profile</span>
+                  </button>
                 </div>
-                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-50 border border-stone-200/60">
-                  <span class="text-stone-400 font-medium">Allergies:</span>
-                  <span class="font-semibold text-stone-700" id="patientCardAllergies">--</span>
-                </div>
-                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-50 border border-stone-200/60">
-                  <span class="text-stone-400 font-medium">DOB:</span>
-                  <span class="font-medium text-stone-700" id="patientCardDob">--</span>
-                </div>
-                <!-- Preserved element anchors for existing DOM updates -->
-                <span id="patientCardHistory" class="hidden">--</span>
-                <span id="patientCardEmergency" class="hidden">--</span>
+                <p class="text-xs text-stone-500 mt-0.5" id="patientCardSub">Sign in to view your verified medical profile</p>
               </div>
             </div>
+            
+            <!-- Clean Balanced 3-Column Demographic Strip -->
+            <div class="grid grid-cols-3 gap-2 mt-4 pt-3.5 border-t border-stone-100 text-xs">
+              <div class="p-2 sm:px-3 sm:py-2 rounded-xl bg-stone-50/90 border border-stone-200/60 text-center sm:text-left">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400 block">Blood</span>
+                <span class="font-bold text-stone-800 block text-xs sm:text-sm mt-0.5" id="patientCardBlood">--</span>
+              </div>
+              <div class="p-2 sm:px-3 sm:py-2 rounded-xl bg-stone-50/90 border border-stone-200/60 text-center sm:text-left">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400 block">Allergies</span>
+                <span class="font-bold block text-xs sm:text-sm mt-0.5 truncate" id="patientCardAllergies">--</span>
+              </div>
+              <div class="p-2 sm:px-3 sm:py-2 rounded-xl bg-stone-50/90 border border-stone-200/60 text-center sm:text-left">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400 block">DOB</span>
+                <span class="font-semibold text-stone-700 block text-xs sm:text-sm mt-0.5 truncate" id="patientCardDob">--</span>
+              </div>
+              <!-- Preserved element anchors for existing DOM updates -->
+              <span id="patientCardHistory" class="hidden">--</span>
+              <span id="patientCardEmergency" class="hidden">--</span>
+            </div>
           </div>
+        </div>
 
-          <!-- Right: Live Queue Status & Fast Ticket Desk (5 cols) -->
-          <div class="lg:col-span-5 bg-stone-900 text-white rounded-2xl p-4 sm:p-5 shadow-md border border-stone-800">
+        <!-- Right: Live Queue Status & Fast Ticket Desk (5 cols) -->
+        <div class="lg:col-span-5 bg-stone-900 text-white rounded-2xl p-4 sm:p-5 shadow-md border border-stone-800 flex flex-col justify-between">
+          <div>
             <div class="flex justify-between items-center mb-3">
               <div class="flex items-center gap-2">
-                <span class="relative flex h-2 w-2" aria-hidden="true">
+                <span class="relative flex h-2.5 w-2.5" aria-hidden="true">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
                 </span>
-                <span class="text-[11px] font-bold uppercase tracking-wider text-stone-300">Live Clinic Queue</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-stone-200">Live Clinic Queue</span>
               </div>
-              <span class="text-[11px] text-stone-400">Est. Wait: <strong id="patientEstWait" class="text-white">0 min</strong></span>
+              <div class="flex items-center gap-2.5">
+                <a href="/display" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors" title="Open waiting room TV display in a new tab">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-tv"/></svg>
+                  <span>Live TV</span>
+                  <span aria-hidden="true">&nearr;</span>
+                </a>
+                <span class="text-[11px] text-stone-400">Est. Wait: <strong id="patientEstWait" class="text-white">0 min</strong></span>
+              </div>
             </div>
 
             <!-- Serving Ticker -->
-            <div class="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between gap-3">
+            <div class="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3">
               <div>
                 <span class="text-[10px] text-stone-400 uppercase tracking-wider block">Now Serving</span>
-                <span id="patientServingTicket" class="text-2xl sm:text-3xl font-black text-brand-400 tracking-tight leading-none mt-0.5 block">None</span>
+                <span id="patientServingTicket" class="text-2xl sm:text-3xl font-black text-brand-400 font-mono tracking-tight leading-none mt-1 block">None</span>
               </div>
               <div class="text-right">
                 <span id="patientServingRoom" class="text-xs text-stone-300 font-medium block">Room N/A</span>
                 <span class="text-[11px] text-stone-400 block mt-0.5"><span id="patientWaitingCount" class="text-white font-bold">0</span> patients waiting</span>
               </div>
             </div>
-
-            <!-- User's Ticket Display or Ticket Action -->
-            <div class="mt-3">
-              <div id="myTicketCard" class="hidden bg-white text-stone-900 rounded-xl p-3 text-center mb-2.5 border border-stone-200 shadow-sm">
-                <span class="text-[10px] text-stone-500 font-bold uppercase tracking-wider block">Your Walk-in Queue Ticket</span>
-                <span id="myTicketNumber" class="text-2xl font-black text-brand-700 font-mono tracking-tight block">Q-101</span>
-                <span class="text-[11px] text-stone-500 block mt-0.5">Please wait for your ticket to appear on screen</span>
-              </div>
-              <button onclick="window.ClinicApp.issueMyQueueTicket()" class="btn btn-sm btn-primary w-full shadow-sm">
-                <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-ticket"/></svg>
-                <span>Take Walk-in Queue Ticket</span>
-              </button>
-            </div>
           </div>
 
+          <!-- User's Ticket Display or Ticket Action -->
+          <div class="mt-3">
+            <div id="myTicketCard" class="hidden bg-white text-stone-900 rounded-xl p-3 text-center mb-2.5 border border-stone-200 shadow-sm">
+              <span class="text-[10px] text-stone-500 font-bold uppercase tracking-wider block">Your Walk-in Queue Ticket</span>
+              <span id="myTicketNumber" class="text-2xl font-black text-brand-700 font-mono tracking-tight block">Q-101</span>
+              <span class="text-[11px] text-stone-500 block mt-0.5">Please wait for your ticket to appear on screen</span>
+            </div>
+            <button onclick="window.ClinicApp.issueMyQueueTicket()" class="btn btn-sm btn-primary w-full shadow-sm">
+              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-ticket"/></svg>
+              <span>Take Walk-in Queue Ticket</span>
+            </button>
+          </div>
         </div>
+
       </div>
 
       <!-- Main 2-Column Care Workspace -->
@@ -808,7 +821,11 @@
                 <svg class="icon w-4 h-4 text-brand-600"><use href="#i-clock"/></svg>
                 <span>Today's Patient Roster</span>
               </h3>
-              <span class="text-[11px] text-stone-400 font-medium">Click to examine</span>
+              <a href="/display" target="_blank" rel="noopener" class="text-[11px] font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1 transition-colors" title="Open public waiting TV display in a new tab">
+                <svg class="icon w-3.5 h-3.5"><use href="#i-tv"/></svg>
+                <span>Live TV</span>
+                <span aria-hidden="true">&nearr;</span>
+              </a>
             </div>
 
             <!-- Schedule List with interactive selection -->
@@ -1004,8 +1021,15 @@
             </div>
 
             <!-- Current Serving Display -->
-            <div class="p-4 rounded-xl bg-stone-900 text-white mt-4 mb-4 text-center border border-stone-800 shadow-sm">
-              <span class="text-[10px] text-stone-400 font-bold uppercase tracking-wider block">Now Serving at Clinic</span>
+            <div class="p-4 rounded-xl bg-stone-900 text-white mt-4 mb-4 text-center border border-stone-800 shadow-sm relative">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Now Serving at Clinic</span>
+                <a href="/display" target="_blank" rel="noopener" class="text-[11px] font-semibold text-amber-400 hover:text-amber-300 inline-flex items-center gap-1 transition-colors" title="Open TV waiting display in a new tab">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-tv"/></svg>
+                  <span>Live TV</span>
+                  <span aria-hidden="true">&nearr;</span>
+                </a>
+              </div>
               <span id="staffCurrentServing" class="block text-3xl sm:text-4xl font-black text-amber-400 font-mono tracking-tight my-1">None</span>
               <span id="staffCurrentRoom" class="text-xs text-stone-300 font-medium block">Room N/A</span>
             </div>
@@ -1284,8 +1308,8 @@
   <!-- ================================================================= -->
   <!-- FLOATING CHAT WIDGET: fullscreen sheet on mobile, panel on desktop -->
   <!-- ================================================================= -->
-  <div class="fixed bottom-20 right-4 sm:bottom-5 sm:right-5 z-50">
-    <button id="chatLauncher" onclick="window.ClinicApp.toggleChat()" class="btn w-14 h-14 !p-0 !min-h-0 rounded-full bg-brand-600 text-white shadow-lift hover:bg-brand-700" aria-label="Open live chat" aria-expanded="false" aria-controls="chatWindow">
+  <div id="chatLauncherWrap" class="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-50 transition-all duration-200">
+    <button id="chatLauncher" onclick="window.ClinicApp.toggleChat()" class="btn w-13 h-13 sm:w-14 sm:h-14 !p-0 !min-h-0 rounded-full bg-brand-600 text-white shadow-lift hover:bg-brand-700" aria-label="Open live chat" aria-expanded="false" aria-controls="chatWindow">
       <svg class="icon w-6 h-6" aria-hidden="true"><use href="#i-message"/></svg>
     </button>
   </div>
