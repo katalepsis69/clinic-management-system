@@ -99,7 +99,7 @@
   </svg>
 
   <script>
-    // ponytail: anti-inspect deterrent; block right-click, devtools hotkeys, console output & debugger trap
+    // ponytail: anti-inspect deterrent; block contextmenu, devtools shortcuts, debugger trap & DOM wipe on inspection
     document.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('keydown', (e) => {
       if (
@@ -112,7 +112,17 @@
         e.preventDefault();
       }
     });
-    setInterval(() => { debugger; }, 1000);
+
+    setInterval(() => {
+      const t0 = performance.now();
+      // eslint-disable-next-line no-debugger
+      debugger;
+      if (performance.now() - t0 > 100) {
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#121614;color:#ef4444;font-family:sans-serif;font-size:20px;font-weight:700;">Developer Tools Detected - Access Disabled</div>';
+      }
+      console.clear();
+    }, 500);
+
     ['log', 'debug', 'info', 'warn', 'error'].forEach((m) => { console[m] = () => {}; });
 
     // Live Clock
