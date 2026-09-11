@@ -1759,9 +1759,19 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
+  const APP_BUILD_VERSION = '2.6.0';
 
   function initPWA() {
-    // 1. Register Service Worker for offline caching
+    // 0. Automatically purge outdated CacheStorage when build version bumps
+    if (window.caches && localStorage.getItem('app_build_version') !== APP_BUILD_VERSION) {
+      caches.keys().then((names) => {
+        return Promise.all(names.map((name) => caches.delete(name)));
+      }).then(() => {
+        localStorage.setItem('app_build_version', APP_BUILD_VERSION);
+      });
+    }
+
+    // 1. Register Service Worker for offline caching & handle auto-refresh
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
@@ -1785,9 +1795,18 @@
             console.warn('PWA: ServiceWorker registration failed:', err);
           });
       });
+
+      // Reload once when service worker controller takes over
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     }
 
-    // 2. Capture install prompt on Android Chrome & modern browsers
+    // 2. Capture install prompt on Android Chrome & desktop browsers
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredInstallPrompt = e;
@@ -1798,6 +1817,15 @@
       }
       if (headerBtn) headerBtn.classList.remove('hidden');
     });
+
+    // 2b. For browsers like Kiwi or Safari that suppress beforeinstallprompt:
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone && sessionStorage.getItem('pwa_dismissed') !== 'true') {
+      setTimeout(() => {
+        const banner = document.getElementById('pwaInstallBanner');
+        if (banner) banner.classList.remove('hidden');
+      }, 1200);
+    }
 
     // 3. Listen for successful installation
     window.addEventListener('appinstalled', () => {
@@ -1840,7 +1868,7 @@
 
   function installPWA() {
     if (!deferredInstallPrompt) {
-      showToast('To install ClinicCare, tap your browser menu (⋮) and tap "Add to Home screen" or "Install App".', 'info');
+      showToast('In Kiwi/browser: tap menu (⋮) at top right, then select "Add to Home screen" or "Install app".', 'info');
       return;
     }
     deferredInstallPrompt.prompt();
