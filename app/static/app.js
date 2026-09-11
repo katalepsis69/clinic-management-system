@@ -277,8 +277,6 @@
     const badge = document.getElementById('userProfileBadge');
     const nameEl = document.getElementById('currentUserName');
     const roleEl = document.getElementById('currentUserRole');
-    const manualLoginBtn = document.getElementById('manualLoginBtn');
-    const registerNavBtn = document.getElementById('registerNavBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
     // Role-based portal tab visibility (Desktop & Mobile)
@@ -312,8 +310,6 @@
         roleEl.className = 'uppercase px-2 py-0.5 rounded-full text-[10px] font-bold ' +
           (roleColors[state.user.role] || 'bg-stone-200 text-stone-800');
       }
-      if (manualLoginBtn) manualLoginBtn.classList.add('hidden');
-      if (registerNavBtn) registerNavBtn.classList.add('hidden');
       if (logoutBtn) logoutBtn.classList.remove('hidden');
 
       // STRICT ROLE-BASED ACCESS CONTROL FOR TABS
@@ -378,8 +374,6 @@
       }
 
       if (badge) badge.className = 'hidden';
-      if (manualLoginBtn) manualLoginBtn.classList.remove('hidden');
-      if (registerNavBtn) registerNavBtn.classList.remove('hidden');
       if (logoutBtn) logoutBtn.classList.add('hidden');
 
       // Guest / unauthenticated: show Patient view, hide clinical staff tabs
