@@ -27,7 +27,7 @@
   </svg>
 
   <!-- TV top header -->
-  <header class="flex flex-wrap justify-between items-center gap-4 border-b border-[#232c25] pb-4 sm:pb-6">
+  <header class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 border-b border-[#232c25] pb-4 sm:pb-6">
     <div class="flex items-center gap-3 sm:gap-4 min-w-0">
       <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-black/40 shrink-0" aria-hidden="true">
         <svg class="icon w-7 h-7 sm:w-8 sm:h-8"><use href="#i-cross"/></svg>
@@ -39,7 +39,7 @@
     </div>
 
     <!-- Live clock & audio toggle -->
-    <div class="flex items-center gap-4 sm:gap-6 shrink-0">
+    <div class="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto shrink-0">
       <button id="audioToggleBtn" onclick="toggleAudio()" class="btn btn-sm !min-h-[44px] rounded-xl uppercase tracking-wider !bg-[#1a211d] !border !border-[#2e3b31] hover:!border-brand-500 !text-stone-300">
         <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-bell"/></svg>
         Audio: <span id="audioStatus" class="text-amber-400 font-bold">Click to Enable</span>
@@ -47,7 +47,7 @@
 
       <div class="text-right">
         <div id="tvClock" class="tv-clock font-mono font-bold text-white tracking-widest tabular-nums">--:--:--</div>
-        <div id="tvDate" class="text-xs font-medium text-stone-400">Loading date...</div>
+        <div id="tvDate" class="text-xs font-medium text-stone-400 whitespace-nowrap">Loading date...</div>
       </div>
     </div>
   </header>
@@ -55,18 +55,18 @@
   <!-- TV center display: NOW SERVING -->
   <main class="my-auto py-6 sm:py-8">
     <div class="max-w-5xl mx-auto">
-      <div id="servingCard" class="called-highlight bg-[#1a211d]/90 border-2 border-brand-500 rounded-3xl p-6 sm:p-8 md:p-12 text-center shadow-2xl backdrop-blur-md">
+      <div id="servingCard" class="called-highlight bg-[#1a211d]/90 border-2 border-[#2e3b31] rounded-3xl p-6 sm:p-8 md:p-12 text-center shadow-2xl backdrop-blur-md transition-all duration-300">
         <div class="flex items-center justify-center gap-3 mb-2">
-          <span class="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-brand-400 animate-ping" aria-hidden="true"></span>
-          <span class="text-base sm:text-lg md:text-2xl font-extrabold uppercase tracking-widest text-brand-400">NOW SERVING</span>
+          <span id="servingDot" class="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-brand-400/60" aria-hidden="true"></span>
+          <span id="servingLabel" class="text-base sm:text-lg md:text-2xl font-extrabold uppercase tracking-widest text-brand-400">NOW SERVING</span>
         </div>
 
-        <div id="displayTicket" class="tv-ticket font-black text-white tracking-wider my-3 sm:my-4 font-mono tabular-nums">
-          None
+        <div id="displayTicket" class="tv-ticket font-black text-stone-400 tracking-wider my-3 sm:my-4 font-mono tabular-nums">
+          STANDBY
         </div>
 
-        <div class="inline-block mt-2 px-4 sm:px-6 py-2 rounded-2xl bg-brand-950/80 border border-brand-500/40 text-brand-300 font-bold text-lg sm:text-2xl md:text-3xl">
-          Please proceed to <span id="displayRoom" class="text-white font-extrabold">Room N/A</span>
+        <div id="displayRoomContainer" class="inline-block mt-2 px-4 sm:px-6 py-2 rounded-2xl bg-brand-950/80 border border-brand-500/40 text-brand-300 font-bold text-base sm:text-xl md:text-2xl">
+          <span id="displayRoomPrefix"></span><span id="displayRoom" class="text-stone-300 font-semibold">Waiting for next patient call</span>
         </div>
       </div>
     </div>
@@ -138,8 +138,12 @@
     function updateClock() {
       const now = new Date();
       document.getElementById('tvClock').textContent = now.toLocaleTimeString();
+      const isNarrow = window.innerWidth < 640;
       document.getElementById('tvDate').textContent = now.toLocaleDateString(undefined, {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        weekday: isNarrow ? 'short' : 'long',
+        year: 'numeric',
+        month: isNarrow ? 'short' : 'long',
+        day: 'numeric'
       });
     }
     setInterval(updateClock, 1000);
@@ -178,11 +182,11 @@
         osc1.frequency.setValueAtTime(587.33, now);
         gain1.gain.setValueAtTime(0, now);
         gain1.gain.linearRampToValueAtTime(0.3, now + 0.05);
-        gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
         osc1.connect(gain1);
         gain1.connect(audioCtx.destination);
         osc1.start(now);
-        osc1.stop(now + 0.85);
+        osc1.stop(now + 0.8);
 
         // Tone 2: 880.00 Hz (A5)
         const osc2 = audioCtx.createOscillator();
@@ -190,8 +194,8 @@
         osc2.type = 'sine';
         osc2.frequency.setValueAtTime(880.00, now + 0.25);
         gain2.gain.setValueAtTime(0, now + 0.25);
-        gain2.gain.linearRampToValueAtTime(0.35, now + 0.3);
-        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+        gain2.gain.linearRampToValueAtTime(0.3, now + 0.3);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
         osc2.connect(gain2);
         gain2.connect(audioCtx.destination);
         osc2.start(now + 0.25);
@@ -206,14 +210,15 @@
     let lastChimedTicket = null;
 
     function notifyNewServing(ticket) {
-      if (ticket && ticket !== 'None' && ticket !== lastChimedTicket) {
+      if (ticket && ticket !== 'None' && ticket !== 'STANDBY' && ticket !== lastChimedTicket) {
         lastChimedTicket = ticket;
         playChime();
       }
     }
 
     function renderQueue(data) {
-      const current = data.currently_serving || 'None';
+      const current = data.currently_serving;
+      const isServing = current && current !== 'None' && current !== 'STANDBY';
       const room = data.currently_serving_room || 'Room N/A';
       const waiting = data.waiting_tickets || [];
       const waitCount = data.waiting_count !== undefined ? data.waiting_count : waiting.length;
@@ -221,20 +226,51 @@
 
       const ticketEl = document.getElementById('displayTicket');
       const roomEl = document.getElementById('displayRoom');
+      const roomPrefixEl = document.getElementById('displayRoomPrefix');
+      const cardEl = document.getElementById('servingCard');
+      const dotEl = document.getElementById('servingDot');
       const countEl = document.getElementById('displayWaitingCount');
       const estEl = document.getElementById('displayEstWait');
       const listEl = document.getElementById('displayWaitingList');
 
-      if (ticketEl) ticketEl.textContent = current;
-      if (roomEl) roomEl.textContent = room;
+      if (ticketEl && roomEl) {
+        if (isServing) {
+          ticketEl.textContent = current;
+          ticketEl.className = 'tv-ticket font-black text-white tracking-wider my-3 sm:my-4 font-mono tabular-nums';
+          if (roomPrefixEl) roomPrefixEl.textContent = 'Please proceed to ';
+          roomEl.textContent = room;
+          roomEl.className = 'text-white font-extrabold';
+          if (cardEl) {
+            cardEl.classList.remove('border-[#2e3b31]');
+            cardEl.classList.add('border-brand-500');
+          }
+          if (dotEl) {
+            dotEl.className = 'w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-brand-400 animate-ping';
+          }
+        } else {
+          ticketEl.textContent = 'STANDBY';
+          ticketEl.className = 'text-4xl sm:text-6xl md:text-7xl font-extrabold text-amber-400 tracking-wider my-4 font-sans';
+          if (roomPrefixEl) roomPrefixEl.textContent = '';
+          roomEl.textContent = 'Waiting for next patient call';
+          roomEl.className = 'text-stone-300 font-semibold text-base sm:text-xl';
+          if (cardEl) {
+            cardEl.classList.remove('border-brand-500');
+            cardEl.classList.add('border-[#2e3b31]');
+          }
+          if (dotEl) {
+            dotEl.className = 'w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-amber-400/70 animate-pulse';
+          }
+        }
+      }
+
       if (countEl) countEl.textContent = waitCount;
       if (estEl) estEl.textContent = waitMins + ' mins';
 
       // Chime once if new patient called (deduplicated via notifyNewServing)
-      if (current !== 'None' && lastServing !== null && current !== lastServing) {
+      if (isServing && lastServing !== null && current !== lastServing) {
         notifyNewServing(current);
       }
-      lastServing = current;
+      lastServing = isServing ? current : null;
 
       if (listEl) {
         if (waiting.length === 0) {
