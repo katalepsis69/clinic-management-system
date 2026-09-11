@@ -146,6 +146,8 @@
       if (activeSec) activeSec.classList.remove('hidden');
       const nav = document.getElementById('portalNav');
       if (nav) nav.classList.add('hidden');
+      const mobNav = document.getElementById('mobileBottomNav');
+      if (mobNav) mobNav.classList.add('hidden');
       return;
     } else if (tabName !== 'patient') {
       showToast('Please sign in with authorized clinic credentials.', 'info');
@@ -157,8 +159,23 @@
     const nav = document.getElementById('portalNav');
     if (nav) nav.classList.remove('hidden');
 
+    const mobNav = document.getElementById('mobileBottomNav');
+    if (mobNav) mobNav.classList.remove('hidden');
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.setAttribute('aria-selected', String(btn.id === `tab-${tabName}`));
+    });
+
+    document.querySelectorAll('.mob-nav-btn').forEach(btn => {
+      const isSelected = btn.id === `mob-tab-${tabName}`;
+      btn.setAttribute('aria-selected', String(isSelected));
+      if (isSelected) {
+        btn.classList.remove('text-stone-500');
+        btn.classList.add('text-brand-600', 'font-bold');
+      } else {
+        btn.classList.remove('text-brand-600', 'font-bold');
+        btn.classList.add('text-stone-500');
+      }
     });
 
     document.querySelectorAll('.tab-content').forEach(sec => {
@@ -237,16 +254,23 @@
     const registerNavBtn = document.getElementById('registerNavBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    // Role-based portal tab visibility
+    // Role-based portal tab visibility (Desktop & Mobile)
     const tabPatient = document.getElementById('tab-patient');
     const tabDoctor = document.getElementById('tab-doctor');
     const tabStaff = document.getElementById('tab-staff');
     const tabAnalytics = document.getElementById('tab-analytics');
 
+    const mobTabPatient = document.getElementById('mob-tab-patient');
+    const mobTabDoctor = document.getElementById('mob-tab-doctor');
+    const mobTabStaff = document.getElementById('mob-tab-staff');
+    const mobTabAnalytics = document.getElementById('mob-tab-analytics');
+
     const nav = document.getElementById('portalNav');
+    const mobNav = document.getElementById('mobileBottomNav');
 
     if (state.user) {
       if (nav) nav.classList.remove('hidden');
+      if (mobNav && state.activeTab !== 'login') mobNav.classList.remove('hidden');
       if (badge) badge.classList.remove('hidden');
       if (nameEl) nameEl.textContent = state.user.full_name || state.user.email;
       if (roleEl) {
@@ -265,33 +289,40 @@
       if (logoutBtn) logoutBtn.classList.remove('hidden');
 
       // STRICT ROLE-BASED ACCESS CONTROL FOR TABS
+      const showTab = (desktopEl, mobileEl, visible) => {
+        if (desktopEl) desktopEl.classList.toggle('hidden', !visible);
+        if (mobileEl) mobileEl.classList.toggle('hidden', !visible);
+      };
+
       if (state.user.role === 'patient') {
-        if (tabPatient) tabPatient.classList.remove('hidden');
-        if (tabDoctor) tabDoctor.classList.add('hidden');
-        if (tabStaff) tabStaff.classList.add('hidden');
-        if (tabAnalytics) tabAnalytics.classList.add('hidden');
+        showTab(tabPatient, mobTabPatient, true);
+        showTab(tabDoctor, mobTabDoctor, false);
+        showTab(tabStaff, mobTabStaff, false);
+        showTab(tabAnalytics, mobTabAnalytics, false);
         renderPatientProfile(state.user);
       } else if (state.user.role === 'doctor') {
-        if (tabPatient) tabPatient.classList.add('hidden');
-        if (tabDoctor) tabDoctor.classList.remove('hidden');
-        if (tabStaff) tabStaff.classList.add('hidden');
-        if (tabAnalytics) tabAnalytics.classList.add('hidden');
+        showTab(tabPatient, mobTabPatient, false);
+        showTab(tabDoctor, mobTabDoctor, true);
+        showTab(tabStaff, mobTabStaff, false);
+        showTab(tabAnalytics, mobTabAnalytics, false);
       } else if (state.user.role === 'staff') {
-        if (tabPatient) tabPatient.classList.add('hidden');
-        if (tabDoctor) tabDoctor.classList.add('hidden');
-        if (tabStaff) tabStaff.classList.remove('hidden');
-        if (tabAnalytics) tabAnalytics.classList.add('hidden');
+        showTab(tabPatient, mobTabPatient, false);
+        showTab(tabDoctor, mobTabDoctor, false);
+        showTab(tabStaff, mobTabStaff, true);
+        showTab(tabAnalytics, mobTabAnalytics, false);
       } else if (state.user.role === 'admin') {
-        if (tabPatient) tabPatient.classList.remove('hidden');
-        if (tabDoctor) tabDoctor.classList.remove('hidden');
-        if (tabStaff) tabStaff.classList.remove('hidden');
-        if (tabAnalytics) tabAnalytics.classList.remove('hidden');
+        showTab(tabPatient, mobTabPatient, true);
+        showTab(tabDoctor, mobTabDoctor, true);
+        showTab(tabStaff, mobTabStaff, true);
+        showTab(tabAnalytics, mobTabAnalytics, true);
       }
     } else {
       if (state.activeTab === 'login') {
         if (nav) nav.classList.add('hidden');
+        if (mobNav) mobNav.classList.add('hidden');
       } else {
         if (nav) nav.classList.remove('hidden');
+        if (mobNav) mobNav.classList.remove('hidden');
       }
 
       if (badge) badge.classList.add('hidden');
@@ -301,9 +332,13 @@
 
       // Guest / unauthenticated: show Patient view, hide clinical staff tabs
       if (tabPatient) tabPatient.classList.remove('hidden');
+      if (mobTabPatient) mobTabPatient.classList.remove('hidden');
       if (tabDoctor) tabDoctor.classList.add('hidden');
+      if (mobTabDoctor) mobTabDoctor.classList.add('hidden');
       if (tabStaff) tabStaff.classList.add('hidden');
+      if (mobTabStaff) mobTabStaff.classList.add('hidden');
       if (tabAnalytics) tabAnalytics.classList.add('hidden');
+      if (mobTabAnalytics) mobTabAnalytics.classList.add('hidden');
       renderGuestPatientProfile();
     }
     updateChatGuestUI(state.user ? null : state.guestChatRemaining);
@@ -1753,8 +1788,102 @@
     }
   });
 
+  // PWA Support & Service Worker Registration
+  let deferredInstallPrompt = null;
+
+  function initPWA() {
+    // 1. Register Service Worker for offline caching
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then((reg) => {
+            console.log('PWA: ServiceWorker registered successfully with scope:', reg.scope);
+          })
+          .catch((err) => {
+            console.warn('PWA: ServiceWorker registration failed:', err);
+          });
+      });
+    }
+
+    // 2. Capture install prompt on Android Chrome & modern browsers
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const banner = document.getElementById('pwaInstallBanner');
+      const headerBtn = document.getElementById('headerInstallBtn');
+      if (banner && sessionStorage.getItem('pwa_dismissed') !== 'true') {
+        banner.classList.remove('hidden');
+      }
+      if (headerBtn) headerBtn.classList.remove('hidden');
+    });
+
+    // 3. Listen for successful installation
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      const banner = document.getElementById('pwaInstallBanner');
+      const headerBtn = document.getElementById('headerInstallBtn');
+      if (banner) banner.classList.add('hidden');
+      if (headerBtn) headerBtn.classList.add('hidden');
+      showToast('ClinicCare successfully installed on your device!', 'success');
+    });
+
+    // 4. Offline & Online connectivity monitor
+    function updateOnlineStatus() {
+      const offlineBar = document.getElementById('offlineStatusBar');
+      if (!offlineBar) return;
+      if (navigator.onLine) {
+        offlineBar.classList.add('hidden');
+      } else {
+        offlineBar.classList.remove('hidden');
+      }
+    }
+
+    window.addEventListener('online', () => {
+      updateOnlineStatus();
+      showToast('Internet connection restored.', 'success');
+      if (!state.queueWs || state.queueWs.readyState !== WebSocket.OPEN) {
+        initQueueWebSocket();
+      }
+    });
+
+    window.addEventListener('offline', () => {
+      updateOnlineStatus();
+      showToast('Offline Mode: Displaying cached data.', 'warning');
+    });
+
+    if (!navigator.onLine) {
+      updateOnlineStatus();
+    }
+  }
+
+  function installPWA() {
+    if (!deferredInstallPrompt) {
+      showToast('To install ClinicCare, tap your browser menu (⋮) and tap "Add to Home screen" or "Install App".', 'info');
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult && choiceResult.outcome === 'accepted') {
+        showToast('Installing ClinicCare...', 'info');
+      }
+      deferredInstallPrompt = null;
+      const banner = document.getElementById('pwaInstallBanner');
+      const headerBtn = document.getElementById('headerInstallBtn');
+      if (banner) banner.classList.add('hidden');
+      if (headerBtn) headerBtn.classList.add('hidden');
+    });
+  }
+
+  function dismissPWABanner() {
+    const banner = document.getElementById('pwaInstallBanner');
+    if (banner) banner.classList.add('hidden');
+    sessionStorage.setItem('pwa_dismissed', 'true');
+  }
+
   // Initialize on page load
   async function init() {
+    initPWA();
+
     // Immediately set active portal tab before network roundtrip to eliminate reload flicker
     const roleMap = { patient: 'patient', doctor: 'doctor', staff: 'staff', admin: 'analytics' };
     if (state.user && state.user.role && roleMap[state.user.role]) {
@@ -1845,6 +1974,8 @@
     sendQuickFaq,
     showcaseSelectRole,
     showcaseOpenChat,
+    installPWA,
+    dismissPWABanner,
   };
 
   if (document.readyState === 'loading') {

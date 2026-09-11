@@ -58,3 +58,31 @@ def test_aria_tabs_and_labels():
     assert 'role="tablist"' in res.text
     assert 'aria-selected="true"' in res.text
     assert '<label for="appointmentDate"' in res.text
+
+
+def test_pwa_manifest_and_sw_endpoints():
+    # PWA Manifest
+    res_m = client.get("/manifest.json")
+    assert res_m.status_code == 200
+    assert "application/manifest+json" in res_m.headers.get("content-type", "")
+    manifest_data = res_m.json()
+    assert manifest_data["short_name"] == "ClinicCare"
+    assert manifest_data["display"] == "standalone"
+    assert len(manifest_data["icons"]) >= 3
+
+    # Service Worker
+    res_sw = client.get("/sw.js")
+    assert res_sw.status_code == 200
+    assert "application/javascript" in res_sw.headers.get("content-type", "")
+    assert res_sw.headers.get("service-worker-allowed") == "/"
+    assert "CACHE_NAME" in res_sw.text
+
+
+def test_pwa_mobile_navigation_and_banners():
+    res = client.get("/")
+    assert res.status_code == 200
+    assert '<link rel="manifest" href="/manifest.json">' in res.text
+    assert 'id="mobileBottomNav"' in res.text
+    assert 'id="pwaInstallBanner"' in res.text
+    assert 'id="offlineStatusBar"' in res.text
+    assert 'id="headerInstallBtn"' in res.text

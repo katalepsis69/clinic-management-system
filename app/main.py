@@ -72,3 +72,21 @@ def serve_index():
 @app.get("/display")
 def serve_public_display():
     return FileResponse("app/static/display.html", headers=NO_CACHE_HEADERS)
+
+
+@app.get("/manifest.json")
+def serve_manifest():
+    return FileResponse("app/static/manifest.json", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def serve_service_worker():
+    return FileResponse(
+        "app/static/sw.js",
+        media_type="application/javascript",
+        headers={
+            "Service-Worker-Allowed": "/",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+    )
+

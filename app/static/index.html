@@ -2,11 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clinic Management System</title>
-  <meta name="description" content="Clinic operations portal: appointments, live queue tracking, EMR, e-prescriptions, billing, and patient sentiment analytics.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
+  <title>ClinicCare - Clinic Management System</title>
+  <meta name="description" content="Clinic operations portal: appointments, live queue tracking, EMR, e-prescriptions, billing, and bilingual AI medical assistant.">
   <meta name="theme-color" content="#2d6a3f">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232d6a3f'/%3E%3Cpath d='M27 12h10v15h15v10H37v15H27V37H12V27h15z' fill='white'/%3E%3C/svg%3E">
+  <meta name="application-name" content="ClinicCare">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ClinicCare">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="icon" href="/static/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -46,6 +53,33 @@
     <symbol id="i-spinner-gap" viewBox="0 0 256 256"><line x1="128" y1="32" x2="128" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="224" y1="128" x2="192" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="195.88" y1="195.88" x2="173.25" y2="173.25" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="128" y1="224" x2="128" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="60.12" y1="195.88" x2="82.75" y2="173.25" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="32" y1="128" x2="64" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="60.12" y1="60.12" x2="82.75" y2="82.75" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
   </svg>
 
+  <!-- Offline status indicator -->
+  <div id="offlineStatusBar" class="hidden bg-amber-600 text-white text-xs font-semibold px-4 py-2 text-center transition-all duration-300 flex items-center justify-center gap-2 sticky top-0 z-[80] shadow-md" role="alert">
+    <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-alert"/></svg>
+    <span>Offline Mode: You are offline. Showing cached clinic interface. Reconnecting...</span>
+  </div>
+
+  <!-- PWA Smart Install Banner for Android & Mobile -->
+  <div id="pwaInstallBanner" class="hidden bg-gradient-to-r from-brand-900 to-brand-800 text-white px-4 py-2.5 sm:px-6 flex items-center justify-between gap-3 border-b border-brand-700/50 shadow-md relative z-[65]">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="w-8 h-8 rounded-xl bg-white/10 p-1 flex items-center justify-center shrink-0 border border-white/20" aria-hidden="true">
+        <svg class="icon w-4 h-4 text-brand-100"><use href="#i-cross"/></svg>
+      </div>
+      <div class="min-w-0">
+        <p class="text-xs font-bold leading-tight truncate">Install ClinicCare App</p>
+        <p class="text-[11px] text-brand-200 leading-tight truncate">Fast queue tracking &amp; appointments on your home screen</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button type="button" onclick="window.ClinicApp.installPWA()" class="btn btn-sm bg-white text-brand-900 hover:bg-brand-50 !py-1 !px-3 text-xs font-bold shadow-sm">
+        Install
+      </button>
+      <button type="button" onclick="window.ClinicApp.dismissPWABanner()" class="touch-target flex items-center justify-center text-brand-300 hover:text-white p-1" aria-label="Dismiss install banner">
+        <svg class="icon w-4 h-4"><use href="#i-x"/></svg>
+      </button>
+    </div>
+  </div>
+
   <!-- Header (scrolls away; nav stays sticky for maximum mobile viewport) -->
   <header class="bg-white/90 backdrop-blur border-b border-stone-200/80">
     <div class="container-page">
@@ -62,6 +96,12 @@
 
         <!-- User profile & auth -->
         <div class="flex items-center gap-2 shrink-0">
+          <!-- Install App header button (revealed when installable on mobile / desktop) -->
+          <button id="headerInstallBtn" onclick="window.ClinicApp.installPWA()" class="btn btn-outline btn-sm hidden text-brand-700 hover:bg-brand-50 border-brand-300" aria-label="Install ClinicCare App">
+            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-ticket"/></svg>
+            <span class="hidden md:inline">Install App</span>
+          </button>
+
           <div id="userProfileBadge" class="hidden sm:flex items-center gap-2 bg-stone-100 py-1.5 px-3 rounded-full text-xs font-medium text-stone-700">
             <span class="w-2 h-2 rounded-full bg-brand-500" aria-hidden="true"></span>
             <span id="currentUserName">Guest</span>
@@ -82,7 +122,7 @@
     </div>
   </header>
 
-  <!-- Sticky navigation tabs -->
+  <!-- Sticky navigation tabs (Desktop & Tablet) -->
   <nav id="portalNav" class="hidden bg-[#FAF8F5]/90 backdrop-blur border-b border-stone-200/80 sticky top-0 z-40" aria-label="Portal sections">
     <div class="container-page">
       <div class="flex gap-1 overflow-x-auto no-scrollbar" id="portalTabs" role="tablist">
@@ -105,8 +145,8 @@
   <!-- Toast notifications: centered under nav on mobile, top-right on desktop -->
   <div id="toastContainer" class="fixed top-16 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-[70] flex flex-col gap-2 pointer-events-none" role="status" aria-live="polite"></div>
 
-  <!-- Main content -->
-  <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+  <!-- Main content with responsive mobile bottom clearance -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-24 sm:pb-8">
 
     <!-- ================================================================= -->
     <!-- PORTAL 0: LOGIN GATEWAY & FEATURE SHOWCASE -->
@@ -1077,7 +1117,7 @@
   <!-- ================================================================= -->
   <!-- FLOATING CHAT WIDGET: fullscreen sheet on mobile, panel on desktop -->
   <!-- ================================================================= -->
-  <div class="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-50">
+  <div class="fixed bottom-20 right-4 sm:bottom-5 sm:right-5 z-50">
     <button id="chatLauncher" onclick="window.ClinicApp.toggleChat()" class="btn w-14 h-14 !p-0 !min-h-0 rounded-full bg-brand-600 text-white shadow-lift hover:bg-brand-700" aria-label="Open live chat" aria-expanded="false" aria-controls="chatWindow">
       <svg class="icon w-6 h-6" aria-hidden="true"><use href="#i-message"/></svg>
     </button>
@@ -1357,10 +1397,34 @@
     </div>
   </div>
 
-  <footer class="bg-white border-t border-stone-200 py-4 text-center text-xs text-stone-400 mt-auto">
+  <footer class="bg-white border-t border-stone-200 py-4 text-center text-xs text-stone-400 mt-auto mb-16 sm:mb-0">
     Clinic Management System &bull; Intelligent Real-Time Healthcare Portal &bull; Python 3.12+ &amp; FastAPI
   </footer>
 
-  <script src="/static/app.js?v=2.1.0"></script>
+  <!-- ================================================================= -->
+  <!-- MOBILE BOTTOM NAVIGATION (App-style navigation for screens < 640px) -->
+  <!-- ================================================================= -->
+  <nav id="mobileBottomNav" class="hidden sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200/90 shadow-[0_-4px_16px_rgba(0,0,0,0.05)] pb-[max(0.5rem,env(safe-area-inset-bottom))]" aria-label="Mobile Navigation">
+    <div class="grid grid-cols-4 h-14 max-w-md mx-auto">
+      <button type="button" onclick="window.ClinicApp.switchTab('patient')" id="mob-tab-patient" class="mob-nav-btn text-brand-600 font-bold flex flex-col items-center justify-center gap-0.5" aria-selected="true">
+        <svg class="icon w-5 h-5"><use href="#i-user"/></svg>
+        <span class="text-[10px] tracking-tight">Patient</span>
+      </button>
+      <button type="button" onclick="window.ClinicApp.switchTab('doctor')" id="mob-tab-doctor" class="mob-nav-btn text-stone-500 hover:text-stone-900 flex flex-col items-center justify-center gap-0.5" aria-selected="false">
+        <svg class="icon w-5 h-5"><use href="#i-stethoscope"/></svg>
+        <span class="text-[10px] tracking-tight">Doctor</span>
+      </button>
+      <button type="button" onclick="window.ClinicApp.switchTab('staff')" id="mob-tab-staff" class="mob-nav-btn text-stone-500 hover:text-stone-900 flex flex-col items-center justify-center gap-0.5" aria-selected="false">
+        <svg class="icon w-5 h-5"><use href="#i-clipboard"/></svg>
+        <span class="text-[10px] tracking-tight">Staff</span>
+      </button>
+      <button type="button" onclick="window.ClinicApp.switchTab('analytics')" id="mob-tab-analytics" class="mob-nav-btn text-stone-500 hover:text-stone-900 flex flex-col items-center justify-center gap-0.5" aria-selected="false">
+        <svg class="icon w-5 h-5"><use href="#i-chart"/></svg>
+        <span class="text-[10px] tracking-tight">Analytics</span>
+      </button>
+    </div>
+  </nav>
+
+  <script src="/static/app.js?v=2.2.0"></script>
 </body>
 </html>
