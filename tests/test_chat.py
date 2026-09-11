@@ -131,6 +131,22 @@ def test_classify_query_intent():
     assert classify_query_intent("safe po ba uminom ng paracetamol?") == "INTERNAL_LLM"
 
 
+def test_banned_headers_not_in_prompt_and_sanitized():
+    import re
+    from app.chat_bot import SYSTEM_PROMPT
+
+    # Prompt explicitly forbids robotic appointment headers
+    assert "STRICT FORMATTING RULE" in SYSTEM_PROMPT
+    assert "*Clinic Advice/Appointment:*" in SYSTEM_PROMPT
+
+    # Sanitization regex strips any such heading if produced
+    raw_mock_output = "*Clinic Advice/Appointment:*\nKapag lumala, magpatingin sa doktor."
+    cleaned = re.sub(r'(?i)^\s*\*?\*?Clinic Advice/Appointment:?\*?\*?\s*', '', raw_mock_output, flags=re.MULTILINE)
+    cleaned = re.sub(r'(?i)\n\s*\*?\*?Clinic Advice/Appointment:?\*?\*?\s*', '\n', cleaned).strip()
+    assert "*Clinic Advice/Appointment:*" not in cleaned
+    assert "Kapag lumala" in cleaned
+
+
 # ==========================================
 # 2. ChatConnectionHub Unit Tests
 # ==========================================

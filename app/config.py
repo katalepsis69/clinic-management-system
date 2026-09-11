@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = True
     GEMINI_API_KEY: str = ""
     GEMINI_API_KEYS: str = ""
-    GEMINI_MODEL: str = "gemini-3.6-flash"
+    GEMINI_MODEL: str = "gemini-3-flash-preview"
     ENABLE_WEB_SEARCH: bool = True
 
     def get_gemini_keys(self) -> list[str]:

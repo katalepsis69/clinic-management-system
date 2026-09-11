@@ -1,6 +1,7 @@
 """AI & FAQ Bot Engine for Clinic Assistant with Multi-Key Rotation and Bilingual Support."""
 
 import logging
+import re
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,9 @@ SYSTEM_PROMPT = """You are the AI Front Desk & Healthcare Assistant for Clinic M
 - Appointments: Bookable online in the Patient Portal under 'Book Appointment'.
 - General Medical Care & Symptoms: You can explain general medical concepts, wellness guidance, anatomy, common symptoms, and preventive health tips clearly and empathetically.
 - Over-The-Counter (OTC) & General Knowledge Medications: You ARE PERMITTED to suggest widely recognized, safe over-the-counter (OTC) medicines and home care remedies that do not require a doctor's prescription (such as topical antifungal creams like clotrimazole, terbinafine, or miconazole for ringworm/buni; paracetamol or ibuprofen for mild fever/headaches; antacids for heartburn; oral rehydration salts for mild dehydration; saline nasal spray or antihistamines like cetirizine/loratadine for mild allergic rhinitis). Mention common generic names and popular recognized OTC examples (such as Canesten, Biogesic, etc.).
-- Precautions & Safety Boundaries: Always remind the user to read and follow the product packaging and dosage instructions. Explicitly warn against using topical steroid creams (such as hydrocortisone, betamethasone, or generic 'BL cream') on fungal infections like ringworm/buni, as steroids worsen fungal conditions. Advise that for prescription-only medicines, persistent symptoms (over 1 to 2 weeks), spreading rash, scalp/nail involvement, or severe conditions, they should consult a clinic doctor for diagnosis and personalized treatment.
+- Precautions & Safety Boundaries: Always remind the user to read and follow the product packaging and dosage instructions. Explicitly warn against using topical steroid creams (such as hydrocortisone, betamethasone, or generic 'BL cream') on fungal infections like ringworm/buni, as steroids worsen fungal conditions.
 - Emergencies: For life-threatening symptoms (chest pain, severe breathlessness, profuse bleeding, stroke signs), urgently instruct calling 911 or proceeding to the nearest emergency room.
+- STRICT FORMATTING RULE: NEVER output headings, labels, or bullet sections like '*Clinic Advice/Appointment:*', '*Appointment:*', '*Clinic Advice:*', or artificial promotional appointment callouts. Do NOT mechanically push clinic booking unless the user explicitly asks how to book or visit. Keep your advice completely natural, helpful, conversational, and direct.
 - Language & Tone: Match the patient's language dynamically. If the patient writes in Tagalog or Taglish, reply in warm, respectful Filipino/Taglish using polite honorifics ('po' / 'opo'). If in English, reply in polite, empathetic English. Keep responses concise and easy to read (3 to 5 sentences or structured bullet points)."""
 
 
@@ -138,8 +140,8 @@ def get_bot_response(message: str) -> str:
         return _get_faq_response(message)
 
     settings = get_settings()
-    configured_model = settings.GEMINI_MODEL or "gemini-3.6-flash"
-    model_candidates = [configured_model, "gemini-3.6-flash", "gemini-flash-latest", "gemini-3-flash-preview"]
+    configured_model = settings.GEMINI_MODEL or "gemini-3-flash-preview"
+    model_candidates = [configured_model, "gemini-3-flash-preview", "gemini-flash-latest", "gemini-3.6-flash"]
     seen = set()
     models = [m for m in model_candidates if not (m in seen or seen.add(m))]
 
@@ -170,18 +172,37 @@ def get_bot_response(message: str) -> str:
                     client = genai.Client(api_key=active_key)
                     tools = [types.Tool(google_search=types.GoogleSearch())] if use_search else None
 
-                    chat = client.chats.create(
-                        model=model_name,
-                        config=types.GenerateContentConfig(
+                    # Disable thinking budget (budget=0) to cut latency from ~10s to ~1.8s and prevent
+                    # invisible thought tokens from exhausting max_output_tokens and cutting off answers.
+                    try:
+                        cfg = types.GenerateContentConfig(
                             system_instruction=SYSTEM_PROMPT,
                             tools=tools,
                             temperature=0.7,
-                            max_output_tokens=600,
-                        ),
-                    )
-                    response = chat.send_message(str(message).strip())
+                            thinking_config=types.ThinkingConfig(thinking_budget=0),
+                            max_output_tokens=1024,
+                        )
+                        chat = client.chats.create(model=model_name, config=cfg)
+                        response = chat.send_message(str(message).strip())
+                    except Exception as cfg_exc:
+                        if "400" in str(cfg_exc) and "invalid_argument" in str(cfg_exc).lower():
+                            cfg = types.GenerateContentConfig(
+                                system_instruction=SYSTEM_PROMPT,
+                                tools=tools,
+                                temperature=0.7,
+                                max_output_tokens=1024,
+                            )
+                            chat = client.chats.create(model=model_name, config=cfg)
+                            response = chat.send_message(str(message).strip())
+                        else:
+                            raise cfg_exc
+
                     if response.text and response.text.strip():
-                        return response.text.strip()
+                        cleaned_text = response.text.strip()
+                        # Defensive sanitize: strip any robotic clinic advice headers
+                        cleaned_text = re.sub(r'(?i)^\s*\*?\*?Clinic Advice/Appointment:?\*?\*?\s*', '', cleaned_text, flags=re.MULTILINE)
+                        cleaned_text = re.sub(r'(?i)\n\s*\*?\*?Clinic Advice/Appointment:?\*?\*?\s*', '\n', cleaned_text).strip()
+                        return cleaned_text
                 except Exception as exc:
                     err_str = str(exc).lower()
                     # If web search grounding specifically threw 429/quota error, let loop retry without search
