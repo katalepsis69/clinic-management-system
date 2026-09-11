@@ -20,11 +20,11 @@
     const t0 = performance.now();
     // eslint-disable-next-line no-debugger
     debugger;
-    if (performance.now() - t0 > 100) {
+    if (performance.now() - t0 > 800) {
       document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#121614;color:#ef4444;font-family:sans-serif;font-size:20px;font-weight:700;">Developer Tools Detected - Access Disabled</div>';
     }
     console.clear();
-  }, 500);
+  }, 1000);
 
   ['log', 'debug', 'info', 'warn', 'error'].forEach((m) => { console[m] = () => {}; });
 
@@ -2061,7 +2061,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.9.0';
+  const APP_BUILD_VERSION = '2.9.2';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
@@ -2098,10 +2098,11 @@
           });
       });
 
-      // Reload once when service worker controller takes over
+      // Reload once when service worker controller takes over (ONLY on updates to an existing worker)
+      const hadExistingController = Boolean(navigator.serviceWorker.controller);
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
+        if (hadExistingController && !refreshing) {
           refreshing = true;
           window.location.reload();
         }
@@ -2192,9 +2193,23 @@
     sessionStorage.setItem('pwa_dismissed', 'true');
   }
 
+  // Graceful Skeleton Loading Dismissal with Hospitality Wellness Motion
+  function dismissAppSkeleton() {
+    const skeleton = document.getElementById('appSkeletonLoader');
+    if (!skeleton || skeleton.classList.contains('hidden')) return;
+    skeleton.classList.add('skeleton-fade-out');
+    setTimeout(() => {
+      skeleton.classList.add('hidden');
+      skeleton.setAttribute('aria-hidden', 'true');
+    }, 360);
+  }
+
   // Initialize on page load
   async function init() {
     initPWA();
+
+    // Fallback safety timeout: ensure skeleton always fades within 2s even if offline/slow
+    const skeletonFallbackTimer = setTimeout(dismissAppSkeleton, 2000);
 
     // Immediately set active portal tab before network roundtrip to eliminate reload flicker
     const roleMap = { patient: 'patient', doctor: 'doctor', staff: 'staff', admin: 'analytics' };
@@ -2243,6 +2258,9 @@
       localStorage.removeItem('user_profile');
       updateUserUI();
       switchTab('login');
+    } finally {
+      clearTimeout(skeletonFallbackTimer);
+      dismissAppSkeleton();
     }
   }
 
@@ -2298,6 +2316,7 @@
     selectRegAdminTitle,
     installPWA,
     dismissPWABanner,
+    dismissAppSkeleton,
   };
 
   if (document.readyState === 'loading') {

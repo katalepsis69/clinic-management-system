@@ -391,3 +391,73 @@
   font-weight: 700 !important;
   box-shadow: 0 1px 3px rgba(36, 84, 50, 0.2) !important;
 }
+
+/* ============================================================================
+ * Skeleton Loading System (Hospitality Wellness Specular Shimmer)
+ * ============================================================================ */
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-shimmer {
+  position: relative !important;
+  overflow: hidden !important;
+  background-color: #f2efe9 !important;
+}
+
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.8s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.skeleton-dark {
+  position: relative !important;
+  overflow: hidden !important;
+  background-color: #292524 !important;
+}
+
+.skeleton-dark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.8s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#appSkeletonLoader {
+  transition: opacity 350ms cubic-bezier(0.32, 0.72, 0, 1), transform 350ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: opacity, transform;
+}
+
+#appSkeletonLoader.skeleton-fade-out {
+  opacity: 0 !important;
+  transform: scale(0.99) !important;
+  pointer-events: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after,
+  .skeleton-dark::after {
+    animation: none;
+  }
+}

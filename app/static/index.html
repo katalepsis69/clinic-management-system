@@ -159,9 +159,159 @@
   <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-24 sm:pb-8">
 
     <!-- ================================================================= -->
+    <!-- APP SKELETON LOADER (Zero-Flicker Hospitality Wellness Boot Screen) -->
+    <!-- ================================================================= -->
+    <div id="appSkeletonLoader" role="status" aria-live="polite" aria-label="Loading clinic portal..." class="w-full space-y-6">
+      
+      <!-- Top Eyebrow / Hero Skeleton -->
+      <div class="card card-pad border-stone-200/80 bg-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5 w-full sm:w-auto">
+          <div class="w-12 h-12 rounded-2xl skeleton-shimmer shrink-0 border border-stone-200/40"></div>
+          <div class="space-y-2 flex-1 sm:w-64">
+            <div class="h-5 w-48 rounded-lg skeleton-shimmer"></div>
+            <div class="h-3.5 w-32 rounded-md skeleton-shimmer"></div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <div class="h-9 w-28 rounded-full skeleton-shimmer"></div>
+          <div class="h-9 w-32 rounded-full skeleton-shimmer"></div>
+        </div>
+      </div>
+
+      <!-- 2-Column Responsive Bento Grid Skeleton -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left Column: Queue & Live Triage Skeleton (6 cols) -->
+        <div class="lg:col-span-6 space-y-6">
+          
+          <!-- Outer Shell Double-Bezel -->
+          <div class="rounded-3xl border border-stone-200/70 p-1.5 bg-stone-100/60 shadow-sm">
+            <div class="card card-pad border-stone-100 bg-white shadow-none space-y-4">
+              <!-- Card Header -->
+              <div class="flex items-center gap-3 pb-3 border-b border-stone-100">
+                <div class="w-9 h-9 rounded-xl skeleton-shimmer shrink-0 border border-stone-200/40"></div>
+                <div class="space-y-1.5 flex-1">
+                  <div class="h-4 w-36 rounded-md skeleton-shimmer"></div>
+                  <div class="h-3 w-48 rounded-md skeleton-shimmer"></div>
+                </div>
+              </div>
+
+              <!-- Now Serving TV Box Skeleton -->
+              <div class="p-6 rounded-2xl bg-stone-900 border border-stone-800 text-center space-y-3">
+                <div class="h-3 w-28 mx-auto rounded-full skeleton-dark"></div>
+                <div class="h-10 w-44 mx-auto rounded-xl skeleton-dark"></div>
+                <div class="h-3 w-36 mx-auto rounded-full skeleton-dark"></div>
+              </div>
+
+              <!-- Action Bar Skeleton -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div class="sm:col-span-2 h-10 rounded-xl skeleton-shimmer"></div>
+                <div class="h-10 rounded-xl skeleton-shimmer"></div>
+              </div>
+
+              <!-- Waiting Queue Pill Row -->
+              <div class="pt-3 border-t border-stone-100 space-y-2">
+                <div class="flex justify-between items-center">
+                  <div class="h-3 w-24 rounded skeleton-shimmer"></div>
+                  <div class="h-3 w-16 rounded skeleton-shimmer"></div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <div class="h-7 w-20 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-7 w-20 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-7 w-20 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-7 w-20 rounded-lg skeleton-shimmer"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Secondary Card Skeleton -->
+          <div class="card card-pad border-stone-200/80 bg-white shadow-sm space-y-3">
+            <div class="flex items-center gap-3 pb-2 border-b border-stone-100">
+              <div class="w-8 h-8 rounded-lg skeleton-shimmer shrink-0"></div>
+              <div class="h-4 w-40 rounded-md skeleton-shimmer"></div>
+            </div>
+            <div class="space-y-2">
+              <div class="h-9 w-full rounded-xl skeleton-shimmer"></div>
+              <div class="h-9 w-full rounded-xl skeleton-shimmer"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Appointment Booking & Clinical Highlights (6 cols) -->
+        <div class="lg:col-span-6 space-y-6">
+          
+          <!-- Outer Shell Double-Bezel -->
+          <div class="rounded-3xl border border-stone-200/70 p-1.5 bg-stone-100/60 shadow-sm">
+            <div class="card card-pad border-stone-100 bg-white shadow-none space-y-4">
+              <!-- Card Header -->
+              <div class="flex items-center gap-3 pb-3 border-b border-stone-100">
+                <div class="w-9 h-9 rounded-xl skeleton-shimmer shrink-0 border border-stone-200/40"></div>
+                <div class="space-y-1.5 flex-1">
+                  <div class="h-4 w-44 rounded-md skeleton-shimmer"></div>
+                  <div class="h-3 w-56 rounded-md skeleton-shimmer"></div>
+                </div>
+              </div>
+
+              <!-- Date Picker Input Skeleton -->
+              <div class="space-y-1.5">
+                <div class="h-3 w-28 rounded skeleton-shimmer"></div>
+                <div class="h-10 w-full rounded-xl skeleton-shimmer"></div>
+              </div>
+
+              <!-- Doctor Selector Chips Skeleton -->
+              <div class="space-y-1.5">
+                <div class="h-3 w-32 rounded skeleton-shimmer"></div>
+                <div class="flex flex-wrap gap-2">
+                  <div class="h-8 w-28 rounded-full skeleton-shimmer"></div>
+                  <div class="h-8 w-32 rounded-full skeleton-shimmer"></div>
+                  <div class="h-8 w-24 rounded-full skeleton-shimmer"></div>
+                </div>
+              </div>
+
+              <!-- Time Slots Grid Skeleton -->
+              <div class="space-y-1.5">
+                <div class="h-3 w-32 rounded skeleton-shimmer"></div>
+                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  <div class="h-8 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-8 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-8 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-8 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-8 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-8 rounded-lg skeleton-shimmer"></div>
+                </div>
+              </div>
+
+              <!-- Booking CTA Skeleton -->
+              <div class="h-11 w-full rounded-xl skeleton-shimmer mt-2"></div>
+            </div>
+          </div>
+
+          <!-- Quick Stats Row Skeleton -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="card p-3.5 border-stone-200/80 bg-white space-y-2 text-center shadow-sm">
+              <div class="h-3 w-14 mx-auto rounded skeleton-shimmer"></div>
+              <div class="h-6 w-10 mx-auto rounded-lg skeleton-shimmer"></div>
+            </div>
+            <div class="card p-3.5 border-stone-200/80 bg-white space-y-2 text-center shadow-sm">
+              <div class="h-3 w-14 mx-auto rounded skeleton-shimmer"></div>
+              <div class="h-6 w-10 mx-auto rounded-lg skeleton-shimmer"></div>
+            </div>
+            <div class="card p-3.5 border-stone-200/80 bg-white space-y-2 text-center shadow-sm">
+              <div class="h-3 w-14 mx-auto rounded skeleton-shimmer"></div>
+              <div class="h-6 w-10 mx-auto rounded-lg skeleton-shimmer"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
     <!-- PORTAL 0: LOGIN GATEWAY & FEATURE SHOWCASE -->
     <!-- ================================================================= -->
-    <section id="portal-login" role="tabpanel" aria-label="Clinic Login Portal" class="tab-content w-full py-4 sm:py-8 pb-16 sm:pb-8">
+    <section id="portal-login" role="tabpanel" aria-label="Clinic Login Portal" class="tab-content hidden w-full py-4 sm:py-8 pb-16 sm:pb-8">
       <div id="loginGatewayCard" class="max-w-lg mx-auto">
         <div class="card card-pad shadow-xl border border-stone-200/90 relative overflow-hidden">
         <!-- Brand / Welcome Header -->
@@ -1655,6 +1805,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.9.1"></script>
+  <script src="/static/app.js?v=2.9.2"></script>
 </body>
 </html>
