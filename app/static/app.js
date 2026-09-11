@@ -151,8 +151,8 @@
   function switchTab(tabName) {
     if (state.user) {
       const allowedRoles = {
-        patient: ['patient', 'admin'],
-        doctor: ['doctor', 'admin'],
+        patient: ['patient'],
+        doctor: ['doctor'],
         staff: ['staff', 'admin'],
         analytics: ['admin'],
       };
@@ -337,8 +337,8 @@
         showTab(tabStaff, mobTabStaff, true);
         showTab(tabAnalytics, mobTabAnalytics, false);
       } else if (state.user.role === 'admin') {
-        showTab(tabPatient, mobTabPatient, true);
-        showTab(tabDoctor, mobTabDoctor, true);
+        showTab(tabPatient, mobTabPatient, false);
+        showTab(tabDoctor, mobTabDoctor, false);
         showTab(tabStaff, mobTabStaff, true);
         showTab(tabAnalytics, mobTabAnalytics, true);
       }

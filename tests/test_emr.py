@@ -181,16 +181,14 @@ def test_get_patient_emr_roles_staff_and_admin(client, db_session):
         f"/api/emr/patient/{patient.id}",
         headers={"Authorization": f"Bearer {staff_token}"},
     )
-    assert resp_staff.status_code == 200
-    assert resp_staff.json()["name"] == "Tim Green"
+    assert resp_staff.status_code == 403
 
     admin_token = create_access_token({"sub": u_admin.email, "role": u_admin.role.value})
     resp_admin = client.get(
         f"/api/emr/patient/{patient.id}",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
-    assert resp_admin.status_code == 200
-    assert resp_admin.json()["name"] == "Tim Green"
+    assert resp_admin.status_code == 403
 
 
 def test_get_patient_emr_with_prescriptions_ordered(client, db_session):
@@ -411,7 +409,7 @@ def test_create_prescription_success_doctor(client, db_session):
     assert meds_saved[1]["drug_name"] == "Guaifenesin"
 
 
-def test_create_prescription_success_admin(client, db_session):
+def test_create_prescription_forbidden_for_admin(client, db_session):
     u_admin = User(
         email="admin.emr@clinic.test",
         hashed_password="pw",
@@ -460,11 +458,7 @@ def test_create_prescription_success_admin(client, db_session):
         json=payload,
         headers={"Authorization": f"Bearer {admin_token}"},
     )
-    assert response.status_code == 200
-    res_data = response.json()
-    assert res_data["status"] == "success"
-    assert res_data["prescription_id"] > 0
-    assert len(res_data["qr_code_hash"]) == 16
+    assert response.status_code == 403
 
 
 def test_emr_full_flow_create_and_view(client, db_session):

@@ -13,6 +13,7 @@ from app.config import Settings
 from app.routers.appointments import router as appointments_router
 from app.routers.feedback import router as feedback_router
 from app.routers.chat import router as chat_router
+from app.routers.emr import router as emr_router
 
 
 @pytest.fixture
@@ -38,6 +39,7 @@ def client(db_session):
     app.include_router(appointments_router)
     app.include_router(feedback_router)
     app.include_router(chat_router)
+    app.include_router(emr_router)
 
     def override_get_db():
         try:
@@ -106,3 +108,45 @@ def test_production_settings_reject_dev_secret():
 def test_production_settings_accept_strong_secret():
     s = Settings(DEMO_MODE=False, SECRET_KEY="x" * 48)
     assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 60
+
+
+def test_admin_and_staff_forbidden_from_viewing_patient_emr(client, db_session):
+    u_admin = User(email="admin@sec.test", hashed_password="pw", full_name="Admin Boss", role=UserRole.ADMIN)
+    u_staff = User(email="staff@sec.test", hashed_password="pw", full_name="Staff Front", role=UserRole.STAFF)
+    u_doc = User(email="doc@sec.test", hashed_password="pw", full_name="Doctor House", role=UserRole.DOCTOR)
+    db_session.add_all([u_admin, u_staff, u_doc])
+    db_session.commit()
+
+    # Admin access must return 403 Forbidden
+    res_admin = client.get("/api/emr/patient/1", headers=_token(u_admin))
+    assert res_admin.status_code == 403
+
+    # Staff access must return 403 Forbidden
+    res_staff = client.get("/api/emr/patient/1", headers=_token(u_staff))
+    assert res_staff.status_code == 403
+
+    # Doctor access is allowed (404 because patient id 1 does not exist in db, but NOT 403)
+    res_doc = client.get("/api/emr/patient/1", headers=_token(u_doc))
+    assert res_doc.status_code == 404
+
+
+def test_admin_forbidden_from_creating_prescription(client, db_session):
+    u_admin = User(email="admin2@sec.test", hashed_password="pw", full_name="Admin Pharma", role=UserRole.ADMIN)
+    db_session.add(u_admin)
+    db_session.commit()
+
+    payload = {
+        "patient_id": 1,
+        "items": [
+            {
+                "medication_name": "Amoxicillin",
+                "dosage": "500mg",
+                "frequency": "TID",
+                "duration": "7 days",
+                "instructions": "After food",
+            }
+        ],
+        "notes": "Admin testing rx",
+    }
+    res = client.post("/api/emr/prescription/create", headers=_token(u_admin), json=payload)
+    assert res.status_code == 403

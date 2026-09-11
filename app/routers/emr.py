@@ -33,7 +33,7 @@ class CreatePrescriptionRequest(BaseModel):
 @router.get("/patient/{patient_id}")
 def get_patient_emr(
     patient_id: int,
-    user: User = Depends(require_roles([UserRole.DOCTOR, UserRole.STAFF, UserRole.ADMIN])),
+    user: User = Depends(require_roles([UserRole.DOCTOR])),
     db: Session = Depends(get_db),
 ):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
@@ -72,23 +72,16 @@ def get_patient_emr(
 @router.post("/prescription/create")
 def create_prescription(
     data: CreatePrescriptionRequest,
-    user: User = Depends(require_roles([UserRole.DOCTOR, UserRole.ADMIN])),
+    user: User = Depends(require_roles([UserRole.DOCTOR])),
     db: Session = Depends(get_db),
 ):
     patient = db.query(Patient).filter(Patient.id == data.patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    if user.role == UserRole.DOCTOR:
-        doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
-        if not doctor:
-            raise HTTPException(status_code=403, detail="Current user is not registered as a doctor")
-    else:  # ADMIN creating on behalf of a named, existing doctor
-        if not data.doctor_id:
-            raise HTTPException(status_code=400, detail="doctor_id is required when creating on behalf of a doctor")
-        doctor = db.query(Doctor).filter(Doctor.id == data.doctor_id).first()
-        if not doctor:
-            raise HTTPException(status_code=404, detail="Doctor not found")
+    doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
+    if not doctor:
+        raise HTTPException(status_code=403, detail="Current user is not registered as a doctor")
 
     qr_hash = uuid.uuid4().hex[:16].upper()
     medications_data = [
