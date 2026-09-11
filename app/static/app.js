@@ -704,7 +704,7 @@
         staff: 'e.g. James Wilson, RN',
         admin: 'e.g. Arthur Mitchell, Director',
       };
-      nameInput.placeholder = placeholders[role] || 'e.g. John Doe';
+      nameInput.placeholder = placeholders[role] || 'e.g. Eleanor Vance';
     }
 
     if (roleBadge) {
@@ -2061,7 +2061,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.9.2';
+  const APP_BUILD_VERSION = '2.9.3';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps

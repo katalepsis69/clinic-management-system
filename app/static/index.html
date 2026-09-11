@@ -380,7 +380,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label for="portalRegFullName" class="label !text-xs !mb-1">Full Legal Name *</label>
-                <input type="text" id="portalRegFullName" required placeholder="e.g. John Doe" class="input !text-sm !py-2 bg-white">
+                <input type="text" id="portalRegFullName" required placeholder="e.g. Eleanor Vance" class="input !text-sm !py-2 bg-white">
               </div>
               <div>
                 <label for="portalRegPhone" class="label !text-xs !mb-1">Phone Number *</label>
@@ -602,196 +602,218 @@
       <!-- Section Header -->
       <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 border border-brand-200/70 mb-3">
-          <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-cross"/></svg> Intelligent Healthcare Ecosystem
+          <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-cross"/></svg> Clinical Infrastructure
         </span>
-        <h3 class="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">Clinical Operations, Elevated</h3>
+        <h3 class="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">Care Operations &amp; Patient Flow</h3>
         <p class="text-xs sm:text-sm text-stone-500 mt-2 leading-relaxed">
-          Real-time patient flow, cryptographic prescriptions, automated billing, and 24/7 bilingual triage in one unified platform.
+          Real-time queue dispatching, verified EMR records, automated cashier desk, and 24/7 bilingual triage.
         </p>
       </div>
 
-      <!-- Bento Grid: 5 Asymmetric Cells -->
+      <!-- Bento Grid: 5 Asymmetric Double-Bezel Cells -->
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
 
         <!-- Cell 1 (Hero Card: Spans 2 columns on lg): Live Queue Engine & Waiting Room TV Sync -->
-        <div class="lg:col-span-2 rounded-2xl bg-stone-900 text-white p-6 sm:p-7 border border-stone-800 shadow-xl flex flex-col justify-between relative overflow-hidden group">
+        <div class="lg:col-span-2 rounded-3xl border border-stone-800/80 p-1.5 bg-stone-900 shadow-xl relative overflow-hidden group">
           <div class="absolute -right-12 -bottom-12 w-64 h-64 bg-brand-600/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
           
-          <div>
-            <div class="flex flex-wrap items-center justify-between gap-2.5 mb-4">
-              <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
-                Live WebSocket Broadcast
-              </span>
-              <span class="text-xs font-mono text-stone-400">Zero-Latency State Sync</span>
-            </div>
-            
-            <h4 class="text-xl sm:text-2xl font-bold tracking-tight text-white mb-2">
-              Real-Time Queue Engine &amp; Synchronized TV Display
-            </h4>
-            <p class="text-xs sm:text-sm text-stone-300 leading-relaxed max-w-xl">
-              Dynamic ticket issuing, automatic wait-time calculation, and dual-screen broadcast to clinic monitors. Patients track their position anywhere while front desk and doctors advance tickets with a single click.
-            </p>
+          <div class="rounded-2xl bg-stone-950 p-6 sm:p-7 border border-stone-800/90 flex flex-col justify-between h-full relative z-10">
+            <div>
+              <div class="flex flex-wrap items-center justify-between gap-2.5 mb-4">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
+                  Live WebSocket Feed
+                </span>
+                <span class="text-xs font-mono text-stone-400">Zero-Latency State Sync</span>
+              </div>
+              
+              <h4 class="text-xl sm:text-2xl font-bold tracking-tight text-white mb-2">
+                Real-Time Queue Engine &amp; Synchronized TV Display
+              </h4>
+              <p class="text-xs sm:text-sm text-stone-300 leading-relaxed max-w-xl">
+                Dynamic ticket issuing, automated wait calculation, and dual-screen broadcast to clinic monitors. Patients track their position anywhere while clinical staff advance tickets with a single click.
+              </p>
 
-            <!-- Live Queue Simulation Preview Box -->
-            <div class="mt-5 p-4 rounded-xl bg-stone-800/80 border border-stone-700/70 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-              <div class="sm:border-r sm:border-stone-700/70 sm:pr-3">
-                <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Now Serving</span>
-                <div class="flex items-baseline gap-2 mt-0.5">
-                  <span class="text-2xl font-extrabold text-emerald-400 font-mono tracking-tight">#A-104</span>
-                  <span class="text-xs text-stone-400">Room 102</span>
+              <!-- Live Queue Simulation Preview Box -->
+              <div class="mt-5 p-4 rounded-xl bg-stone-900/90 border border-stone-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                <div class="sm:border-r sm:border-stone-800 sm:pr-3">
+                  <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Now Serving</span>
+                  <div class="flex items-baseline gap-2 mt-0.5">
+                    <span class="text-2xl font-extrabold text-emerald-400 font-mono tracking-tight">#A-104</span>
+                    <span class="text-xs text-stone-400">Room 102</span>
+                  </div>
+                </div>
+                <div class="sm:border-r sm:border-stone-800 sm:pr-3">
+                  <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Next in Line</span>
+                  <div class="flex items-baseline gap-2 mt-0.5">
+                    <span class="text-lg font-bold text-stone-200 font-mono">#A-105</span>
+                    <span class="text-xs text-stone-400">~8 min wait</span>
+                  </div>
+                </div>
+                <div>
+                  <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Consulting Doctor</span>
+                  <p class="text-xs font-semibold text-stone-200 mt-0.5 truncate">Dr. Emily Stone, MD</p>
                 </div>
               </div>
-              <div class="sm:border-r sm:border-stone-700/70 sm:pr-3">
-                <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Next in Line</span>
-                <div class="flex items-baseline gap-2 mt-0.5">
-                  <span class="text-lg font-bold text-stone-200 font-mono">#A-105</span>
-                  <span class="text-xs text-stone-400">~8 min wait</span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 mt-6 pt-5 border-t border-stone-800/80">
+              <a href="/display" target="_blank" rel="noopener" class="btn btn-sm !rounded-full bg-brand-600 hover:bg-brand-500 text-white font-semibold shadow-sm inline-flex items-center gap-2 pl-4 pr-2">
+                <span>Launch TV Display</span>
+                <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-tv"/></svg>
+                </span>
+              </a>
+              <button type="button" onclick="window.ClinicApp.showcaseSelectRole('patient')" class="btn btn-sm !rounded-full bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-700 font-semibold inline-flex items-center gap-2 pl-4 pr-2">
+                <span>Test Patient Ticket</span>
+                <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-ticket"/></svg>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cell 2: Intelligent Bilingual AI Health Assistant (Double-Bezel) -->
+        <div class="rounded-3xl border border-stone-200/80 p-1.5 bg-stone-100/60 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
+          <div class="rounded-2xl bg-white p-6 sm:p-7 border border-stone-100 flex flex-col justify-between h-full">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center mb-4 border border-brand-200/60" aria-hidden="true">
+                <svg class="icon w-5 h-5"><use href="#i-bot"/></svg>
+              </div>
+              <div class="flex items-center gap-2 mb-2">
+                <h4 class="text-base font-bold text-stone-900 tracking-tight">AI Virtual Assistant</h4>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-100 text-brand-800">Smart Router</span>
+              </div>
+              <p class="text-xs text-stone-600 leading-relaxed">
+                24/7 bilingual patient triage with adaptive intent routing. Answers clinic operational FAQs, provides safe OTC guidance, and searches local pharmacy availability.
+              </p>
+
+              <div class="mt-4 space-y-1.5 text-[11px] text-stone-500 font-medium">
+                <div class="p-2 rounded-lg bg-stone-50 border border-stone-200/70 truncate flex items-center gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0"></span>
+                  <span class="truncate">"May doktor po ba para sa bata bukas?"</span>
+                </div>
+                <div class="p-2 rounded-lg bg-stone-50 border border-stone-200/70 truncate flex items-center gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0"></span>
+                  <span class="truncate">"How much is the cardiology consultation fee?"</span>
                 </div>
               </div>
-              <div>
-                <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Consulting Doctor</span>
-                <p class="text-xs font-semibold text-stone-200 mt-0.5 truncate">Dr. Sarah Jenkins, MD</p>
-              </div>
             </div>
-          </div>
 
-          <div class="flex flex-wrap items-center gap-3 mt-6 pt-5 border-t border-stone-800">
-            <a href="/display" target="_blank" rel="noopener" class="btn btn-sm bg-brand-600 hover:bg-brand-500 text-white font-semibold shadow-sm">
-              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-tv"/></svg>
-              Launch TV Waiting Display
-            </a>
-            <button type="button" onclick="window.ClinicApp.showcaseSelectRole('patient')" class="btn btn-sm bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 font-semibold">
-              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-ticket"/></svg>
-              Test Patient Queue Ticket
-            </button>
+            <div class="mt-6 pt-4 border-t border-stone-100">
+              <button type="button" onclick="window.ClinicApp.showcaseOpenChat()" class="btn btn-outline btn-sm w-full !rounded-full justify-between pl-4 pr-2 text-brand-700 hover:bg-brand-50 hover:text-brand-800">
+                <span>Try AI Chat Assistant</span>
+                <span class="w-6 h-6 rounded-full bg-brand-100/70 text-brand-700 flex items-center justify-center">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-message"/></svg>
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Cell 2: Intelligent Bilingual AI Health Assistant -->
-        <div class="rounded-2xl bg-white p-6 sm:p-7 border border-stone-200/90 shadow-card flex flex-col justify-between hover:border-brand-300 transition-colors">
-          <div>
-            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center mb-4 border border-brand-200/60" aria-hidden="true">
-              <svg class="icon w-5 h-5"><use href="#i-bot"/></svg>
-            </div>
-            <div class="flex items-center gap-2 mb-2">
-              <h4 class="text-base font-bold text-stone-900 tracking-tight">AI Virtual Assistant</h4>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-brand-100 text-brand-800">Smart AI Router</span>
-            </div>
-            <p class="text-xs text-stone-600 leading-relaxed">
-              24/7 bilingual patient triage with adaptive smart routing. Answers clinic FAQs instantly, provides safe OTC care guidance, and searches live pharmacy availability.
-            </p>
-
-            <div class="mt-4 space-y-1.5 text-[11px] text-stone-500 font-medium">
-              <div class="p-2 rounded-lg bg-stone-50 border border-stone-200/70 truncate flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0"></span>
-                <span class="truncate">"May doktor po ba para sa bata bukas?"</span>
+        <!-- Cell 3: Clinical EMR & Prescriptions (Double-Bezel) -->
+        <div class="rounded-3xl border border-stone-200/80 p-1.5 bg-stone-100/60 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
+          <div class="rounded-2xl bg-white p-6 sm:p-7 border border-stone-100 flex flex-col justify-between h-full">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center mb-4 border border-violet-200/60" aria-hidden="true">
+                <svg class="icon w-5 h-5"><use href="#i-stethoscope"/></svg>
               </div>
-              <div class="p-2 rounded-lg bg-stone-50 border border-stone-200/70 truncate flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0"></span>
-                <span class="truncate">"How much is the cardiology consultation fee?"</span>
+              <div class="flex items-center gap-2 mb-2">
+                <h4 class="text-base font-bold text-stone-900 tracking-tight">Clinical EMR &amp; Rx</h4>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700">SHA-256 HMAC</span>
+              </div>
+              <p class="text-xs text-stone-600 leading-relaxed">
+                Patient medical histories, allergies tracking, and digital consultation notes with cryptographic verification tags ensuring authentic prescriptions.
+              </p>
+
+              <div class="mt-4 p-2.5 rounded-xl bg-violet-50/50 border border-violet-100 flex items-center gap-2.5">
+                <svg class="icon w-4 h-4 text-violet-600 shrink-0" aria-hidden="true"><use href="#i-pill"/></svg>
+                <div class="min-w-0">
+                  <span class="text-[11px] font-bold text-violet-900 block truncate">Digital Rx Verification</span>
+                  <span class="text-[10px] font-mono text-violet-700 truncate block">sig: 7f8a...c93b (Verified)</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="mt-6 pt-4 border-t border-stone-100">
-            <button type="button" onclick="window.ClinicApp.showcaseOpenChat()" class="btn btn-outline btn-sm w-full text-brand-700 hover:bg-brand-50 hover:text-brand-800">
-              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-message"/></svg>
-              Try AI Chat Assistant
-            </button>
+            <div class="mt-6 pt-4 border-t border-stone-100">
+              <button type="button" onclick="window.ClinicApp.showcaseSelectRole('doctor')" class="btn btn-outline btn-sm w-full !rounded-full justify-between pl-4 pr-2 text-violet-700 hover:bg-violet-50 hover:text-violet-800">
+                <span>Doctor Clinical Console</span>
+                <span class="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-stethoscope"/></svg>
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Cell 3: Clinical EMR & Cryptographic Prescriptions -->
-        <div class="rounded-2xl bg-white p-6 sm:p-7 border border-stone-200/90 shadow-card flex flex-col justify-between hover:border-brand-300 transition-colors">
-          <div>
-            <div class="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center mb-4 border border-violet-200/60" aria-hidden="true">
-              <svg class="icon w-5 h-5"><use href="#i-stethoscope"/></svg>
-            </div>
-            <div class="flex items-center gap-2 mb-2">
-              <h4 class="text-base font-bold text-stone-900 tracking-tight">Clinical EMR &amp; Rx</h4>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700">SHA-256 HMAC</span>
-            </div>
-            <p class="text-xs text-stone-600 leading-relaxed">
-              Comprehensive patient medical histories, allergies tracking, and digital consultation notes. Generates tamper-proof cryptographic signatures ensuring zero prescription forgery.
-            </p>
+        <!-- Cell 4: Front Desk Triage & Itemized Billing (Double-Bezel) -->
+        <div class="rounded-3xl border border-stone-200/80 p-1.5 bg-stone-100/60 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
+          <div class="rounded-2xl bg-white p-6 sm:p-7 border border-stone-100 flex flex-col justify-between h-full">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-4 border border-amber-200/60" aria-hidden="true">
+                <svg class="icon w-5 h-5"><use href="#i-clipboard"/></svg>
+              </div>
+              <div class="flex items-center gap-2 mb-2">
+                <h4 class="text-base font-bold text-stone-900 tracking-tight">Staff Triage &amp; Billing</h4>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Fast Invoicing</span>
+              </div>
+              <p class="text-xs text-stone-600 leading-relaxed">
+                Walk-in patient check-in, immediate queue assignment, itemized invoicing with automated totals, and verified receipt generation.
+              </p>
 
-            <div class="mt-4 p-2.5 rounded-xl bg-violet-50/50 border border-violet-100 flex items-center gap-2.5">
-              <svg class="icon w-4 h-4 text-violet-600 shrink-0" aria-hidden="true"><use href="#i-pill"/></svg>
-              <div class="min-w-0">
-                <span class="text-[11px] font-bold text-violet-900 block truncate">Digital Rx Verification</span>
-                <span class="text-[10px] font-mono text-violet-700 truncate block">sig: 7f8a...c93b (Verified)</span>
+              <div class="mt-4 p-2.5 rounded-xl bg-amber-50/50 border border-amber-100 flex items-center gap-2.5">
+                <svg class="icon w-4 h-4 text-amber-600 shrink-0" aria-hidden="true"><use href="#i-card"/></svg>
+                <div class="min-w-0">
+                  <span class="text-[11px] font-bold text-amber-900 block truncate">Automated Fee Breakdown</span>
+                  <span class="text-[10px] text-amber-700 truncate block">Consultation + Meds + Lab Fees</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="mt-6 pt-4 border-t border-stone-100">
-            <button type="button" onclick="window.ClinicApp.showcaseSelectRole('doctor')" class="btn btn-outline btn-sm w-full text-violet-700 hover:bg-violet-50 hover:text-violet-800">
-              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-stethoscope"/></svg>
-              Doctor Clinical Console
-            </button>
+            <div class="mt-6 pt-4 border-t border-stone-100">
+              <button type="button" onclick="window.ClinicApp.showcaseSelectRole('staff')" class="btn btn-outline btn-sm w-full !rounded-full justify-between pl-4 pr-2 text-amber-800 hover:bg-amber-50 hover:text-amber-900">
+                <span>Staff &amp; Billing Desk</span>
+                <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-clipboard"/></svg>
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Cell 4: Front Desk Triage & Itemized Billing -->
-        <div class="rounded-2xl bg-white p-6 sm:p-7 border border-stone-200/90 shadow-card flex flex-col justify-between hover:border-brand-300 transition-colors">
-          <div>
-            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-4 border border-amber-200/60" aria-hidden="true">
-              <svg class="icon w-5 h-5"><use href="#i-clipboard"/></svg>
-            </div>
-            <div class="flex items-center gap-2 mb-2">
-              <h4 class="text-base font-bold text-stone-900 tracking-tight">Staff Triage &amp; Billing</h4>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Fast Invoicing</span>
-            </div>
-            <p class="text-xs text-stone-600 leading-relaxed">
-              Streamlined walk-in patient check-in, immediate queue assignment, multi-item invoicing with automated tax calculations, and cash or digital receipt generation.
-            </p>
+        <!-- Cell 5: Patient Feedback & Real-Time Sentiment Analytics (Double-Bezel) -->
+        <div class="rounded-3xl border border-stone-200/80 p-1.5 bg-stone-100/60 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
+          <div class="rounded-2xl bg-white p-6 sm:p-7 border border-stone-100 flex flex-col justify-between h-full">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center mb-4 border border-rose-200/60" aria-hidden="true">
+                <svg class="icon w-5 h-5"><use href="#i-chart"/></svg>
+              </div>
+              <div class="flex items-center gap-2 mb-2">
+                <h4 class="text-base font-bold text-stone-900 tracking-tight">Sentiment &amp; Analytics</h4>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">VADER + NLP</span>
+              </div>
+              <p class="text-xs text-stone-600 leading-relaxed">
+                Automated sentiment scoring on post-consultation reviews. Administrators spot bottlenecks, track satisfaction trends, and review immutable audit records.
+              </p>
 
-            <div class="mt-4 p-2.5 rounded-xl bg-amber-50/50 border border-amber-100 flex items-center gap-2.5">
-              <svg class="icon w-4 h-4 text-amber-600 shrink-0" aria-hidden="true"><use href="#i-card"/></svg>
-              <div class="min-w-0">
-                <span class="text-[11px] font-bold text-amber-900 block truncate">Automated Fee Breakdown</span>
-                <span class="text-[10px] text-amber-700 truncate block">Consultation + Meds + Lab Fees</span>
+              <div class="mt-4 p-2.5 rounded-xl bg-rose-50/50 border border-rose-100 flex items-center gap-2.5">
+                <svg class="icon w-4 h-4 text-rose-600 shrink-0" aria-hidden="true"><use href="#i-star"/></svg>
+                <div class="min-w-0">
+                  <span class="text-[11px] font-bold text-rose-900 block truncate">4.8 / 5.0 Rating Avg</span>
+                  <span class="text-[10px] text-rose-700 truncate block">92% Positive Sentiment Score</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="mt-6 pt-4 border-t border-stone-100">
-            <button type="button" onclick="window.ClinicApp.showcaseSelectRole('staff')" class="btn btn-outline btn-sm w-full text-amber-800 hover:bg-amber-50 hover:text-amber-900">
-              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-clipboard"/></svg>
-              Staff &amp; Billing Desk
-            </button>
-          </div>
-        </div>
-
-        <!-- Cell 5: Patient Feedback & Real-Time Sentiment Analytics -->
-        <div class="rounded-2xl bg-white p-6 sm:p-7 border border-stone-200/90 shadow-card flex flex-col justify-between hover:border-brand-300 transition-colors">
-          <div>
-            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center mb-4 border border-rose-200/60" aria-hidden="true">
-              <svg class="icon w-5 h-5"><use href="#i-chart"/></svg>
+            <div class="mt-6 pt-4 border-t border-stone-100">
+              <button type="button" onclick="window.ClinicApp.showcaseSelectRole('admin')" class="btn btn-outline btn-sm w-full !rounded-full justify-between pl-4 pr-2 text-rose-700 hover:bg-rose-50 hover:text-rose-800">
+                <span>Administrator Console</span>
+                <span class="w-6 h-6 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-chart"/></svg>
+                </span>
+              </button>
             </div>
-            <div class="flex items-center gap-2 mb-2">
-              <h4 class="text-base font-bold text-stone-900 tracking-tight">Sentiment &amp; Analytics</h4>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">VADER + NLP</span>
-            </div>
-            <p class="text-xs text-stone-600 leading-relaxed">
-              Automated sentiment scoring on post-consultation reviews. Administrators spot operational bottlenecks, monitor staff responsiveness, and audit all clinic actions with full immutable audit trails.
-            </p>
-
-            <div class="mt-4 p-2.5 rounded-xl bg-rose-50/50 border border-rose-100 flex items-center gap-2.5">
-              <svg class="icon w-4 h-4 text-rose-600 shrink-0" aria-hidden="true"><use href="#i-star"/></svg>
-              <div class="min-w-0">
-                <span class="text-[11px] font-bold text-rose-900 block truncate">4.8 / 5.0 Rating Avg</span>
-                <span class="text-[10px] text-rose-700 truncate block">92% Positive Sentiment Score</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 pt-4 border-t border-stone-100">
-            <button type="button" onclick="window.ClinicApp.showcaseSelectRole('admin')" class="btn btn-outline btn-sm w-full text-rose-700 hover:bg-rose-50 hover:text-rose-800">
-              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-chart"/></svg>
-              Administrator Console
-            </button>
           </div>
         </div>
 
@@ -1752,7 +1774,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label for="editEmergencyName" class="label !text-xs !mb-1">Contact Name</label>
-                <input type="text" id="editEmergencyName" class="input !text-sm !py-2 bg-white" placeholder="John Doe">
+                <input type="text" id="editEmergencyName" class="input !text-sm !py-2 bg-white" placeholder="Elena Rivera">
               </div>
               <div>
                 <label for="editEmergencyPhone" class="label !text-xs !mb-1">Contact Phone</label>
@@ -1805,6 +1827,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.9.2"></script>
+  <script src="/static/app.js?v=2.9.3"></script>
 </body>
 </html>
