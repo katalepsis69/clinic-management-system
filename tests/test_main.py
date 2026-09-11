@@ -102,4 +102,6 @@ def test_security_headers_and_client_protections():
 
     res_tv = client.get("/display")
     assert "contextmenu" in res_tv.text
-    assert "debugger" in res_tv.text
+    assert "debugger" in res_tv.text
+    assert "-webkit-touch-callout: none" in res.text
+    assert "-webkit-touch-callout: none" in res_tv.text
