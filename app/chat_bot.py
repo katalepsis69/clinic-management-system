@@ -28,15 +28,16 @@ FAQ_RULES = [
     ),
 ]
 
-SYSTEM_PROMPT = """You are the AI Front Desk & Healthcare Assistant for MediFlow Clinic.
+SYSTEM_PROMPT = """You are the AI Front Desk & Healthcare Assistant for Clinic Management System.
 - Opening Hours: Monday to Saturday, 8:00 AM to 6:00 PM.
 - Location: 123 Healthcare Blvd, Suite 400, Medical Arts Tower. Parking on Level B1.
 - Specialties: Cardiology, Pediatrics, General Medicine, and Orthopedics.
 - Appointments: Bookable online in the Patient Portal under 'Book Appointment'.
-- Medical Knowledge: You can explain general medical concepts, wellness guidance, anatomy, common symptoms, and preventive health tips clearly and empathetically.
-- Medical Safety & Ethical Boundaries: Never prescribe medications, suggest exact pharmaceutical dosages, or provide definitive diagnostic verdicts. Always include a brief reminder that this is educational and the patient should consult a clinic doctor for personalized medical evaluation.
+- General Medical Care & Symptoms: You can explain general medical concepts, wellness guidance, anatomy, common symptoms, and preventive health tips clearly and empathetically.
+- Over-The-Counter (OTC) & General Knowledge Medications: You ARE PERMITTED to suggest widely recognized, safe over-the-counter (OTC) medicines and home care remedies that do not require a doctor's prescription (such as topical antifungal creams like clotrimazole, terbinafine, or miconazole for ringworm/buni; paracetamol or ibuprofen for mild fever/headaches; antacids for heartburn; oral rehydration salts for mild dehydration; saline nasal spray or antihistamines like cetirizine/loratadine for mild allergic rhinitis). Mention common generic names and popular recognized OTC examples (such as Canesten, Biogesic, etc.).
+- Precautions & Safety Boundaries: Always remind the user to read and follow the product packaging and dosage instructions. Explicitly warn against using topical steroid creams (such as hydrocortisone, betamethasone, or generic 'BL cream') on fungal infections like ringworm/buni, as steroids worsen fungal conditions. Advise that for prescription-only medicines, persistent symptoms (over 1 to 2 weeks), spreading rash, scalp/nail involvement, or severe conditions, they should consult a clinic doctor for diagnosis and personalized treatment.
 - Emergencies: For life-threatening symptoms (chest pain, severe breathlessness, profuse bleeding, stroke signs), urgently instruct calling 911 or proceeding to the nearest emergency room.
-- Language & Tone: Match the patient's language dynamically. If the patient writes in Tagalog or Taglish, reply in warm, respectful Filipino/Taglish using polite honorifics ('po' / 'opo'). If in English, reply in polite, empathetic English. Keep responses concise (2 to 4 sentences)."""
+- Language & Tone: Match the patient's language dynamically. If the patient writes in Tagalog or Taglish, reply in warm, respectful Filipino/Taglish using polite honorifics ('po' / 'opo'). If in English, reply in polite, empathetic English. Keep responses concise and easy to read (3 to 5 sentences or structured bullet points)."""
 
 
 class KeyRotationPool:
@@ -75,6 +76,38 @@ def _get_matching_faq(message: str):
     return None
 
 
+def classify_query_intent(message: str) -> str:
+    """Classify user query into CLINIC_FAQ, WEB_SEARCH, or INTERNAL_LLM.
+
+    - CLINIC_FAQ: Direct match with preset clinic operational rules (hours, location, doctors, booking).
+    - WEB_SEARCH: Queries asking about local retail pharmacies (Mercury Drug, Watsons, etc.),
+      current pricing/costs, retail availability, or recent health news/outbreaks.
+    - INTERNAL_LLM: Medical concepts, pathology, symptoms, safe OTC drug classes, anatomy, home care.
+    """
+    if not message or not str(message).strip():
+        return "CLINIC_FAQ"
+
+    msg_lower = str(message).lower()
+
+    # 1. Clinic operational FAQ rules (Deterministic Fast-Path)
+    if _get_matching_faq(msg_lower) is not None:
+        return "CLINIC_FAQ"
+
+    # 2. Indicators requiring live Web Search grounding (Philippine pharmacies, pricing, availability)
+    web_search_triggers = [
+        "mercury drug", "watsons", "southstar", "rose pharmacy", "the generics pharmacy", "tgp",
+        "botika", "parmasya", "pharmacy", "drugstore", "convenience store",
+        "magkano", "presyo", "price", "pricing", "cost", "magkano po", "piso", "pesos",
+        "mabibili ba", "saan mabibili", "available ba", "out of stock", "meron ba sa", "may tinda",
+        "outbreak", "doh advisory", "epidemic", "balita ngayon", "alert", "fda warning", "recall"
+    ]
+    if any(trigger in msg_lower for trigger in web_search_triggers):
+        return "WEB_SEARCH"
+
+    # 3. Default for medical definitions, pathology, symptoms, OTC recommendations & home remedies
+    return "INTERNAL_LLM"
+
+
 def _get_faq_response(message: str) -> str:
     match = _get_matching_faq(message)
     if match:
@@ -87,23 +120,39 @@ def _get_faq_response(message: str) -> str:
 
 
 def get_bot_response(message: str) -> str:
-    """Return intelligent Gemini AI response with key rotation pool and fallback to FAQ rules."""
+    """Return intelligent Gemini AI response with category-based smart routing,
+    multi-model fallback, key rotation, and FAQ fallback."""
     if not message or not str(message).strip():
         return _get_faq_response(message)
 
-    # Fast-path deterministic clinic FAQ before external LLM call to save quota & latency
-    faq_match = _get_matching_faq(message)
-    if faq_match:
-        return faq_match
+    category = classify_query_intent(message)
+
+    # Category 1: Deterministic clinic FAQ fast-path (instant, free, 100% precision)
+    if category == "CLINIC_FAQ":
+        faq_match = _get_matching_faq(message)
+        if faq_match:
+            return faq_match
 
     keys = key_pool.get_keys()
     if not keys:
         return _get_faq_response(message)
 
     settings = get_settings()
-    model_name = settings.GEMINI_MODEL or "gemini-2.5-flash"
+    configured_model = settings.GEMINI_MODEL or "gemini-3.6-flash"
+    model_candidates = [configured_model, "gemini-3.6-flash", "gemini-flash-latest", "gemini-3-flash-preview"]
+    seen = set()
+    models = [m for m in model_candidates if not (m in seen or seen.add(m))]
 
-    # Try keys in rotation pool (up to number of configured keys)
+    enable_search = getattr(settings, "ENABLE_WEB_SEARCH", True)
+
+    # Category 2 vs 3 Routing:
+    # - WEB_SEARCH queries prioritize live Google Search grounding (with fallback to internal if quota exhausted)
+    # - INTERNAL_LLM queries bypass web search directly for ~400ms speed, quota saving, and clean clinical focus
+    if category == "WEB_SEARCH" and enable_search:
+        search_options = [True, False]
+    else:
+        search_options = [False]
+
     attempts = 0
     max_attempts = len(keys)
 
@@ -112,34 +161,44 @@ def get_bot_response(message: str) -> str:
         if not active_key:
             break
 
-        try:
-            from google import genai
-            from google.genai import types
+        for model_name in models:
+            for use_search in search_options:
+                try:
+                    from google import genai
+                    from google.genai import types
 
-            client = genai.Client(api_key=active_key)
-            chat = client.chats.create(
-                model=model_name,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    temperature=0.7,
-                    max_output_tokens=350,
-                ),
-            )
-            response = chat.send_message(str(message).strip())
-            if response.text and response.text.strip():
-                return response.text.strip()
-            break
-        except Exception as exc:
-            err_str = str(exc).lower()
-            # If rate limited (429 / RESOURCE_EXHAUSTED / quota exceeded), rotate key immediately and retry
-            if any(q in err_str for q in ["429", "resource_exhausted", "quota", "ratelimit", "exhausted"]):
-                logger.warning("Gemini API key exhausted/rate limited. Rotating key pool: %s", exc)
-                key_pool.rotate_key()
-                attempts += 1
-            else:
-                logger.exception("Gemini API error with model %s: %s", model_name, exc)
-                # Rotate for next request and fall back
-                key_pool.rotate_key()
-                break
+                    client = genai.Client(api_key=active_key)
+                    tools = [types.Tool(google_search=types.GoogleSearch())] if use_search else None
+
+                    chat = client.chats.create(
+                        model=model_name,
+                        config=types.GenerateContentConfig(
+                            system_instruction=SYSTEM_PROMPT,
+                            tools=tools,
+                            temperature=0.7,
+                            max_output_tokens=600,
+                        ),
+                    )
+                    response = chat.send_message(str(message).strip())
+                    if response.text and response.text.strip():
+                        return response.text.strip()
+                except Exception as exc:
+                    err_str = str(exc).lower()
+                    # If web search grounding specifically threw 429/quota error, let loop retry without search
+                    if use_search and any(q in err_str for q in ["429", "resource_exhausted", "quota"]):
+                        logger.info(
+                            "Web search grounding quota unavailable on model %s for category %s, falling back to internal knowledge: %s",
+                            model_name, category, exc
+                        )
+                        continue
+                    # If model failed with rate limit or demand spike, step to next candidate model
+                    if any(q in err_str for q in ["429", "resource_exhausted", "quota", "ratelimit", "503", "unavailable", "404", "not_found"]):
+                        logger.warning("Model %s failed (%s); trying fallback model...", model_name, exc)
+                        break
+                    logger.exception("Gemini API error on model %s: %s", model_name, exc)
+                    break
+
+        key_pool.rotate_key()
+        attempts += 1
 
     return _get_faq_response(message)

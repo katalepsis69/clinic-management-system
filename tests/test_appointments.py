@@ -192,9 +192,10 @@ def test_book_appointment_success(db_session):
     db_session.commit()
 
     token = create_access_token({"sub": u_pat.email, "role": u_pat.role.value})
+    today_str = date.today().isoformat()
     payload = {
         "doctor_id": doc.id,
-        "appointment_date": "2026-09-10",
+        "appointment_date": today_str,
         "time_slot": "10:00 - 10:30",
         "reason_for_visit": "Fever and cough",
     }
@@ -213,7 +214,7 @@ def test_book_appointment_success(db_session):
     assert appt is not None
     assert appt.patient_id == pat.id
     assert appt.doctor_id == doc.id
-    assert appt.appointment_date == date(2026, 9, 10)
+    assert appt.appointment_date == date.today()
     assert appt.time_slot == "10:00 - 10:30"
     assert appt.reason_for_visit == "Fever and cough"
     assert appt.status == AppointmentStatus.CONFIRMED

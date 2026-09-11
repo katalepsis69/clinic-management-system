@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import get_db
 from app.models import Base, ChatMessage, User, UserRole
 from app.auth import create_access_token
-from app.chat_bot import get_bot_response, FAQ_RULES
+from app.chat_bot import get_bot_response, FAQ_RULES, classify_query_intent
 from app.routers.chat import router as chat_router, chat_hub, ChatConnectionHub
 
 
@@ -99,12 +99,36 @@ def test_bot_faq_all_rules_and_keywords():
 
 def test_bot_fallback_and_edge_cases(monkeypatch):
     from app.config import Settings
-    monkeypatch.setattr("app.chat_bot.get_settings", lambda: Settings(GEMINI_API_KEY=""))
+    monkeypatch.setattr("app.chat_bot.get_settings", lambda: Settings(GEMINI_API_KEY="", GEMINI_API_KEYS=""))
     fallback_substr = "A clinic receptionist has received your inquiry"
     assert fallback_substr in get_bot_response("Tell me a funny joke")
     assert fallback_substr in get_bot_response("Can I buy groceries?")
     assert fallback_substr in get_bot_response("")
     assert fallback_substr in get_bot_response("   ")
+
+
+def test_classify_query_intent():
+    # Category 1: CLINIC_FAQ (Hours, Address, Doctors, Booking)
+    assert classify_query_intent("what time are you open?") == "CLINIC_FAQ"
+    assert classify_query_intent("where is your clinic location?") == "CLINIC_FAQ"
+    assert classify_query_intent("how can I book an appointment?") == "CLINIC_FAQ"
+    assert classify_query_intent("emergency ambulance 911") == "CLINIC_FAQ"
+    assert classify_query_intent("anong oras bukas ang klinika?") == "CLINIC_FAQ"
+    assert classify_query_intent("") == "CLINIC_FAQ"
+
+    # Category 2: WEB_SEARCH (Local retail pharmacies, prices, availability)
+    assert classify_query_intent("magkano po ang gamot sa buni sa Mercury Drug?") == "WEB_SEARCH"
+    assert classify_query_intent("available ba ang Canesten sa Watsons?") == "WEB_SEARCH"
+    assert classify_query_intent("magkano ang presyo ng paracetamol sa botika?") == "WEB_SEARCH"
+    assert classify_query_intent("meron ba sa Southstar pharmacy?") == "WEB_SEARCH"
+    assert classify_query_intent("ano ang pinakabagong DOH advisory sa dengue?") == "WEB_SEARCH"
+
+    # Category 3: INTERNAL_LLM (Medical definitions, pathology, OTC guidance)
+    assert classify_query_intent("ano po ang sanhi ng buni o ringworm?") == "INTERNAL_LLM"
+    assert classify_query_intent("bakit makati ang balat pag may fungal infection?") == "INTERNAL_LLM"
+    assert classify_query_intent("how does clotrimazole cream work?") == "INTERNAL_LLM"
+    assert classify_query_intent("ano ang mga karaniwang sintomas ng asthma?") == "INTERNAL_LLM"
+    assert classify_query_intent("safe po ba uminom ng paracetamol?") == "INTERNAL_LLM"
 
 
 # ==========================================

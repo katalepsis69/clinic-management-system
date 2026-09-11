@@ -13,5 +13,11 @@ services:
         generateValue: true
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_API_KEYS
+        sync: false
+      - key: GEMINI_MODEL
+        value: "gemini-3.6-flash"
+      - key: ENABLE_WEB_SEARCH
+        value: "true"
       - key: DATABASE_URL
         sync: false

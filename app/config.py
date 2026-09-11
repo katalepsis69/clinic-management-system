@@ -11,15 +11,23 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = True
     GEMINI_API_KEY: str = ""
     GEMINI_API_KEYS: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
+    ENABLE_WEB_SEARCH: bool = True
 
     def get_gemini_keys(self) -> list[str]:
         """Return list of non-empty API keys for round-robin / fallback pool."""
-        keys = []
+        raw = []
         if self.GEMINI_API_KEYS:
-            keys.extend([k.strip() for k in self.GEMINI_API_KEYS.split(",") if k.strip()])
-        if self.GEMINI_API_KEY and self.GEMINI_API_KEY.strip() not in keys:
-            keys.append(self.GEMINI_API_KEY.strip())
+            raw.extend(self.GEMINI_API_KEYS.split(","))
+        if self.GEMINI_API_KEY:
+            raw.extend(self.GEMINI_API_KEY.split(","))
+        seen = set()
+        keys = []
+        for k in raw:
+            cleaned = k.strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                keys.append(cleaned)
         return keys
 
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
