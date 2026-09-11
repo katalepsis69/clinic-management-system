@@ -6,7 +6,11 @@
  *   npx tailwindcss@3.4.17 -c tailwind.config.js -i app/static/src/input.css -o app/static/css/app.css --minify
  */
 module.exports = {
-  content: ['./app/static/**/*.{html,js}'],
+  content: [
+    './app/static/index.html',
+    './app/static/display.html',
+    './app/static/app.js',
+  ],
   theme: {
     extend: {
       fontFamily: {

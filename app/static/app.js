@@ -767,12 +767,8 @@
   function selectProfileGender(val) {
     const input = document.getElementById('editGender');
     if (input) input.value = val;
-    document.querySelectorAll('.gender-pill').forEach(btn => {
-      if (btn.getAttribute('data-gender') === val) {
-        btn.className = 'gender-pill px-2 py-2 rounded-lg border border-brand-600 bg-brand-600 text-white font-bold text-xs shadow-sm transition-all text-center';
-      } else {
-        btn.className = 'gender-pill px-2 py-2 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 font-semibold text-xs transition-all text-center';
-      }
+    document.querySelectorAll('#editGenderPills .segmented-pill').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-gender') === val ? 'true' : 'false');
     });
   }
 
@@ -780,13 +776,9 @@
     const input = document.getElementById('editBloodGroup');
     if (input) input.value = val;
     const label = document.getElementById('selectedBloodLabel');
-    if (label) label.textContent = val || 'None';
-    document.querySelectorAll('.blood-pill').forEach(btn => {
-      if (btn.getAttribute('data-blood') === val) {
-        btn.className = 'blood-pill py-2 rounded-lg border border-brand-600 bg-brand-600 text-white font-bold font-mono text-xs shadow-sm transition-all text-center';
-      } else {
-        btn.className = 'blood-pill py-2 rounded-lg border border-stone-200 bg-white text-stone-700 hover:border-brand-500 hover:bg-brand-50 font-bold font-mono text-xs transition-all text-center';
-      }
+    if (label) label.textContent = val ? `Type ${val}` : '';
+    document.querySelectorAll('#editBloodGroupPills .blood-tile').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-blood') === val ? 'true' : 'false');
     });
   }
 
@@ -795,13 +787,9 @@
   const selectedHistoryChips = new Set();
 
   function updateAllergyChipsUI() {
-    document.querySelectorAll('.allergy-chip').forEach(btn => {
+    document.querySelectorAll('#allergyPresetChips .tag-chip').forEach(btn => {
       const chip = btn.getAttribute('data-chip');
-      if (selectedAllergyChips.has(chip)) {
-        btn.className = 'allergy-chip px-2.5 py-1 rounded-full text-xs font-semibold border border-brand-600 bg-brand-600 text-white shadow-sm transition-colors';
-      } else {
-        btn.className = 'allergy-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors';
-      }
+      btn.setAttribute('aria-pressed', selectedAllergyChips.has(chip) ? 'true' : 'false');
     });
   }
 
@@ -827,13 +815,9 @@
   }
 
   function updateHistoryChipsUI() {
-    document.querySelectorAll('.history-chip').forEach(btn => {
+    document.querySelectorAll('#historyPresetChips .tag-chip').forEach(btn => {
       const chip = btn.getAttribute('data-chip');
-      if (selectedHistoryChips.has(chip)) {
-        btn.className = 'history-chip px-2.5 py-1 rounded-full text-xs font-semibold border border-brand-600 bg-brand-600 text-white shadow-sm transition-colors';
-      } else {
-        btn.className = 'history-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors';
-      }
+      btn.setAttribute('aria-pressed', selectedHistoryChips.has(chip) ? 'true' : 'false');
     });
   }
 
@@ -1915,7 +1899,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.7.0';
+  const APP_BUILD_VERSION = '2.8.0';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps

@@ -1386,142 +1386,145 @@
   </div>
 
 
-  <!-- Edit Profile Modal -->
-  <div id="profileModal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" onclick="if(event.target===this)window.ClinicApp.hideProfileModal()">
-    <div class="card max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-stone-200/90 bg-white rounded-2xl">
+  <!-- Edit Profile Modal (Hospitality Wellness / Linear-tier Architecture) -->
+  <style>
+    #profileModal .segmented-track { display:flex!important; align-items:center!important; gap:4px!important; padding:3px!important; background-color:#f5f4f0!important; border-radius:12px!important; width:100%!important; box-sizing:border-box!important; }
+    #profileModal .segmented-pill { flex:1!important; min-height:34px!important; display:inline-flex!important; align-items:center!important; justify-content:center!important; border-radius:9px!important; font-size:12px!important; font-weight:600!important; color:#78716c!important; background:transparent!important; border:none!important; cursor:pointer!important; transition:all .15s ease!important; user-select:none!important; padding:4px 8px!important; }
+    #profileModal .segmented-pill:hover { color:#1c1917!important; }
+    #profileModal .segmented-pill[aria-selected="true"] { background-color:#ffffff!important; color:#1c1917!important; font-weight:700!important; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)!important; }
+    #profileModal .blood-grid { display:grid!important; grid-template-columns:repeat(4, 1fr)!important; gap:6px!important; width:100%!important; box-sizing:border-box!important; }
+    @media (min-width: 640px) { #profileModal .blood-grid { grid-template-columns:repeat(8, 1fr)!important; } }
+    #profileModal .blood-tile { display:flex!important; align-items:center!important; justify-content:center!important; min-height:38px!important; border-radius:10px!important; border:1px solid #e7e5e4!important; background:#ffffff!important; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace!important; font-size:13px!important; font-weight:700!important; color:#44403c!important; cursor:pointer!important; transition:all .15s ease!important; user-select:none!important; width:100%!important; }
+    #profileModal .blood-tile:hover { border-color:#77ab84!important; background-color:#f4f8f5!important; color:#245432!important; }
+    #profileModal .blood-tile[aria-selected="true"] { background-color:#245432!important; border-color:#245432!important; color:#ffffff!important; box-shadow:0 2px 6px rgba(36,84,50,0.25)!important; }
+    #profileModal .tag-chip { display:inline-flex!important; align-items:center!important; gap:4px!important; padding:4px 12px!important; border-radius:9999px!important; font-size:12px!important; font-weight:500!important; background:#ffffff!important; border:1px solid #e7e5e4!important; color:#57534e!important; cursor:pointer!important; transition:all .15s ease!important; user-select:none!important; }
+    #profileModal .tag-chip:hover { background:#f5f5f4!important; color:#1c1917!important; border-color:#d6d3d1!important; }
+    #profileModal .tag-chip[aria-pressed="true"] { background:#f4f8f5!important; border-color:#77ab84!important; color:#245432!important; font-weight:700!important; box-shadow:0 1px 2px rgba(45,106,63,0.08)!important; }
+  </style>
+
+  <div id="profileModal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" onclick="if(event.target===this)window.ClinicApp.hideProfileModal()">
+    <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-stone-200/80 flex flex-col max-h-[88vh] overflow-hidden">
       <!-- Modal Header -->
-      <div class="flex justify-between items-center px-5 py-3.5 border-b border-stone-100 shrink-0 bg-stone-50/70">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0" aria-hidden="true">
-            <svg class="icon w-4 h-4"><use href="#i-user"/></svg>
-          </div>
-          <div class="min-w-0">
-            <h3 id="profileModalTitle" class="text-sm sm:text-base font-bold text-stone-900 leading-tight truncate">Edit Medical Profile</h3>
-            <p class="text-[11px] text-stone-500 font-medium truncate">Keep health records & emergency contacts current</p>
-          </div>
+      <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between shrink-0 bg-[#FAF8F5]/60">
+        <div>
+          <h3 id="profileModalTitle" class="text-base font-bold text-stone-900 tracking-tight">Edit Health Profile</h3>
+          <p class="text-xs text-stone-400 font-medium">Keep your medical identity & emergency contacts updated</p>
         </div>
-        <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="touch-target flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-600 transition-colors" aria-label="Close dialog">
-          <svg class="icon w-5 h-5" aria-hidden="true"><use href="#i-x"/></svg>
+        <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-400 hover:text-stone-700 transition-colors flex items-center justify-center" aria-label="Close dialog">
+          <svg class="icon w-4 h-4"><use href="#i-x"/></svg>
         </button>
       </div>
 
       <!-- Modal Body Form -->
       <form onsubmit="window.ClinicApp.handleProfileUpdate(event)" class="flex flex-col flex-1 min-h-0">
-        <div class="overflow-y-auto flex-1 p-5 space-y-5 text-sm">
+        <div class="overflow-y-auto flex-1 p-5 sm:p-6 space-y-4">
           
-          <!-- Section 1: Personal Details -->
-          <div class="space-y-3">
-            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400">
-              <span class="w-4 h-4 rounded-full bg-brand-100 text-brand-700 inline-flex items-center justify-center text-[10px] font-mono">1</span>
-              Personal Details
-            </div>
+          <!-- Card 1: Personal Details -->
+          <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400">Personal Information</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="editFullName" class="label !text-xs">Full Name <span class="text-red-500">*</span></label>
-                <input type="text" id="editFullName" required class="input !text-sm !py-2" placeholder="Jane Doe">
+                <label for="editFullName" class="label !text-xs !mb-1">Full Name <span class="text-red-500">*</span></label>
+                <input type="text" id="editFullName" required class="input !text-sm !py-2 bg-white" placeholder="Jane Doe">
               </div>
               <div>
-                <label for="editPhone" class="label !text-xs">Phone Number</label>
-                <input type="tel" id="editPhone" class="input !text-sm !py-2" placeholder="+1 555-0199">
+                <label for="editPhone" class="label !text-xs !mb-1">Phone Number</label>
+                <input type="tel" id="editPhone" class="input !text-sm !py-2 bg-white" placeholder="+1 555-0199">
               </div>
               <div>
-                <label for="editDob" class="label !text-xs">Date of Birth</label>
-                <input type="date" id="editDob" class="input !text-sm !py-2">
+                <label for="editDob" class="label !text-xs !mb-1">Date of Birth</label>
+                <input type="date" id="editDob" class="input !text-sm !py-2 bg-white">
               </div>
               <div>
-                <label class="label !text-xs">Gender</label>
+                <label class="label !text-xs !mb-1">Gender</label>
                 <input type="hidden" id="editGender" value="">
-                <div id="editGenderPills" class="grid grid-cols-3 gap-1.5 pt-0.5">
-                  <button type="button" onclick="window.ClinicApp.selectProfileGender('Male')" data-gender="Male" class="gender-pill px-2 py-2 rounded-lg border border-stone-200 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-all text-center">Male</button>
-                  <button type="button" onclick="window.ClinicApp.selectProfileGender('Female')" data-gender="Female" class="gender-pill px-2 py-2 rounded-lg border border-stone-200 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-all text-center">Female</button>
-                  <button type="button" onclick="window.ClinicApp.selectProfileGender('Other')" data-gender="Other" class="gender-pill px-2 py-2 rounded-lg border border-stone-200 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-all text-center">Other</button>
+                <div id="editGenderPills" class="segmented-track">
+                  <button type="button" onclick="window.ClinicApp.selectProfileGender('Male')" data-gender="Male" class="segmented-pill">Male</button>
+                  <button type="button" onclick="window.ClinicApp.selectProfileGender('Female')" data-gender="Female" class="segmented-pill">Female</button>
+                  <button type="button" onclick="window.ClinicApp.selectProfileGender('Other')" data-gender="Other" class="segmented-pill">Other</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Section 2: Clinical Details -->
-          <div class="space-y-3 pt-3 border-t border-stone-100">
-            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400">
-              <span class="w-4 h-4 rounded-full bg-brand-100 text-brand-700 inline-flex items-center justify-center text-[10px] font-mono">2</span>
-              Clinical Information
+          <!-- Card 2: Clinical Details -->
+          <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400">Clinical Records</span>
+              <span id="selectedBloodLabel" class="text-xs font-mono font-bold text-brand-700"></span>
             </div>
 
             <!-- Blood Group 1-tap Pill Grid -->
             <div>
-              <label class="label !text-xs flex items-center justify-between">
-                <span>Blood Group</span>
-                <span id="selectedBloodLabel" class="text-[11px] font-semibold text-brand-700">None</span>
-              </label>
+              <label class="label !text-xs !mb-1.5">Blood Type</label>
               <input type="hidden" id="editBloodGroup" value="">
-              <div id="editBloodGroupPills" class="grid grid-cols-4 sm:grid-cols-8 gap-1.5 pt-0.5">
-                <button type="button" onclick="window.ClinicApp.selectProfileBlood('A+')" data-blood="A+" class="blood-pill py-2 rounded-lg border border-stone-200 text-xs font-bold font-mono text-stone-700 hover:border-brand-500 hover:bg-brand-50 transition-all text-center">A+</button>
-                <button type="button" onclick="window.ClinicApp.selectProfileBlood('A-')" data-blood="A-" class="blood-pill py-2 rounded-lg border border-stone-200 text-xs font-bold font-mono text-stone-700 hover:border-brand-500 hover:bg-brand-50 transition-all text-center">A-</button>
-                <button type="button" onclick="window.ClinicApp.selectProfileBlood('B+')" data-blood="B+" class="blood-pill py-2 rounded-lg border border-stone-200 text-xs font-bold font-mono text-stone-700 hover:border-brand-500 hover:bg-brand-50 transition-all text-center">B+</button>
-                <button type="button" onclick="window.ClinicApp.selectProfileBlood('B-')" data-blood="B-" class="blood-pill py-2 rounded-lg border border-stone-200 text-xs font-bold font-mono text-stone-700 hover:border-brand-500 hover:bg-brand-50 transition-all text-center">B-</button>
-                <button type="button" onclick="window.ClinicApp.selectProfileBlood('AB+')" data-blood="AB+" class="blood-pill py-2 rounded-lg border border-stone-200 text-xs font-bold font-mono text-stone-700 hover:border-brand-500 hover:bg-brand-50 transition-all text-center">AB+</button>
-                <button type="button" onclick="window.ClinicApp.selectProfileBlood('AB-')" data-blood="AB-" class="blood-pill py-2 rounded-lg border border-stone-200 text-xs font-bold font-mono text-stone-700 hover:border-brand-500 hover:bg-brand-50 transition-all text-center">AB-</button>
-                <button type="button" onclick="window.ClinicApp.selectProfileBlood('O+')" data-blood="O+" class="blood-pill py-2 rounded-lg border border-stone-200 text-xs font-bold font-mono text-stone-700 hover:border-brand-500 hover:bg-brand-50 transition-all text-center">O+</button>
-                <button type="button" onclick="window.ClinicApp.selectProfileBlood('O-')" data-blood="O-" class="blood-pill py-2 rounded-lg border border-stone-200 text-xs font-bold font-mono text-stone-700 hover:border-brand-500 hover:bg-brand-50 transition-all text-center">O-</button>
+              <div id="editBloodGroupPills" class="blood-grid">
+                <button type="button" onclick="window.ClinicApp.selectProfileBlood('A+')" data-blood="A+" class="blood-tile">A+</button>
+                <button type="button" onclick="window.ClinicApp.selectProfileBlood('A-')" data-blood="A-" class="blood-tile">A-</button>
+                <button type="button" onclick="window.ClinicApp.selectProfileBlood('B+')" data-blood="B+" class="blood-tile">B+</button>
+                <button type="button" onclick="window.ClinicApp.selectProfileBlood('B-')" data-blood="B-" class="blood-tile">B-</button>
+                <button type="button" onclick="window.ClinicApp.selectProfileBlood('AB+')" data-blood="AB+" class="blood-tile">AB+</button>
+                <button type="button" onclick="window.ClinicApp.selectProfileBlood('AB-')" data-blood="AB-" class="blood-tile">AB-</button>
+                <button type="button" onclick="window.ClinicApp.selectProfileBlood('O+')" data-blood="O+" class="blood-tile">O+</button>
+                <button type="button" onclick="window.ClinicApp.selectProfileBlood('O-')" data-blood="O-" class="blood-tile">O-</button>
               </div>
             </div>
 
             <!-- Allergies Preset Chips & Custom Input -->
             <div>
-              <label for="editCustomAllergies" class="label !text-xs">Known Allergies</label>
+              <label for="editCustomAllergies" class="label !text-xs !mb-1.5">Allergies</label>
               <div class="flex flex-wrap gap-1.5 mb-2" id="allergyPresetChips">
-                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Penicillin')" class="allergy-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Penicillin">+ Penicillin</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Sulfa')" class="allergy-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Sulfa">+ Sulfa</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Aspirin')" class="allergy-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Aspirin">+ Aspirin</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Peanuts')" class="allergy-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Peanuts">+ Peanuts</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Latex')" class="allergy-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Latex">+ Latex</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('None')" class="allergy-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="None">None</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Penicillin')" data-chip="Penicillin" class="tag-chip">+ Penicillin</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Sulfa')" data-chip="Sulfa" class="tag-chip">+ Sulfa</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Aspirin')" data-chip="Aspirin" class="tag-chip">+ Aspirin</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Peanuts')" data-chip="Peanuts" class="tag-chip">+ Peanuts</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('Latex')" data-chip="Latex" class="tag-chip">+ Latex</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileAllergyChip('None')" data-chip="None" class="tag-chip">None</button>
               </div>
-              <input type="text" id="editCustomAllergies" class="input !text-sm !py-2" placeholder="Type custom allergies (e.g. Shellfish, Pollen)...">
+              <input type="text" id="editCustomAllergies" class="input !text-xs !py-2 bg-white" placeholder="Type custom allergies (e.g. Shellfish, Pollen)...">
               <input type="hidden" id="editAllergies" value="">
             </div>
 
             <!-- Medical History Preset Chips & Textarea -->
             <div>
-              <label for="editCustomHistory" class="label !text-xs">Medical History & Conditions</label>
+              <label for="editCustomHistory" class="label !text-xs !mb-1.5">Medical Conditions & History</label>
               <div class="flex flex-wrap gap-1.5 mb-2" id="historyPresetChips">
-                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('Hypertension')" class="history-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Hypertension">+ Hypertension</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('Diabetes')" class="history-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Diabetes">+ Diabetes</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('Asthma')" class="history-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Asthma">+ Asthma</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('Heart Disease')" class="history-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="Heart Disease">+ Heart Disease</button>
-                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('None')" class="history-chip px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 transition-colors" data-chip="None">None</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('Hypertension')" data-chip="Hypertension" class="tag-chip">+ Hypertension</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('Diabetes')" data-chip="Diabetes" class="tag-chip">+ Diabetes</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('Asthma')" data-chip="Asthma" class="tag-chip">+ Asthma</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('Heart Disease')" data-chip="Heart Disease" class="tag-chip">+ Heart Disease</button>
+                <button type="button" onclick="window.ClinicApp.toggleProfileHistoryChip('None')" data-chip="None" class="tag-chip">None</button>
               </div>
-              <textarea id="editCustomHistory" rows="2" class="input !text-sm !py-2" placeholder="Chronic conditions, prior surgeries, or current medications..."></textarea>
+              <textarea id="editCustomHistory" rows="2" class="input !text-xs !py-2 bg-white" placeholder="Chronic conditions, prior surgeries, medications..."></textarea>
               <input type="hidden" id="editHistory" value="">
             </div>
           </div>
 
-          <!-- Section 3: Emergency Contact -->
-          <div class="space-y-3 pt-3 border-t border-stone-100">
-            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400">
-              <span class="w-4 h-4 rounded-full bg-brand-100 text-brand-700 inline-flex items-center justify-center text-[10px] font-mono">3</span>
-              Emergency Contact
-            </div>
+          <!-- Card 3: Emergency Contact -->
+          <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
+            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400">Emergency Contact</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="editEmergencyName" class="label !text-xs">Contact Name</label>
-                <input type="text" id="editEmergencyName" class="input !text-sm !py-2" placeholder="John Doe">
+                <label for="editEmergencyName" class="label !text-xs !mb-1">Contact Name</label>
+                <input type="text" id="editEmergencyName" class="input !text-sm !py-2 bg-white" placeholder="John Doe">
               </div>
               <div>
-                <label for="editEmergencyPhone" class="label !text-xs">Contact Phone</label>
-                <input type="tel" id="editEmergencyPhone" class="input !text-sm !py-2" placeholder="+1 555-0188">
+                <label for="editEmergencyPhone" class="label !text-xs !mb-1">Contact Phone</label>
+                <input type="tel" id="editEmergencyPhone" class="input !text-sm !py-2 bg-white" placeholder="+1 555-0188">
               </div>
             </div>
           </div>
 
         </div>
 
-        <!-- Sticky Footer -->
-        <div class="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-stone-200 px-5 py-3 flex items-center justify-end gap-2.5 shrink-0 z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
-          <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="btn btn-ghost btn-sm !text-stone-600 hover:!bg-stone-100">Cancel</button>
-          <button type="submit" id="saveProfileSubmitBtn" class="btn btn-primary btn-sm !px-4 shadow-sm inline-flex items-center gap-1.5">
-            <svg class="icon w-4 h-4"><use href="#i-check"/></svg>
-            Save Medical Profile
+        <!-- Sticky Footer Action Bar -->
+        <div class="px-6 py-3.5 bg-[#FAF8F5]/80 border-t border-stone-200/70 flex items-center justify-between shrink-0">
+          <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors px-3 py-2 rounded-xl">Cancel</button>
+          <button type="submit" id="saveProfileSubmitBtn" class="btn btn-primary btn-sm !rounded-full !px-5 !py-2 font-semibold shadow-sm inline-flex items-center gap-2">
+            <span>Save Profile</span>
+            <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+              <svg class="icon w-3 h-3 text-white"><use href="#i-check"/></svg>
+            </span>
           </button>
         </div>
       </form>
@@ -1556,6 +1559,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.6.0"></script>
+  <script src="/static/app.js?v=2.8.0"></script>
 </body>
 </html>
