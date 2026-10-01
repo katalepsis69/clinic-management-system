@@ -1294,13 +1294,15 @@
       const callSelect = document.getElementById('callDoctorId');
 
       if (doctors && doctors.length > 0) {
-        const optionsHtml = doctors.map(d => `
-          <option value="${d.id}">${escapeHTML(d.name)} (${escapeHTML(d.specialization)}) - ${escapeHTML(String(d.room_number || 'Room 102'))}</option>
-        `).join('');
+        // Staff selects are narrow: native options clip silently, so the room
+        // (the part staff dispatch on) gets the short label there. The patient
+        // booking select is wide enough for specialization + room.
+        const optionFull = d => `<option value="${d.id}">${escapeHTML(d.name)} (${escapeHTML(d.specialization)}) - ${escapeHTML(String(d.room_number || 'Room 102'))}</option>`;
+        const optionBrief = d => `<option value="${d.id}">${escapeHTML(d.name)} - ${escapeHTML(String(d.room_number || 'Room 102'))}</option>`;
 
-        if (appSelect) appSelect.innerHTML = optionsHtml;
-        if (walkSelect) walkSelect.innerHTML = optionsHtml;
-        if (callSelect) callSelect.innerHTML = optionsHtml;
+        if (appSelect) appSelect.innerHTML = doctors.map(optionFull).join('');
+        if (walkSelect) walkSelect.innerHTML = doctors.map(optionBrief).join('');
+        if (callSelect) callSelect.innerHTML = doctors.map(optionBrief).join('');
       }
     } catch (err) {
       console.warn('Failed to load doctors list:', err);
@@ -1698,7 +1700,7 @@
       const negPct = !hasData ? 0 :
         (data.negative_pct !== undefined ? data.negative_pct :
         (data.sentiment_distribution ? (data.sentiment_distribution.negative / (total || 1)) * 100 : 0));
-      const neuPct = Math.max(0, Math.round(100 - posPct - negPct));
+      const neuPct = hasData ? Math.max(0, Math.round(100 - posPct - negPct)) : 0;
 
       // No submissions yet: show no numbers rather than values that look real.
       const nss = hasData ? Math.round(posPct - negPct) : null;
@@ -2170,7 +2172,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.11.2';
+  const APP_BUILD_VERSION = '2.11.3';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
