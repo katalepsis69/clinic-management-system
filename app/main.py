@@ -1,18 +1,41 @@
 from contextlib import asynccontextmanager
+import logging
 import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from sqlalchemy import text
 from app.config import get_settings
 from app.database import engine, Base, SessionLocal
 from app.seed import seed_demo_data
-from app.routers import auth, feedback, queue, appointments, emr, billing, chat
+from app.routers import admin, auth, feedback, queue, appointments, emr, billing, chat
 from app.middleware.audit import AuditLoggingMiddleware
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # ponytail: idempotent startup migration so the active-ticket index also lands
+    # on databases created before it existed; alembic when schema changes grow
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_queue_patient_active "
+                "ON queue_tickets (patient_id) WHERE status = 'WAITING'"
+            ))
+    except Exception:
+        logger.exception("Could not ensure ux_queue_patient_active index; "
+                         "existing rows may violate the one-active-ticket rule")
+    if settings.DATABASE_URL.startswith("sqlite") and (
+        os.environ.get("WEB_CONCURRENCY") or os.environ.get("RENDER_EXTERNAL_URL")
+    ):
+        logger.warning(
+            "SQLite at %s is local and ephemeral on most platforms; set DATABASE_URL "
+            "to a managed database for any deployed or multi-worker profile",
+            settings.DATABASE_URL,
+        )
     if settings.DEMO_MODE:
         with SessionLocal() as db:
             seed_demo_data(db)
@@ -42,6 +65,7 @@ async def security_headers(request, call_next):
     return response
 
 # Mount API Routers
+app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(feedback.router)
 app.include_router(queue.router)
@@ -57,7 +81,15 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "service": settings.APP_NAME}
+    # Readiness must mean "can serve data"; a DB outage should fail the probe.
+    try:
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("Health check failed: database unreachable")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    return {"status": "healthy", "database": "ok", "service": settings.APP_NAME}
 
 
 NO_CACHE_HEADERS = {

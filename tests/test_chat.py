@@ -479,3 +479,32 @@ def test_chat_rest_guest_send_and_limit(client, db_session):
     })
     assert res_6th.status_code == 429
     assert "limit" in res_6th.json()["detail"].lower()
+
+
+def test_staff_replies_do_not_consume_guest_limit(client, db_session):
+    """Guest messages alone count toward the 5-message limit; staff replies in
+    the same session must not eat the guest's remaining messages."""
+    session_id = f"quota-fix-{uuid.uuid4().hex[:8]}"
+
+    u_staff = User(email="quota-staff@chat.test", hashed_password="pw", full_name="Quota Staff", role=UserRole.STAFF)
+    db_session.add(u_staff)
+    db_session.commit()
+    staff_headers = _auth_cookie(u_staff)
+
+    # Guest message 1
+    res1 = client.post("/api/chat/send", json={"session_id": session_id, "message": "What is the address?"})
+    assert res1.status_code == 200
+    assert res1.json()["guest_remaining"] == 4
+
+    # Five staff replies in the same session
+    for i in range(5):
+        res = client.post("/api/chat/send", headers=staff_headers, json={
+            "session_id": session_id, "message": f"Staff reply {i}",
+        })
+        assert res.status_code == 200
+        assert res.json()["bot_reply"] is None
+
+    # Guest message 2 still goes through: only ONE guest message so far
+    res2 = client.post("/api/chat/send", json={"session_id": session_id, "message": "What are your hours?"})
+    assert res2.status_code == 200
+    assert res2.json()["guest_remaining"] == 3

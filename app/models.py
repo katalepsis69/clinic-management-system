@@ -105,6 +105,17 @@ class QueueTicket(Base):
     called_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
 
+    # One live (waiting) ticket per patient; cancelled/completed tickets don't block re-issue.
+    __table_args__ = (
+        Index(
+            "ux_queue_patient_active",
+            "patient_id",
+            unique=True,
+            sqlite_where=text("status = 'WAITING'"),
+            postgresql_where=text("status = 'WAITING'"),
+        ),
+    )
+
     patient = relationship("Patient", back_populates="queue_tickets")
     doctor = relationship("Doctor", back_populates="queue_tickets")
 

@@ -44,6 +44,24 @@ def get_patient_emr(
         .all()
     )
 
+    rx_items = []
+    for p in prescriptions:
+        # ponytail: a hand-edited/imported row must not 500 the whole chart view
+        try:
+            meds = json.loads(p.medications_json)
+            if not isinstance(meds, list):
+                meds = []
+        except (ValueError, TypeError):
+            meds = []
+        rx_items.append({
+            "id": p.id,
+            "diagnosis": p.diagnosis,
+            "notes": p.clinical_notes,
+            "medications": meds,
+            "created_at": p.created_at.strftime("%Y-%m-%d %H:%M"),
+            "qr_code_hash": p.qr_code_hash,
+        })
+
     return {
         "patient_id": patient.id,
         "name": patient.user.full_name,
@@ -52,17 +70,7 @@ def get_patient_emr(
         "blood_group": patient.blood_group,
         "allergies": patient.allergies,
         "medical_history": patient.medical_history,
-        "prescriptions": [
-            {
-                "id": p.id,
-                "diagnosis": p.diagnosis,
-                "notes": p.clinical_notes,
-                "medications": json.loads(p.medications_json),
-                "created_at": p.created_at.strftime("%Y-%m-%d %H:%M"),
-                "qr_code_hash": p.qr_code_hash,
-            }
-            for p in prescriptions
-        ],
+        "prescriptions": rx_items,
     }
 
 

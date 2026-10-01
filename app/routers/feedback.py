@@ -46,7 +46,7 @@ def submit_feedback(data: FeedbackCreate, user: User = Depends(get_current_user)
 @router.get("/analytics")
 def get_feedback_analytics(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN, UserRole.DOCTOR])),
+    user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN])),
 ):
     from sqlalchemy import func, case
 

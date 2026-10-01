@@ -8,12 +8,12 @@ An intelligent, real-time healthcare clinic portal built with **FastAPI**, **SQL
 
 ### 1. 🏥 Four Dedicated Operational Portals
 - **Patient Portal**: Online appointment booking, profile & medical history management, live queue position tracker, and post-visit sentiment feedback.
-- **Doctor Clinical Console**: Real-time consultation queue, patient EMRs, and digital prescription issuance with **SHA-256 HMAC cryptographic signatures** to prevent tampering.
+- **Doctor Clinical Console**: Real-time consultation queue, patient EMRs, and digital prescription issuance with unique verification hashes.
 - **Staff & Billing Desk**: Walk-in patient intake, automated queue calling, itemized invoicing, and instant payment receipt generation.
-- **Sentiment & Experience Analytics**: Real-time VADER Natural Language Processing (NLP) analyzing patient visit reviews with Net Sentiment Score (NSS) tracking.
+- **Sentiment & Experience Analytics**: Lexicon-based sentiment scoring on patient visit reviews with Net Sentiment Score (NSS) tracking.
 
 ### 2. 📺 Public TV Waiting Display (/display)
-- Zero-latency WebSocket broadcast for clinic waiting rooms.
+- Live WebSocket broadcast (with automatic reconnect and 5-second polling fallback) for clinic waiting rooms.
 - Shows current ticket being served with designated consultation room and upcoming queue numbers.
 - Integrated audio chime announcements on ticket calls.
 
@@ -23,7 +23,7 @@ An intelligent, real-time healthcare clinic portal built with **FastAPI**, **SQL
   - **🌐 Live Web Search Grounding**: Automatically searches real-time Philippine pharmacy availability (Mercury Drug, Watsons, TGP) and current prices when asked about store stock or retail costs.
   - **🧠 Direct Medical LLM Knowledge**: Fast (~400ms) clinical explanations of symptoms, disease mechanisms, and safe Over-The-Counter (OTC) remedies (e.g. Canesten/clotrimazole, Biogesic/paracetamol).
 - **Multi-Key Failover Pool**: Automatic millisecond rotation across multiple Gemini API keys on rate limits (429 RESOURCE_EXHAUSTED).
-- **Multi-Model Resiliency**: Automated fallback across gemini-3.6-flash → gemini-flash-latest → gemini-3-flash-preview.
+- **Multi-Model Resiliency**: Automated fallback starting at GEMINI_MODEL, then gemini-3-flash-preview → gemini-flash-latest → gemini-3.6-flash.
 - **Guest Access**: 5 free messages for unauthenticated guests before prompting sign-in.
 
 ---
@@ -78,4 +78,5 @@ ender.yaml.
 1. Connect your GitHub repository to Render.
 2. Under **Environment Variables**, set:
    - GEMINI_API_KEY: Your Gemini API key(s). Supports comma-separated keys for auto-failover!
+   - DATABASE_URL: A managed PostgreSQL URL. **Required for real use**: without it the app defaults to SQLite, which is wiped on every deploy (free-tier disks are ephemeral).
 3. Deploy!

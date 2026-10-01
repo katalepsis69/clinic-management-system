@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import get_db
+from app.config import get_settings
 from app.models import (
     Base,
     User,
@@ -18,6 +19,8 @@ from app.models import (
 )
 from app.auth import create_access_token
 from app.routers.appointments import router as appointments_router
+
+CLINIC = get_settings().clinic_today()
 
 
 @pytest.fixture
@@ -184,10 +187,9 @@ def test_book_appointment_success(db_session):
     db_session.commit()
 
     token = create_access_token({"sub": u_pat.email, "role": u_pat.role.value})
-    today_str = date.today().isoformat()
     payload = {
         "doctor_id": doc.id,
-        "appointment_date": today_str,
+        "appointment_date": CLINIC.isoformat(),
         "time_slot": "10:00 - 10:30",
         "reason_for_visit": "Fever and cough",
     }
@@ -206,7 +208,7 @@ def test_book_appointment_success(db_session):
     assert appt is not None
     assert appt.patient_id == pat.id
     assert appt.doctor_id == doc.id
-    assert appt.appointment_date == date.today()
+    assert appt.appointment_date == CLINIC
     assert appt.time_slot == "10:00 - 10:30"
     assert appt.reason_for_visit == "Fever and cough"
     assert appt.status == AppointmentStatus.CONFIRMED
@@ -248,9 +250,10 @@ def test_book_appointment_slot_conflict(db_session):
     token1 = create_access_token({"sub": u_pat1.email, "role": u_pat1.role.value})
     token2 = create_access_token({"sub": u_pat2.email, "role": u_pat2.role.value})
 
+    future = (CLINIC + timedelta(days=14)).isoformat()
     payload = {
         "doctor_id": doc.id,
-        "appointment_date": "2026-09-12",
+        "appointment_date": future,
         "time_slot": "14:00 - 14:30",
         "reason_for_visit": "First booking",
     }
@@ -305,10 +308,11 @@ def test_book_appointment_rebooking_after_cancellation(db_session):
     db_session.commit()
 
     # Cancelled appointment exists on this slot
+    future_d = CLINIC + timedelta(days=14)
     cancelled_appt = Appointment(
         patient_id=pat1.id,
         doctor_id=doc.id,
-        appointment_date=date(2026, 9, 14),
+        appointment_date=future_d,
         time_slot="11:00 - 11:30",
         status=AppointmentStatus.CANCELLED,
     )
@@ -318,7 +322,7 @@ def test_book_appointment_rebooking_after_cancellation(db_session):
     token2 = create_access_token({"sub": u_pat2.email, "role": u_pat2.role.value})
     payload = {
         "doctor_id": doc.id,
-        "appointment_date": "2026-09-14",
+        "appointment_date": future_d.isoformat(),
         "time_slot": "11:00 - 11:30",
         "reason_for_visit": "Rebooking slot",
     }
@@ -370,13 +374,14 @@ def test_book_appointment_different_slots_and_doctors(db_session):
     db_session.commit()
 
     token = create_access_token({"sub": u_pat.email, "role": u_pat.role.value})
+    future = (CLINIC + timedelta(days=21)).isoformat()
 
     # Book doc1 at 09:00
     r1 = client.post(
         "/api/appointments/book",
         json={
             "doctor_id": doc1.id,
-            "appointment_date": "2026-09-16",
+            "appointment_date": future,
             "time_slot": "09:00 - 09:30",
         },
         headers={"Authorization": f"Bearer {token}"},
@@ -388,7 +393,7 @@ def test_book_appointment_different_slots_and_doctors(db_session):
         "/api/appointments/book",
         json={
             "doctor_id": doc1.id,
-            "appointment_date": "2026-09-16",
+            "appointment_date": future,
             "time_slot": "09:30 - 10:00",
         },
         headers={"Authorization": f"Bearer {token}"},
@@ -400,7 +405,7 @@ def test_book_appointment_different_slots_and_doctors(db_session):
         "/api/appointments/book",
         json={
             "doctor_id": doc2.id,
-            "appointment_date": "2026-09-16",
+            "appointment_date": future,
             "time_slot": "09:00 - 09:30",
         },
         headers={"Authorization": f"Bearer {token}"},
@@ -464,7 +469,7 @@ def test_get_doctor_schedule_default_date_today(db_session):
     db_session.add_all([doc, pat])
     db_session.commit()
 
-    today_date = date.today()
+    today_date = CLINIC
     appt_today = Appointment(
         patient_id=pat.id,
         doctor_id=doc.id,
@@ -592,3 +597,80 @@ def test_get_doctor_schedule_invalid_date(db_session):
     )
     assert resp.status_code == 400
     assert "date format" in resp.json()["detail"].lower()
+
+
+# --- Appointment cancellation tests ---
+
+def _book(client, token, doc_id, slot="09:00 - 09:30", day_offset=14):
+    return client.post(
+        "/api/appointments/book",
+        json={
+            "doctor_id": doc_id,
+            "appointment_date": (CLINIC + timedelta(days=day_offset)).isoformat(),
+            "time_slot": slot,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+
+def test_cancel_appointment_by_owner_patient(db_session):
+    u_doc = User(email="dr.can@clinic.test", hashed_password="pw", full_name="Dr. Can", role=UserRole.DOCTOR)
+    u_pat = User(email="pat.can@clinic.test", hashed_password="pw", full_name="Pat Can", role=UserRole.PATIENT)
+    db_session.add_all([u_doc, u_pat])
+    db_session.commit()
+    doc = Doctor(user_id=u_doc.id, specialization="General", license_number="L1", room_number="R1")
+    pat = Patient(user_id=u_pat.id)
+    db_session.add_all([doc, pat])
+    db_session.commit()
+
+    token = create_access_token({"sub": u_pat.email, "role": "patient"})
+    booked = _book(client, token, doc.id)
+    assert booked.status_code == 200
+    appt_id = booked.json()["appointment_id"]
+
+    # Another patient cannot cancel it
+    u_other = User(email="pat.other@clinic.test", hashed_password="pw", full_name="Pat Other", role=UserRole.PATIENT)
+    db_session.add(u_other)
+    db_session.commit()
+    other_token = create_access_token({"sub": u_other.email, "role": "patient"})
+    res_forbidden = client.post(f"/api/appointments/{appt_id}/cancel", headers={"Authorization": f"Bearer {other_token}"})
+    assert res_forbidden.status_code == 403
+
+    # Owner cancels -> CANCELLED, then the same slot is bookable again
+    res = client.post(f"/api/appointments/{appt_id}/cancel", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 200
+    assert res.json()["appointment_status"] == "cancelled"
+    assert db_session.query(Appointment).filter(Appointment.id == appt_id).first().status == AppointmentStatus.CANCELLED
+
+    rebook = _book(client, token, doc.id)
+    assert rebook.status_code == 200
+
+    # Double cancel -> 409
+    res2 = client.post(f"/api/appointments/{appt_id}/cancel", headers={"Authorization": f"Bearer {token}"})
+    assert res2.status_code == 409
+
+
+def test_cancel_appointment_by_staff_and_missing(db_session):
+    u_staff = User(email="staff.can@clinic.test", hashed_password="pw", full_name="Staff Can", role=UserRole.STAFF)
+    u_doc = User(email="dr.can2@clinic.test", hashed_password="pw", full_name="Dr. Can Two", role=UserRole.DOCTOR)
+    u_pat = User(email="pat.can2@clinic.test", hashed_password="pw", full_name="Pat Can Two", role=UserRole.PATIENT)
+    db_session.add_all([u_staff, u_doc, u_pat])
+    db_session.commit()
+    doc = Doctor(user_id=u_doc.id, specialization="General", license_number="L2", room_number="R2")
+    pat = Patient(user_id=u_pat.id)
+    db_session.add_all([doc, pat])
+    db_session.commit()
+
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff.email, 'role': 'staff'})}"}
+    token = create_access_token({"sub": u_pat.email, "role": "patient"})
+    booked = _book(client, token, doc.id)
+    appt_id = booked.json()["appointment_id"]
+
+    res = client.post(f"/api/appointments/{appt_id}/cancel", headers=staff_headers)
+    assert res.status_code == 200
+
+    res_missing = client.post("/api/appointments/999999/cancel", headers=staff_headers)
+    assert res_missing.status_code == 404
+
+    res_anon = client.post(f"/api/appointments/{appt_id}/cancel")
+    assert res_anon.status_code == 401

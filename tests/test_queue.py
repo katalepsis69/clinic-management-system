@@ -52,15 +52,18 @@ def client(db_session):
 def test_sequential_ticket_issuance(db_session):
     u1 = User(email="doc@test.com", hashed_password="pw", full_name="Doctor", role="doctor")
     u2 = User(email="pat@test.com", hashed_password="pw", full_name="Patient", role="patient")
-    db_session.add_all([u1, u2])
+    u3 = User(email="pat2@test.com", hashed_password="pw", full_name="Patient Two", role="patient")
+    db_session.add_all([u1, u2, u3])
     db_session.commit()
     doc = Doctor(user_id=u1.id, specialization="Gen", license_number="L1", room_number="101")
     pat = Patient(user_id=u2.id)
-    db_session.add_all([doc, pat])
+    pat2 = Patient(user_id=u3.id)
+    db_session.add_all([doc, pat, pat2])
     db_session.commit()
 
     t1 = QueueTicket(ticket_number="Q-101", patient_id=pat.id, doctor_id=doc.id, status=QueueStatus.WAITING)
-    t2 = QueueTicket(ticket_number="Q-102", patient_id=pat.id, doctor_id=doc.id, status=QueueStatus.WAITING)
+    # Second patient holds the next ticket: a patient can hold only one WAITING ticket
+    t2 = QueueTicket(ticket_number="Q-102", patient_id=pat2.id, doctor_id=doc.id, status=QueueStatus.WAITING)
     db_session.add_all([t1, t2])
     db_session.commit()
 
@@ -259,3 +262,99 @@ def test_queue_websocket_endpoint(client):
 
     # After exiting context manager, disconnect should have cleaned it up
     assert websocket not in queue_manager.active_connections
+
+
+# --- Remediation verification tests ---
+
+def _make_doctor_and_patients(db, n_patients=2, tag="rem"):
+    u_doc = User(email=f"doc-{tag}@t.com", hashed_password="pw", full_name="Doc Rem", role=UserRole.DOCTOR)
+    db.add(u_doc)
+    db.commit()
+    doc = Doctor(user_id=u_doc.id, specialization="Gen", license_number="L", room_number="R1")
+    db.add(doc)
+    db.commit()
+    pats = []
+    for i in range(n_patients):
+        u = User(email=f"pat-{tag}-{i}@t.com", hashed_password="pw", full_name=f"Pat {i}", role=UserRole.PATIENT)
+        db.add(u)
+        db.commit()
+        p = Patient(user_id=u.id)
+        db.add(p)
+        db.commit()
+        pats.append(p)
+    return doc, pats
+
+
+def _staff_headers(db):
+    u = User(email=f"staff-rem-{db.query(User).count()}@t.com", hashed_password="pw", full_name="Desk", role=UserRole.STAFF)
+    db.add(u)
+    db.commit()
+    return {"Authorization": f"Bearer {create_access_token({'sub': u.email, 'role': 'staff'})}"}
+
+
+def test_call_next_urgent_jumps_queue(client, db_session):
+    doc, (pat1, pat2) = _make_doctor_and_patients(db_session)
+    headers = _staff_headers(db_session)
+    r1 = client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat1.id, "priority": "normal"}, headers=headers)
+    r2 = client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat2.id, "priority": "urgent"}, headers=headers)
+    normal_ticket = r1.json()["ticket_number"]
+    urgent_ticket = r2.json()["ticket_number"]
+
+    res = client.post(f"/api/queue/call-next?doctor_id={doc.id}", headers=headers)
+    assert res.status_code == 200
+    # The urgent ticket (issued second) must be called before the normal one
+    assert res.json()["called_ticket"] == urgent_ticket
+    assert normal_ticket != urgent_ticket
+
+
+def test_advance_ticket_lifecycle(client, db_session):
+    doc, (pat1, _) = _make_doctor_and_patients(db_session, n_patients=2)
+    headers = _staff_headers(db_session)
+    issued = client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat1.id}, headers=headers).json()
+    ticket_id = issued["id"]
+
+    # Waiting -> in_consultation is invalid (must be CALLED first)
+    res_bad = client.post("/api/queue/advance", headers=headers, json={"ticket_id": ticket_id, "to": "in_consultation"})
+    assert res_bad.status_code == 409
+
+    client.post(f"/api/queue/call-next?doctor_id={doc.id}", headers=headers)
+    res1 = client.post("/api/queue/advance", headers=headers, json={"ticket_id": ticket_id, "to": "in_consultation"})
+    assert res1.status_code == 200
+    assert db_session.query(QueueTicket).filter(QueueTicket.id == ticket_id).first().status == QueueStatus.IN_CONSULTATION
+
+    res2 = client.post("/api/queue/advance", headers=headers, json={"ticket_id": ticket_id, "to": "completed"})
+    assert res2.status_code == 200
+    done = db_session.query(QueueTicket).filter(QueueTicket.id == ticket_id).first()
+    assert done.status == QueueStatus.COMPLETED
+    assert done.completed_at is not None
+
+    # With the ticket completed and nothing else waiting, the board goes idle
+    live = client.get("/api/queue/live-status").json()
+    assert live["currently_serving"] == "None"
+
+    # Patients can re-queue after completion
+    res3 = client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat1.id}, headers=headers)
+    assert res3.status_code == 200
+
+
+def test_patient_cannot_reissue_while_called(client, db_session):
+    doc, (pat1, _) = _make_doctor_and_patients(db_session, n_patients=2, tag="reissue")
+    headers = _staff_headers(db_session)
+    client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat1.id}, headers=headers)
+    client.post(f"/api/queue/call-next?doctor_id={doc.id}", headers=headers)
+
+    res = client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat1.id}, headers=headers)
+    assert res.status_code == 409
+
+
+def test_ticket_allocation_survives_restore_gap(client, db_session):
+    """After a restore that leaves a gap (e.g. only Q-102 exists), allocation
+    must use MAX+1, not count+101 which would deadlock on the collision."""
+    doc, (pat1, pat2) = _make_doctor_and_patients(db_session, n_patients=2, tag="restore")
+    db_session.add(QueueTicket(ticket_number="Q-102", patient_id=pat1.id, doctor_id=doc.id, status=QueueStatus.CALLED))
+    db_session.commit()
+
+    headers = _staff_headers(db_session)
+    res = client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat2.id}, headers=headers)
+    assert res.status_code == 200
+    assert res.json()["ticket_number"] == "Q-103"

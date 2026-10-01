@@ -83,11 +83,11 @@ def test_complete_e2e_clinical_workflow():
     Health -> Doctor Directory -> Patient Booking -> Queue Ticket -> Ticket Call ->
     Doctor EMR & Prescription -> Staff Billing -> Patient VADER Feedback -> Chat & Bot FAQ.
     """
-    # Clean slate for the queue and the fixed e2e booking date: close any waiting
-    # tickets and drop stale bookings left by earlier runs
+    # Clean slate for the queue and the fixed e2e booking date: close every live
+    # ticket (CALLED/IN_CONSULTATION block re-issuance) and drop stale bookings
     _cleanup = SessionLocal()
     try:
-        _cleanup.query(QueueTicket).filter(QueueTicket.status == QueueStatus.WAITING).update(
+        _cleanup.query(QueueTicket).filter(QueueTicket.status != QueueStatus.COMPLETED).update(
             {"status": QueueStatus.COMPLETED}
         )
         _cleanup.query(Appointment).filter(Appointment.appointment_date == "2026-11-20").delete()

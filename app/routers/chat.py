@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.database import get_db
 from app.models import ChatMessage, User, UserRole
 from app.auth import decode_token, get_current_user, get_optional_current_user, require_roles
-from app.chat_bot import get_bot_response
+from app.chat_bot import get_bot_response_async
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +67,15 @@ chat_hub = ChatConnectionHub()
 
 
 def _get_guest_count(db: Session, session_id: str) -> int:
+    """Count only guest-authored messages (sender_id is NULL for guests) so staff
+    replies and authenticated patient messages never consume the guest limit."""
     return (
         db.query(ChatMessage)
-        .filter(ChatMessage.session_id == session_id, ChatMessage.is_bot_reply == False)
+        .filter(
+            ChatMessage.session_id == session_id,
+            ChatMessage.is_bot_reply == False,  # noqa: E712
+            ChatMessage.sender_id.is_(None),
+        )
         .count()
     )
 
@@ -111,10 +117,10 @@ async def _dispatch_chat_message(
     }
     await chat_hub.send_to_room(session_id, user_payload)
 
-    # 3. If patient inquiry, trigger automated FAQ bot reply
+    # 3. If patient inquiry, trigger automated FAQ bot reply (off the event loop)
     bot_payload = None
     if sender_role.lower() not in ("staff", "doctor", "admin", "bot"):
-        bot_reply = get_bot_response(msg_text)
+        bot_reply = await get_bot_response_async(msg_text)
         bot_msg = ChatMessage(
             session_id=session_id,
             sender_name="Clinic Assistant Bot",

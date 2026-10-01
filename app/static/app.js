@@ -329,6 +329,15 @@
         showTab(tabDoctor, mobTabDoctor, true);
         showTab(tabStaff, mobTabStaff, false);
         showTab(tabAnalytics, mobTabAnalytics, false);
+        const bannerName = document.getElementById('doctorBannerName');
+        if (bannerName) bannerName.textContent = state.user.full_name || 'Doctor';
+        const prof = state.user.doctor_profile;
+        if (prof) {
+          const bannerRoom = document.getElementById('doctorBannerRoom');
+          if (bannerRoom) bannerRoom.textContent = `${prof.room_number || 'Room N/A'} \u2022 Active Consultations`;
+          const bannerSpec = document.getElementById('doctorBannerSpec');
+          if (bannerSpec) bannerSpec.textContent = `${prof.specialization || 'General Medicine'} \u2022 HIPAA Compliant Clinical EMR`;
+        }
       } else if (state.user.role === 'staff') {
         showTab(tabPatient, mobTabPatient, false);
         showTab(tabDoctor, mobTabDoctor, false);
@@ -545,6 +554,16 @@
       }
       if (loginForm) loginForm.classList.remove('hidden');
       if (regForm) regForm.classList.add('hidden');
+    }
+
+    // Staff and admin accounts are admin-provisioned only: hide their sign-up pills
+    ['staff', 'admin'].forEach(r => {
+      const pill = document.getElementById(`pill-${r}`);
+      if (pill) pill.classList.toggle('hidden', currentPortalMode === 'register');
+    });
+    if (currentPortalMode === 'register' && (currentLoginRole === 'staff' || currentLoginRole === 'admin')) {
+      switchLoginRole('patient');
+      return;
     }
 
     updatePortalHeader();
@@ -1118,10 +1137,14 @@
       return;
     }
     const doctorId = parseInt(document.getElementById('appointmentDoctorSelect')?.value, 10);
+    if (!doctorId) {
+      showToast('Please select a doctor before taking a queue ticket', 'error');
+      return;
+    }
     try {
       const res = await apiFetch(API.queue.issue, {
         method: 'POST',
-        body: doctorId ? { doctor_id: doctorId, priority: 'normal' } : { priority: 'normal' },
+        body: { doctor_id: doctorId, priority: 'normal' },
       });
       state.myTicket = res.ticket_number;
       localStorage.setItem('my_ticket', state.myTicket);
@@ -1304,9 +1327,9 @@
       }
 
       list.innerHTML = data.map(app => `
-        <div onclick="window.ClinicApp.selectConsultationPatient(${app.patient_id}, '${escapeHTML(app.patient_name || 'Patient')}')"
-             class="schedule-patient-item p-3 rounded-xl bg-white hover:bg-brand-50/70 border border-stone-200/80 text-xs flex justify-between items-center gap-2 cursor-pointer transition-all shadow-sm hover:border-brand-300"
-             data-patient-id="${app.patient_id}">
+        <div class="schedule-patient-item p-3 rounded-xl bg-white hover:bg-brand-50/70 border border-stone-200/80 text-xs flex justify-between items-center gap-2 cursor-pointer transition-all shadow-sm hover:border-brand-300"
+             data-patient-id="${parseInt(app.patient_id, 10) || ''}"
+             data-patient-name="${escapeHTML(app.patient_name || 'Patient')}">
           <div class="min-w-0">
             <span class="font-bold text-stone-900 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
             <span class="text-stone-500 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
@@ -1339,6 +1362,16 @@
 
     showToast(`Loaded clinical record for ${patientName || `Patient #${patientId}`}`, 'info');
   }
+
+  // One delegated handler for schedule rows: no dynamic inline JS, so patient
+  // controlled text can never reach a JS execution context (XSS fix).
+  document.addEventListener('click', (e) => {
+    const row = e.target.closest('.schedule-patient-item');
+    if (!row) return;
+    const pid = parseInt(row.getAttribute('data-patient-id'), 10);
+    if (!pid) return;
+    selectConsultationPatient(pid, row.getAttribute('data-patient-name') || '');
+  });
 
   // EMR & Prescriptions
   async function searchPatientEMR(explicitId = null) {
@@ -1454,7 +1487,7 @@
           <p class="text-[11px] text-brand-800">Prescription #${res.prescription_id} securely saved and linked to patient record.</p>
         `;
       }
-      showToast('Digital prescription generated with tamper-proof QR hash!', 'success');
+      showToast('Digital prescription generated with verification hash!', 'success');
       searchPatientEMR(patientId);
     } catch (err) {
       showToast(`Prescription creation failed: ${err.message}`, 'error');
@@ -1482,6 +1515,8 @@
     const oFee = parseFloat(document.getElementById('billOther').value) || 0;
     const discount = parseFloat(document.getElementById('billDiscount').value) || 0;
     const method = document.getElementById('billPaymentMethod').value;
+    const submitBtn = document.getElementById('billingSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
       const res = await apiFetch(API.billing.create, {
@@ -1512,6 +1547,8 @@
       showToast(`Invoice ${res.receipt_number} generated!`, 'success');
     } catch (err) {
       showToast(`Invoice generation failed: ${err.message}`, 'error');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
   // Feedback & Sentiment Analytics
@@ -2061,7 +2098,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.9.3';
+  const APP_BUILD_VERSION = '2.10.0';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
@@ -18,6 +19,19 @@ class IssueTicketRequest(BaseModel):
     # ponytail: staff may issue walk-ins for another patient; patients are always self-issued
     patient_id: Optional[int] = None
     priority: Literal["normal", "urgent"] = "normal"
+
+
+class AdvanceTicketRequest(BaseModel):
+    ticket_id: int
+    to: Literal["in_consultation", "completed", "cancelled"]
+
+
+# Allowed status transitions for /advance; everything else 409s.
+ADVANCE_FROM = {
+    "in_consultation": {QueueStatus.CALLED},
+    "completed": {QueueStatus.CALLED, QueueStatus.IN_CONSULTATION},
+    "cancelled": {QueueStatus.WAITING, QueueStatus.CALLED},
+}
 
 
 @router.get("/live-status")
@@ -69,7 +83,10 @@ async def issue_ticket(
 
     active = (
         db.query(QueueTicket)
-        .filter(QueueTicket.patient_id == patient.id, QueueTicket.status == QueueStatus.WAITING)
+        .filter(
+            QueueTicket.patient_id == patient.id,
+            QueueTicket.status.in_([QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_CONSULTATION]),
+        )
         .first()
     )
     if active:
@@ -78,12 +95,15 @@ async def issue_ticket(
             detail=f"Patient already has an active ticket ({active.ticket_number})",
         )
 
-    # ponytail: count+101 + unique-constraint retry; switch to a counter table/sequence if volume grows
+    # ponytail: MAX+1 + unique-constraint retry survives restores/deletions where
+    # count+101 deadlocked; switch to a counter table/sequence if contention grows
     ticket = None
     for _ in range(5):
-        ticket_num = f"Q-{db.query(QueueTicket).count() + 101}"
+        max_num = db.execute(
+            text("SELECT COALESCE(MAX(CAST(SUBSTR(ticket_number, 3) AS INTEGER)), 100) FROM queue_tickets")
+        ).scalar()
         candidate = QueueTicket(
-            ticket_number=ticket_num,
+            ticket_number=f"Q-{max_num + 1}",
             patient_id=patient.id,
             doctor_id=data.doctor_id,
             status=QueueStatus.WAITING,
@@ -97,6 +117,16 @@ async def issue_ticket(
             break
         except IntegrityError:
             db.rollback()
+            still_active = (
+                db.query(QueueTicket)
+                .filter(QueueTicket.patient_id == patient.id, QueueTicket.status == QueueStatus.WAITING)
+                .first()
+            )
+            if still_active:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Patient already has an active ticket ({still_active.ticket_number})",
+                )
     if ticket is None:
         raise HTTPException(status_code=503, detail="Could not allocate a ticket number, please retry")
     db.refresh(ticket)
@@ -114,7 +144,8 @@ async def call_next_patient(
     first = (
         db.query(QueueTicket.id)
         .filter(QueueTicket.doctor_id == doctor_id, QueueTicket.status == QueueStatus.WAITING)
-        .order_by(QueueTicket.id.asc())
+        # Urgent triage jumps the line; ties resolve in issuance order.
+        .order_by((QueueTicket.priority == "urgent").desc(), QueueTicket.id.asc())
         .first()
     )
     if not first:
@@ -141,6 +172,46 @@ async def call_next_patient(
         "room_number": room_num,
     })
     return {"status": "success", "called_ticket": next_ticket.ticket_number}
+
+
+@router.post("/advance")
+async def advance_ticket(
+    data: AdvanceTicketRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STAFF, UserRole.DOCTOR, UserRole.ADMIN])),
+):
+    """Move a ticket through its lifecycle: CALLED -> IN_CONSULTATION -> COMPLETED,
+    or CANCELLED for no-shows/waiting cancellations."""
+    target = QueueStatus(data.to)
+    updates: dict = {"status": target}
+    if target == QueueStatus.COMPLETED:
+        updates["completed_at"] = datetime.now(timezone.utc)
+
+    updated = (
+        db.query(QueueTicket)
+        .filter(QueueTicket.id == data.ticket_id, QueueTicket.status.in_(ADVANCE_FROM[data.to]))
+        .update(updates, synchronize_session=False)
+    )
+    db.commit()
+    if not updated:
+        raise HTTPException(
+            status_code=409,
+            detail="Ticket is not in a state that allows this transition",
+        )
+
+    ticket = db.get(QueueTicket, data.ticket_id)
+    room_num = ticket.doctor.room_number if ticket.doctor else "N/A"
+    await queue_manager.broadcast({
+        "event": "QUEUE_UPDATED",
+        "ticket": ticket.ticket_number,
+        "status": data.to,
+    })
+    return {
+        "status": "success",
+        "ticket_number": ticket.ticket_number,
+        "ticket_status": data.to,
+        "room_number": room_num,
+    }
 
 
 @router.websocket("/ws")

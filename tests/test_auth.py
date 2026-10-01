@@ -281,7 +281,7 @@ def test_auth_router_endpoints(db_session):
     assert doc_data["user"]["role"] == "doctor"
     assert doc_data["user"]["doctor_id"] is not None
 
-    # 9. Staff registration
+    # 9. Staff self-registration is now rejected (admin-provisioned only)
     staff_res = client.post("/api/auth/register", json={
         "email": "nurse.jackie@clinic.test",
         "password": "password123",
@@ -289,11 +289,9 @@ def test_auth_router_endpoints(db_session):
         "role": "staff",
         "phone": "555-8888",
     })
-    assert staff_res.status_code == 201
-    staff_data = staff_res.json()
-    assert staff_data["user"]["role"] == "staff"
+    assert staff_res.status_code == 403
 
-    # 10. Admin registration
+    # 10. Admin self-registration is now rejected (first-run setup or another admin)
     admin_res = client.post("/api/auth/register", json={
         "email": "head.admin@clinic.test",
         "password": "password123",
@@ -301,6 +299,107 @@ def test_auth_router_endpoints(db_session):
         "role": "admin",
         "phone": "555-9999",
     })
-    assert admin_res.status_code == 201
-    admin_data = admin_res.json()
-    assert admin_data["user"]["role"] == "admin"
+    assert admin_res.status_code == 403
+
+
+def _client_with_routers(db_session, include_admin=False):
+    test_app = FastAPI()
+    test_app.include_router(auth_router)
+    if include_admin:
+        from app.routers.admin import router as admin_router
+        test_app.include_router(admin_router)
+
+    from app.database import get_db
+
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    test_app.dependency_overrides[get_db] = override_get_db
+    return TestClient(test_app)
+
+
+def test_setup_admin_first_run_flow(db_session):
+    client = _client_with_routers(db_session)
+
+    res = client.get("/api/auth/setup-status")
+    assert res.status_code == 200
+    assert res.json() == {"initialized": False}
+
+    payload = {
+        "full_name": "Clinic Director",
+        "email": "director@clinic.test",
+        "password": "strongPassword123",
+        "phone": "555-0100",
+    }
+    res = client.post("/api/auth/setup-admin", json=payload)
+    assert res.status_code == 200
+    assert res.json()["user"]["role"] == "admin"
+    assert "access_token" in res.cookies
+
+    # Second attempt is permanently locked
+    res2 = client.post("/api/auth/setup-admin", json=payload)
+    assert res2.status_code == 403
+
+    res3 = client.get("/api/auth/setup-status")
+    assert res3.json() == {"initialized": True}
+
+    # Weak password rejected before the lock check creates anything else
+    db_session.delete(db_session.query(User).filter(User.role == UserRole.ADMIN).first())
+    db_session.commit()
+    res4 = client.post("/api/auth/setup-admin", json={
+        "full_name": "Weak", "email": "weak@clinic.test", "password": "123",
+    })
+    assert res4.status_code == 400
+
+
+def test_admin_user_management_endpoints(db_session):
+    seed_demo_data(db_session)
+    client = _client_with_routers(db_session, include_admin=True)
+
+    # Anonymous -> 401
+    assert client.get("/api/admin/users").status_code == 401
+    assert client.post("/api/admin/users", json={
+        "full_name": "X", "email": "x@clinic.test", "password": "password123", "role": "staff",
+    }).status_code == 401
+
+    # Patient -> 403
+    pat_token = create_access_token({"sub": "patient@demo.com", "role": "patient"})
+    pat_headers = {"Authorization": f"Bearer {pat_token}"}
+    assert client.get("/api/admin/users", headers=pat_headers).status_code == 403
+
+    # Admin creates a staff member
+    admin_token = create_access_token({"sub": "admin@demo.com", "role": "admin"})
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    res_staff = client.post("/api/admin/users", headers=admin_headers, json={
+        "full_name": "Jackie Peyton", "email": "nurse.jackie@clinic.test",
+        "password": "password123", "phone": "555-8888", "role": "staff",
+    })
+    assert res_staff.status_code == 201
+    assert res_staff.json()["user"]["role"] == "staff"
+
+    # Admin creates a doctor with credentials
+    res_doc = client.post("/api/admin/users", headers=admin_headers, json={
+        "full_name": "Dr. Marcus Vance", "email": "vance@clinic.test",
+        "password": "password123", "role": "doctor",
+        "specialization": "Pediatrics", "license_number": "MD-55421",
+        "room_number": "Room 204", "consultation_fee": 75.00,
+    })
+    assert res_doc.status_code == 201
+    assert res_doc.json()["user"]["role"] == "doctor"
+    assert res_doc.json()["user"]["doctor_id"] is not None
+
+    # Duplicate email rejected; staff/admin roles rejected from the wire
+    assert client.post("/api/admin/users", headers=admin_headers, json={
+        "full_name": "Dup", "email": "vance@clinic.test", "password": "password123", "role": "staff",
+    }).status_code == 400
+
+    # List shows the provisioned accounts
+    res_list = client.get("/api/admin/users", headers=admin_headers)
+    assert res_list.status_code == 200
+    emails = [u["email"] for u in res_list.json()]
+    assert "nurse.jackie@clinic.test" in emails
+    assert "vance@clinic.test" in emails

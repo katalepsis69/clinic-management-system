@@ -7,7 +7,7 @@ logger = logging.getLogger("audit")
 class AuditLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        if request.url.path.startswith(("/api/emr", "/api/billing", "/api/patients")):
+        if request.url.path.startswith(("/api/emr", "/api/billing", "/api/auth/me", "/api/auth/profile", "/api/chat/history", "/api/admin")):
             # ponytail: structured audit access log; ship to remote SIEM/CloudWatch when configured
             client_ip = request.client.host if request.client else "unknown"
             logger.info(

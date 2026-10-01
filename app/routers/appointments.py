@@ -4,11 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field
+from app.config import get_settings
 from app.database import get_db
 from app.models import Appointment, AppointmentStatus, Doctor, Patient, User, UserRole
 from app.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/appointments", tags=["Appointments & Schedule"])
+settings = get_settings()
 
 
 class BookAppointmentRequest(BaseModel):
@@ -49,7 +51,7 @@ def book_appointment(
         raise HTTPException(
             status_code=400, detail="Invalid date format, expected YYYY-MM-DD"
         )
-    if app_date < date.today():
+    if app_date < settings.clinic_today():
         raise HTTPException(status_code=400, detail="Appointment date cannot be in the past")
 
     doctor = db.query(Doctor).filter(Doctor.id == data.doctor_id).first()
@@ -108,7 +110,7 @@ def get_doctor_schedule(
                 status_code=400, detail="Invalid date format, expected YYYY-MM-DD"
             )
     else:
-        target_date = date.today()
+        target_date = settings.clinic_today()
 
     apps = (
         db.query(Appointment)
@@ -123,6 +125,7 @@ def get_doctor_schedule(
     return [
         {
             "id": a.id,
+            "patient_id": a.patient_id,
             "patient_name": a.patient.user.full_name if a.patient and a.patient.user else "Unknown",
             "patient_phone": a.patient.user.phone if a.patient and a.patient.user else None,
             "time_slot": a.time_slot,
@@ -131,3 +134,36 @@ def get_doctor_schedule(
         }
         for a in apps
     ]
+
+
+@router.post("/{appointment_id}/cancel")
+def cancel_appointment(
+    appointment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Cancel an appointment. The owning patient, the appointment's doctor, or
+    staff/admin may cancel. Reschedule = cancel + book again (the freed slot is
+    immediately bookable thanks to the partial unique index)."""
+    appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    allowed = False
+    if current_user.role in (UserRole.STAFF, UserRole.ADMIN):
+        allowed = True
+    elif current_user.role == UserRole.PATIENT:
+        patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+        allowed = patient is not None and appointment.patient_id == patient.id
+    elif current_user.role == UserRole.DOCTOR:
+        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+        allowed = doctor is not None and appointment.doctor_id == doctor.id
+    if not allowed:
+        raise HTTPException(status_code=403, detail="Not allowed to cancel this appointment")
+
+    if appointment.status == AppointmentStatus.CANCELLED:
+        raise HTTPException(status_code=409, detail="Appointment is already cancelled")
+
+    appointment.status = AppointmentStatus.CANCELLED
+    db.commit()
+    return {"status": "success", "appointment_id": appointment.id, "appointment_status": "cancelled"}

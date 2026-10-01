@@ -13,6 +13,7 @@ from app.models import (
     User,
     UserRole,
     Patient,
+    Doctor,
     QueueTicket,
     Invoice,
 )
@@ -209,13 +210,14 @@ def test_create_invoice_success_admin_with_queue_ticket(client, db_session):
     db_session.commit()
 
     patient = Patient(user_id=u_pat.id, gender="Female")
-    db_session.add(patient)
+    doc = Doctor(user_id=u_doc.id, specialization="Gen", license_number="L", room_number="R")
+    db_session.add_all([patient, doc])
     db_session.commit()
 
     ticket = QueueTicket(
         ticket_number="A010",
         patient_id=patient.id,
-        doctor_id=u_doc.id,
+        doctor_id=doc.id,
     )
     db_session.add(ticket)
     db_session.commit()

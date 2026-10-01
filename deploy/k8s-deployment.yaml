@@ -17,6 +17,12 @@ spec:
       containers:
         - name: api
           image: clinic-management:latest
+          # clinic-secrets must contain:
+          #   DATABASE_URL  - managed Postgres (per-pod SQLite is ephemeral and unsafe with >1 replica)
+          #   SECRET_KEY    - strong random value (required when DEMO_MODE is false)
+          #   GEMINI_API_KEY / GEMINI_API_KEYS - chat bot keys (optional; FAQ fallback without)
+          # NOTE: WS broadcast and the login throttle are per-process; run 1 replica
+          # or 1 worker until Redis fan-out exists (see audit remediation item 13).
           command: ["gunicorn", "-c", "gunicorn_conf.py", "app.main:app"]
           ports:
             - containerPort: 8000
@@ -36,6 +42,13 @@ spec:
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 3
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

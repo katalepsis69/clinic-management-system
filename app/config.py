@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -9,10 +10,18 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     DATABASE_URL: str = "sqlite:///./data/clinic.db"
     DEMO_MODE: bool = True
+    # ponytail: fixed PHT offset (Philippine clinics have no DST); switch to
+    # zoneinfo only if the clinic ever moves to a DST timezone
+    CLINIC_UTC_OFFSET: int = 8
     GEMINI_API_KEY: str = ""
     GEMINI_API_KEYS: str = ""
-    GEMINI_MODEL: str = "gemini-3-flash-preview"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
     ENABLE_WEB_SEARCH: bool = True
+
+    def clinic_today(self) -> date:
+        """The clinic's local calendar date, independent of the server clock."""
+        now = datetime.now(timezone.utc) + timedelta(hours=self.CLINIC_UTC_OFFSET)
+        return now.date()
 
     def get_gemini_keys(self) -> list[str]:
         """Return list of non-empty API keys for round-robin / fallback pool."""

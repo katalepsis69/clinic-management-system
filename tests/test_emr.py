@@ -533,3 +533,26 @@ def test_emr_full_flow_create_and_view(client, db_session):
     assert rx_item["qr_code_hash"] == qr_hash
     assert len(rx_item["medications"]) == 1
     assert rx_item["medications"][0]["drug_name"] == "Antihistamine Syrup"
+
+
+def test_emr_tolerates_malformed_medications_json(client, db_session):
+    """A hand-edited or imported prescription row must not 500 the chart view."""
+    u_doc = User(email="dr.badjson@clinic.test", hashed_password="pw", full_name="Dr. Bad Json", role=UserRole.DOCTOR)
+    u_pat = User(email="pat.badjson@clinic.test", hashed_password="pw", full_name="Pat Bad Json", role=UserRole.PATIENT)
+    db_session.add_all([u_doc, u_pat])
+    db_session.commit()
+    doc = Doctor(user_id=u_doc.id, specialization="Gen", license_number="L", room_number="R")
+    pat = Patient(user_id=u_pat.id)
+    db_session.add_all([doc, pat])
+    db_session.commit()
+
+    db_session.add(Prescription(
+        patient_id=pat.id, doctor_id=doc.id, diagnosis="Broken Row",
+        medications_json="{this is not json", qr_code_hash="DEADBEEFDEADBEEF",
+    ))
+    db_session.commit()
+
+    token = create_access_token({"sub": u_doc.email, "role": "doctor"})
+    res = client.get(f"/api/emr/patient/{pat.id}", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 200
+    assert res.json()["prescriptions"][0]["medications"] == []

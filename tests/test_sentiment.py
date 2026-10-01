@@ -233,3 +233,16 @@ def test_feedback_analytics_with_data(client, db_session):
     assert len(data["items"]) == 2
     assert data["items"][0]["rating"] in [1, 5]
     assert "created_at" in data["items"][0]
+
+
+def test_feedback_analytics_forbidden_for_doctor(client, db_session):
+    """Feedback comments are staff/admin material; doctors no longer read
+    reviews about other doctors."""
+    u_doc = User(email="doc.nosniff@demo.com", full_name="Dr. No Sniff", role=UserRole.DOCTOR, hashed_password="pw")
+    db_session.add(u_doc)
+    db_session.commit()
+
+    res = client.get("/api/feedback/analytics", headers={
+        "Authorization": f"Bearer {create_access_token({'sub': u_doc.email, 'role': 'doctor'})}"
+    })
+    assert res.status_code == 403

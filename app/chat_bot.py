@@ -1,5 +1,6 @@
 """AI & FAQ Bot Engine for Clinic Assistant with Multi-Key Rotation and Bilingual Support."""
 
+import asyncio
 import logging
 import re
 from app.config import get_settings
@@ -8,7 +9,10 @@ logger = logging.getLogger(__name__)
 
 FAQ_RULES = [
     (
-        ["emergency", "urgent", "ambulance", "severe", "critical", "911", "sakuna", "malubha", "ospital", "delikado"],
+        ["emergency", "urgent", "ambulance", "severe", "critical", "911", "sakuna", "malubha", "ospital", "delikado",
+         "chest pain", "heart attack", "atake sa puso", "can't breathe", "cant breathe", "cannot breathe",
+         "not breathing", "difficulty breathing", "trouble breathing", "shortness of breath", "unconscious",
+         "seizure", "stroke", "hindi makahinga", "hirap huminga", "nahihimatay"],
         "For severe life-threatening emergencies, please call 911 or proceed immediately to the nearest hospital Emergency Room. / Para sa malulubhang emergency, tumawag agad sa 911 o pumunta sa pinakamalapit na Emergency Room."
     ),
     (
@@ -68,6 +72,20 @@ class KeyRotationPool:
 
 
 key_pool = KeyRotationPool()
+
+# ponytail: one client per key, built lazily; genai.Client is threadsafe for
+# sequential chat calls and building one per attempt wasted setup per message
+_client_cache: dict = {}
+
+
+def _get_client(api_key: str):
+    from google import genai
+
+    client = _client_cache.get(api_key)
+    if client is None:
+        client = genai.Client(api_key=api_key)
+        _client_cache[api_key] = client
+    return client
 
 
 def _get_matching_faq(message: str):
@@ -167,7 +185,7 @@ def get_bot_response(message: str) -> str:
                     from google import genai
                     from google.genai import types
 
-                    client = genai.Client(api_key=active_key)
+                    client = _get_client(active_key)
                     tools = [types.Tool(google_search=types.GoogleSearch())] if use_search else None
 
                     # Disable thinking budget (budget=0) to cut latency from ~10s to ~1.8s
@@ -200,19 +218,37 @@ def get_bot_response(message: str) -> str:
                     err_str = str(exc).lower()
                     # If web search grounding specifically threw 429/quota error, let loop retry without search
                     if use_search and any(q in err_str for q in ["429", "resource_exhausted", "quota"]):
+                        # Log exception type only; SDK payloads can echo request content
                         logger.info(
-                            "Web search grounding quota unavailable on model %s for category %s, falling back to internal knowledge: %s",
-                            model_name, category, exc
+                            "Web search grounding quota unavailable on model %s for category %s (%s)",
+                            model_name, category, type(exc).__name__
                         )
                         continue
                     # If model failed with rate limit or demand spike, step to next candidate model
                     if any(q in err_str for q in ["429", "resource_exhausted", "quota", "ratelimit", "503", "unavailable", "404", "not_found"]):
-                        logger.warning("Model %s failed (%s); trying fallback model...", model_name, exc)
+                        logger.warning("Model %s failed (%s); trying fallback model...", model_name, type(exc).__name__)
                         break
-                    logger.exception("Gemini API error on model %s: %s", model_name, exc)
+                    logger.error("Gemini API error on model %s: %s: %.200s", model_name, type(exc).__name__, str(exc))
                     break
 
         key_pool.rotate_key()
         attempts += 1
 
     return _get_faq_response(message)
+
+
+GEMINI_CALL_TIMEOUT_SECONDS = 60
+
+
+async def get_bot_response_async(message: str) -> str:
+    """Offload the synchronous Gemini chain to a worker thread so the shared
+    event loop never blocks on upstream latency. Falls back to the FAQ reply
+    on timeout; the thread itself cannot be cancelled and finishes in background."""
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(get_bot_response, message),
+            timeout=GEMINI_CALL_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Gemini chain exceeded %ds; returning FAQ fallback", GEMINI_CALL_TIMEOUT_SECONDS)
+        return _get_faq_response(message)

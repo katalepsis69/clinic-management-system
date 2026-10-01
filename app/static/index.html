@@ -721,7 +721,7 @@
               </div>
               <div class="flex items-center gap-2 mb-2">
                 <h4 class="text-base font-bold text-stone-900 tracking-tight">Clinical EMR &amp; Rx</h4>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700">SHA-256 HMAC</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700">Verification Hash</span>
               </div>
               <p class="text-xs text-stone-600 leading-relaxed">
                 Patient medical histories, allergies tracking, and digital consultation notes with cryptographic verification tags ensuring authentic prescriptions.
@@ -731,7 +731,7 @@
                 <svg class="icon w-4 h-4 text-violet-600 shrink-0" aria-hidden="true"><use href="#i-pill"/></svg>
                 <div class="min-w-0">
                   <span class="text-[11px] font-bold text-violet-900 block truncate">Digital Rx Verification</span>
-                  <span class="text-[10px] font-mono text-violet-700 truncate block">sig: 7f8a...c93b (Verified)</span>
+                  <span class="text-[10px] font-mono text-violet-700 truncate block">hash: 7f8a...c93b</span>
                 </div>
               </div>
             </div>
@@ -1061,10 +1061,10 @@
           </div>
           <div class="min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-lg sm:text-xl font-bold text-stone-900 tracking-tight truncate">Dr. Emily Stone</h2>
-              <span class="pill bg-brand-50 text-brand-700 border border-brand-200/60 font-semibold text-[11px]">Room 102 &bull; Active Consultations</span>
+              <h2 class="text-lg sm:text-xl font-bold text-stone-900 tracking-tight truncate" id="doctorBannerName">Doctor</h2>
+              <span class="pill bg-brand-50 text-brand-700 border border-brand-200/60 font-semibold text-[11px]" id="doctorBannerRoom">Active Consultations</span>
             </div>
-            <p class="text-xs text-stone-500 truncate mt-0.5">Cardiology &amp; General Internal Medicine &bull; HIPAA Compliant Clinical EMR</p>
+            <p class="text-xs text-stone-500 truncate mt-0.5" id="doctorBannerSpec">Clinical EMR</p>
           </div>
         </div>
 
@@ -1424,7 +1424,7 @@
                   <select id="billPaymentMethod" class="select !py-2 text-xs">
                     <option value="cash">Cash Payment</option>
                     <option value="credit_card">Credit / Debit Card</option>
-                    <option value="insurance">Health Insurance Claim</option>
+                    <option value="qr_ewallet">QR E-Wallet</option>
                   </select>
                 </div>
               </div>
@@ -1435,7 +1435,7 @@
                 <span id="billTotalPreview" class="text-xl font-black text-stone-900 font-mono">$85.00</span>
               </div>
 
-              <button type="submit" class="btn btn-dark w-full shadow-sm">
+              <button type="submit" id="billingSubmitBtn" class="btn btn-dark w-full shadow-sm">
                 <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-card"/></svg>
                 <span>Generate Invoice &amp; Finalize Payment</span>
               </button>
@@ -1827,6 +1827,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.9.3"></script>
+  <script src="/static/app.js?v=2.10.0"></script>
 </body>
 </html>

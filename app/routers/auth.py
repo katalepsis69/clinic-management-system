@@ -35,6 +35,9 @@ def _rate_limited(email: str) -> bool:
 
 
 def _record_failure(email: str):
+    # ponytail: blunt size cap; per-key expiry sweep if abuse is ever observed
+    if len(_FAILED_LOGINS) > 10000:
+        _FAILED_LOGINS.clear()
     _FAILED_LOGINS.setdefault(email, []).append(time.monotonic())
 
 
@@ -58,6 +61,12 @@ def _user_profile(user: User) -> dict:
             "emergency_contact_phone": user.patient.emergency_contact_phone,
             "allergies": user.patient.allergies,
             "medical_history": user.patient.medical_history,
+        }
+    if user.doctor:
+        data["doctor_profile"] = {
+            "specialization": user.doctor.specialization,
+            "room_number": user.doctor.room_number,
+            "consultation_fee": float(user.doctor.consultation_fee) if user.doctor.consultation_fee is not None else None,
         }
     return data
 
@@ -132,6 +141,60 @@ def get_me(current_user: User = Depends(get_current_user)):
     return _user_profile(current_user)
 
 
+class SetupAdminPayload(BaseModel):
+    full_name: str
+    email: str
+    password: str
+    phone: Optional[str] = None
+
+
+@router.get("/setup-status")
+def setup_status(db: Session = Depends(get_db)):
+    """Public: true once any administrator exists; gates the first-run wizard."""
+    initialized = db.query(User).filter(User.role == UserRole.ADMIN).first() is not None
+    return {"initialized": initialized}
+
+
+@router.post("/setup-admin")
+def setup_admin(
+    payload: SetupAdminPayload,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """First-run bootstrap: creates the primary admin, then locks permanently."""
+    if db.query(User).filter(User.role == UserRole.ADMIN).first() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="System already initialized",
+        )
+    email = payload.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required")
+    if not payload.password or len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    if not payload.full_name or not payload.full_name.strip():
+        raise HTTPException(status_code=400, detail="Full name is required")
+
+    user = User(
+        email=email,
+        hashed_password=get_password_hash(payload.password),
+        full_name=payload.full_name.strip(),
+        phone=payload.phone.strip() if payload.phone else None,
+        role=UserRole.ADMIN,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token({"sub": user.email, "role": user.role.value})
+    _set_auth_cookie(response, token)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": _user_profile(user),
+    }
+
+
 class RegisterUserPayload(BaseModel):
     email: str
     password: str
@@ -173,11 +236,14 @@ def register_user(
         raise HTTPException(status_code=400, detail="An account with this email already exists")
 
     target_role_str = (payload.role or "patient").strip().lower()
+    if target_role_str in ("staff", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff and admin accounts cannot be self-registered. Ask an administrator to provision one via /api/admin/users.",
+        )
     role_map = {
         "patient": UserRole.PATIENT,
         "doctor": UserRole.DOCTOR,
-        "staff": UserRole.STAFF,
-        "admin": UserRole.ADMIN,
     }
     user_role = role_map.get(target_role_str, UserRole.PATIENT)
 
