@@ -1996,10 +1996,19 @@
 
   function clearChat() {
     if (!confirm('Clear this chat conversation?')) return;
-    state.chatSessionId = crypto.randomUUID();
-    localStorage.setItem('chat_session_id', state.chatSessionId);
-    state.guestChatRemaining = 5;
-    updateChatGuestUI(5);
+    if (state.user) {
+      // Signed in: a fresh session starts a clean transcript bound to the account.
+      state.chatSessionId = crypto.randomUUID();
+      localStorage.setItem('chat_session_id', state.chatSessionId);
+      state.guestChatRemaining = 5;
+      updateChatGuestUI(5);
+      if (state.chatWs) {
+        try { state.chatWs.close(); } catch (_) {}
+        initChatWebSocket();
+      }
+    }
+    // Guests keep their session id: clearing the transcript must not reset the
+    // 5-message limit, so this only wipes the visible conversation.
     hideTypingIndicator();
     const box = document.getElementById('chatMessages');
     if (box) {
@@ -2011,10 +2020,6 @@
           </div>
         </div>
       `;
-    }
-    if (state.chatWs) {
-      try { state.chatWs.close(); } catch (_) {}
-      initChatWebSocket();
     }
     showToast('Conversation cleared', 'info');
   }
