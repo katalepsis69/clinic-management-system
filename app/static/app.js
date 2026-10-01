@@ -2154,7 +2154,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.11.0';
+  const APP_BUILD_VERSION = '2.11.1';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
