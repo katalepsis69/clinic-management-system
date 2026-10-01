@@ -1,6 +1,8 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
-sqlalchemy>=2.0.35
+# ponytail: <2.1 required — SQLAlchemy 2.1 switched the default postgresql://
+# driver from psycopg2 (shipped here) to psycopg3 (not shipped); drift broke deploys
+sqlalchemy>=2.0.35,<2.1
 pydantic>=2.9.0
 pydantic-settings>=2.5.0
 PyJWT>=2.9.0
