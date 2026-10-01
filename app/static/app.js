@@ -334,9 +334,9 @@
         const prof = state.user.doctor_profile;
         if (prof) {
           const bannerRoom = document.getElementById('doctorBannerRoom');
-          if (bannerRoom) bannerRoom.textContent = `${prof.room_number || 'Room N/A'} \u2022 Active Consultations`;
+          if (bannerRoom) bannerRoom.textContent = `${prof.room_number || 'Room N/A'}`;
           const bannerSpec = document.getElementById('doctorBannerSpec');
-          if (bannerSpec) bannerSpec.textContent = `${prof.specialization || 'General Medicine'} \u2022 HIPAA Compliant Clinical EMR`;
+          if (bannerSpec) bannerSpec.textContent = `${prof.specialization || 'General Medicine'} \u2022 Clinical EMR`;
         }
       } else if (state.user.role === 'staff') {
         showTab(tabPatient, mobTabPatient, false);
@@ -1105,7 +1105,9 @@
 
   function renderQueueData(data) {
     const serving = data.currently_serving || 'None';
-    const room = data.currently_serving_room || 'Room N/A';
+    const hasServing = serving !== 'None';
+    // Room label is meaningless when nobody is serving; show nothing instead of a bare "N/A".
+    const room = hasServing ? (data.currently_serving_room || '') : '';
     const waiting = data.waiting_tickets || [];
     const count = data.waiting_count !== undefined ? data.waiting_count : waiting.length;
     const est = data.estimated_wait_minutes || (count * 10);
@@ -1143,7 +1145,7 @@
 
     // Check if active ticket was served
     if (state.myTicket && serving === state.myTicket) {
-      showToast(`Attention: Your ticket ${state.myTicket} is now being called to ${room}!`, 'success');
+      showToast(`Attention: Your ticket ${state.myTicket} is now being called to ${room || 'your consultation room'}!`, 'success');
     }
 
     // Login-gateway preview box mirrors the same live queue state
@@ -1293,7 +1295,7 @@
 
       if (doctors && doctors.length > 0) {
         const optionsHtml = doctors.map(d => `
-          <option value="${d.id}">${escapeHTML(d.name)} (${escapeHTML(d.specialization)}) - Room ${escapeHTML(String(d.room_number || '102'))}</option>
+          <option value="${d.id}">${escapeHTML(d.name)} (${escapeHTML(d.specialization)}) - ${escapeHTML(String(d.room_number || 'Room 102'))}</option>
         `).join('');
 
         if (appSelect) appSelect.innerHTML = optionsHtml;
@@ -1524,7 +1526,7 @@
             ${qrImg}
             <div class="min-w-0">
               <span class="text-brand-900 font-bold block">Digital Prescription Issued</span>
-              <span class="text-[10px] text-brand-700 font-mono break-all">HASH: ${escapeHTML(res.qr_code_hash)}</span>
+              <span class="text-[10px] text-brand-700 font-mono break-all">CODE: ${escapeHTML(res.qr_code_hash)}</span>
             </div>
           </div>
           <p class="text-[11px] text-brand-800">Prescription #${res.prescription_id} securely saved and linked to patient record.</p>
@@ -1655,11 +1657,11 @@
 
         resBox.innerHTML = `
           <div class="flex justify-between items-center mb-1 gap-2">
-            <span class="font-bold text-stone-800">VADER Sentiment Analysis</span>
+            <span class="font-bold text-stone-800">Sentiment Analysis</span>
             <span class="pill ${badgeColor}">${escapeHTML(sentLabel)}</span>
           </div>
           <div class="text-[11px] text-stone-600">
-            Compound Score: <strong>${sentScore}</strong>
+            Score: <strong>${sentScore}</strong>
             ${isCritical ? '<span class="ml-2 text-red-600 font-bold">CRITICAL ALERT</span>' : ''}
           </div>
         `;
@@ -1686,26 +1688,40 @@
       const totalRev = document.getElementById('statTotalReviews');
 
       const total = data.total ?? data.total_feedbacks ?? 0;
-      const avg = data.avg_rating ?? data.average_rating ?? 5.0;
+      const hasData = total > 0;
+      const avg = hasData ? Number(data.avg_rating ?? data.average_rating ?? 0) : 0;
 
       // Handle both router schema { positive_pct, negative_pct } and legacy distribution object
-      const posPct = data.positive_pct !== undefined ? data.positive_pct :
-        (data.sentiment_distribution ? (data.sentiment_distribution.positive / (total || 1)) * 100 : 0);
-      const negPct = data.negative_pct !== undefined ? data.negative_pct :
-        (data.sentiment_distribution ? (data.sentiment_distribution.negative / (total || 1)) * 100 : 0);
+      const posPct = !hasData ? 0 :
+        (data.positive_pct !== undefined ? data.positive_pct :
+        (data.sentiment_distribution ? (data.sentiment_distribution.positive / (total || 1)) * 100 : 0));
+      const negPct = !hasData ? 0 :
+        (data.negative_pct !== undefined ? data.negative_pct :
+        (data.sentiment_distribution ? (data.sentiment_distribution.negative / (total || 1)) * 100 : 0));
       const neuPct = Math.max(0, Math.round(100 - posPct - negPct));
 
-      const nss = Math.round(posPct - negPct);
+      // No submissions yet: show no numbers rather than values that look real.
+      const nss = hasData ? Math.round(posPct - negPct) : null;
 
       if (nssEl) {
-        nssEl.textContent = (nss >= 0 ? '+' : '') + nss.toFixed(1);
-        nssEl.className = `stat-value ${nss >= 0 ? 'text-brand-600' : 'text-rose-600'}`;
+        nssEl.textContent = nss === null ? 'N/A' : (nss >= 0 ? '+' : '') + nss.toFixed(1);
+        nssEl.className = `stat-value font-mono tracking-tight ${nss === null ? 'text-stone-400' : nss >= 0 ? 'text-brand-600' : 'text-rose-600'}`;
       }
       if (nssStatus) {
-        nssStatus.textContent = nss >= 50 ? 'Excellent Experience' : nss >= 0 ? 'Good / Neutral' : 'Requires Attention';
+        nssStatus.textContent = nss === null ? 'No feedback yet' :
+          nss >= 50 ? 'Excellent Experience' : nss >= 0 ? 'Good / Neutral' : 'Requires Attention';
       }
-      if (avgRating) avgRating.textContent = Number(avg).toFixed(1);
+      if (avgRating) avgRating.textContent = nss === null ? 'N/A' : avg.toFixed(1);
       if (totalRev) totalRev.textContent = total;
+
+      const starsVis = document.getElementById('statStarsVisual');
+      if (starsVis) {
+        starsVis.classList.toggle('hidden', nss === null);
+        if (nss !== null) {
+          const filled = Math.max(0, Math.min(5, Math.round(avg)));
+          starsVis.textContent = '\u2605'.repeat(filled) + '\u2606'.repeat(5 - filled);
+        }
+      }
 
       // Distribution bars
       document.getElementById('distPositivePercent').textContent = `${Math.round(posPct)}%`;
@@ -2154,7 +2170,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.11.1';
+  const APP_BUILD_VERSION = '2.11.2';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
@@ -2211,7 +2227,11 @@
       if (banner && sessionStorage.getItem('pwa_dismissed') !== 'true') {
         banner.classList.remove('hidden');
       }
-      if (headerBtn) headerBtn.classList.remove('hidden');
+      // One install entry point at a time: the header button only when the
+      // banner is dismissed or unavailable.
+      if (headerBtn && (!banner || sessionStorage.getItem('pwa_dismissed') === 'true')) {
+        headerBtn.classList.remove('hidden');
+      }
     });
 
     // 2b. For browsers like Kiwi or Safari that suppress beforeinstallprompt:
@@ -2284,6 +2304,9 @@
     const banner = document.getElementById('pwaInstallBanner');
     if (banner) banner.classList.add('hidden');
     sessionStorage.setItem('pwa_dismissed', 'true');
+    // Keep one install entry point alive after dismissal.
+    const headerBtn = document.getElementById('headerInstallBtn');
+    if (headerBtn && deferredInstallPrompt) headerBtn.classList.remove('hidden');
   }
 
   // Graceful Skeleton Loading Dismissal with Hospitality Wellness Motion

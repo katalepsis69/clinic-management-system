@@ -60,10 +60,11 @@ def get_feedback_analytics(
 
     total = stats[0] or 0
     if total == 0:
+        # Nothing submitted yet: report no numbers instead of defaults that read as real data.
         return {
             "total": 0,
-            "avg_rating": 5.0,
-            "positive_pct": 100,
+            "avg_rating": None,
+            "positive_pct": 0,
             "negative_pct": 0,
             "critical_count": 0,
             "items": [],

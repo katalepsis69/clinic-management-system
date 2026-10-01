@@ -124,7 +124,6 @@
           </button>
 
           <div id="userProfileBadge" class="hidden sm:flex items-center gap-2 bg-stone-100 py-1.5 px-3 rounded-full text-xs font-medium text-stone-700">
-            <span class="w-2 h-2 rounded-full bg-brand-500" aria-hidden="true"></span>
             <span id="currentUserName">Guest</span>
             <span id="currentUserRole" class="uppercase px-2 py-0.5 rounded-full text-[10px] bg-stone-200 text-stone-800 font-bold">Guest</span>
           </div>
@@ -970,7 +969,7 @@
               </span>
               <div>
                 <h3 class="card-title text-base font-bold text-stone-900">Book Doctor Consultation</h3>
-                <p class="card-subtitle text-xs text-stone-500">Reserve an appointment slot with a licensed clinic physician.</p>
+                <p class="card-subtitle text-xs text-stone-500">Reserve an appointment slot with a clinic physician.</p>
               </div>
             </div>
 
@@ -1020,7 +1019,7 @@
               </div>
               <div class="min-w-0">
                 <h4 class="text-xs font-bold text-brand-900 truncate">Have clinical or scheduling questions?</h4>
-                <p class="text-[11px] text-brand-800 truncate">Our 24/7 AI Health Assistant can answer questions in English and Filipino.</p>
+                <p class="text-[11px] text-brand-800 truncate">Our AI Health Assistant can answer questions in English and Filipino.</p>
               </div>
             </div>
             <button type="button" onclick="window.ClinicApp.toggleChat()" class="btn btn-sm btn-outline border-brand-300 text-brand-900 bg-white hover:bg-brand-50 shrink-0">
@@ -1058,11 +1057,11 @@
               <div>
                 <label id="feedbackTagsLabel" class="label">Feedback Tags</label>
                 <div class="flex flex-wrap gap-1.5" id="feedbackTagsGroup" role="group" aria-labelledby="feedbackTagsLabel">
-                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !min-h-[36px] !py-1 text-xs">Friendly Staff</button>
-                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !min-h-[36px] !py-1 text-xs">Short Wait</button>
-                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !min-h-[36px] !py-1 text-xs">Clean Facility</button>
-                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !min-h-[36px] !py-1 text-xs">Attentive Care</button>
-                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !min-h-[36px] !py-1 text-xs">Long Wait</button>
+                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !py-1 text-xs">Friendly Staff</button>
+                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !py-1 text-xs">Short Wait</button>
+                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !py-1 text-xs">Clean Facility</button>
+                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !py-1 text-xs">Attentive Care</button>
+                  <button type="button" onclick="window.ClinicApp.toggleTag(this)" aria-pressed="false" class="chip !py-1 text-xs">Long Wait</button>
                 </div>
               </div>
 
@@ -1097,7 +1096,7 @@
           <div class="min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <h2 class="text-lg sm:text-xl font-bold text-stone-900 tracking-tight truncate" id="doctorBannerName">Doctor</h2>
-              <span class="pill bg-brand-50 text-brand-700 border border-brand-200/60 font-semibold text-[11px]" id="doctorBannerRoom">Active Consultations</span>
+              <span class="pill bg-brand-50 text-brand-700 border border-brand-200/60 font-semibold text-[11px]" id="doctorBannerRoom">Room 102</span>
             </div>
             <p class="text-xs text-stone-500 truncate mt-0.5" id="doctorBannerSpec">Clinical EMR</p>
           </div>
@@ -1206,7 +1205,7 @@
                 </span>
                 <div>
                   <h3 class="card-title text-base font-bold text-stone-900">Issue Verified E-Prescription</h3>
-                  <p class="card-subtitle text-xs text-stone-500">Cryptographically hashed QR code prescription for verified pharmacy dispensing.</p>
+                  <p class="card-subtitle text-xs text-stone-500">Every prescription gets a QR code the pharmacy can verify.</p>
                 </div>
               </div>
             </div>
@@ -1225,11 +1224,11 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label for="rxDiagnosis" class="label">Clinical Diagnosis *</label>
-                  <input type="text" id="rxDiagnosis" value="Acute Bronchitis &amp; Cough" required class="input">
+                  <input type="text" id="rxDiagnosis" placeholder="e.g., Acute bronchitis &amp; cough" required class="input">
                 </div>
                 <div>
                   <label for="rxNotes" class="label">Physician Instructions &amp; Notes</label>
-                  <input type="text" id="rxNotes" value="Follow-up in 7 days if symptoms persist" class="input">
+                  <input type="text" id="rxNotes" placeholder="e.g., Follow-up in 7 days if symptoms persist" class="input">
                 </div>
               </div>
 
@@ -1246,25 +1245,25 @@
                     <div class="grid grid-cols-2 gap-2">
                       <div>
                         <label class="label !text-[10px] !mb-1 text-stone-500">Drug Name</label>
-                        <input type="text" placeholder="e.g. Salbutamol Inhaler" aria-label="Drug name" class="med-name input !px-2.5 !py-1.5 text-xs" value="Salbutamol Inhaler" required>
+                        <input type="text" placeholder="e.g. Salbutamol Inhaler" aria-label="Drug name" class="med-name input !px-2.5 !py-1.5 text-xs" required>
                       </div>
                       <div>
                         <label class="label !text-[10px] !mb-1 text-stone-500">Dosage</label>
-                        <input type="text" placeholder="e.g. 100 mcg" aria-label="Dosage" class="med-dosage input !px-2.5 !py-1.5 text-xs" value="100 mcg" required>
+                        <input type="text" placeholder="e.g. 100 mcg" aria-label="Dosage" class="med-dosage input !px-2.5 !py-1.5 text-xs" required>
                       </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <label class="label !text-[10px] !mb-1 text-stone-500">Frequency</label>
-                        <input type="text" placeholder="e.g. PRN (As needed)" aria-label="Frequency" class="med-freq input !px-2.5 !py-1.5 text-xs" value="PRN (As needed)" required>
+                        <input type="text" placeholder="e.g. PRN (As needed)" aria-label="Frequency" class="med-freq input !px-2.5 !py-1.5 text-xs" required>
                       </div>
                       <div>
                         <label class="label !text-[10px] !mb-1 text-stone-500">Duration</label>
-                        <input type="text" placeholder="e.g. 7 days" aria-label="Duration" class="med-duration input !px-2.5 !py-1.5 text-xs" value="7 days" required>
+                        <input type="text" placeholder="e.g. 7 days" aria-label="Duration" class="med-duration input !px-2.5 !py-1.5 text-xs" required>
                       </div>
                       <div>
                         <label class="label !text-[10px] !mb-1 text-stone-500">Special Instructions</label>
-                        <input type="text" placeholder="e.g. 2 puffs every 4-6h" aria-label="Instructions" class="med-instructions input !px-2.5 !py-1.5 text-xs" value="2 puffs every 4-6h">
+                        <input type="text" placeholder="e.g. 2 puffs every 4-6h" aria-label="Instructions" class="med-instructions input !px-2.5 !py-1.5 text-xs">
                       </div>
                     </div>
                   </div>
@@ -1360,7 +1359,7 @@
                 <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider">
                   Waiting Queue (<span id="staffWaitingCount" class="text-amber-700">0</span>)
                 </h4>
-                <span class="text-[10px] text-stone-400">Real-time WebSocket feed</span>
+                <span class="text-[10px] text-stone-400">Updates live</span>
               </div>
               <div id="staffWaitingList" class="flex flex-wrap gap-1.5 min-h-[48px] max-h-40 overflow-y-auto p-2.5 bg-stone-50 rounded-xl border border-stone-200/80"></div>
             </div>
@@ -1442,11 +1441,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
                     <label for="billConsultation" class="label !mb-1 !text-[11px] !font-medium text-stone-500">Consultation</label>
-                    <input type="number" step="0.01" id="billConsultation" value="60.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-1.5 !px-2.5 text-xs">
+                    <input type="number" step="0.01" id="billConsultation" placeholder="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-1.5 !px-2.5 text-xs">
                   </div>
                   <div>
                     <label for="billMedication" class="label !mb-1 !text-[11px] !font-medium text-stone-500">Medication</label>
-                    <input type="number" step="0.01" id="billMedication" value="25.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-1.5 !px-2.5 text-xs">
+                    <input type="number" step="0.01" id="billMedication" placeholder="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-1.5 !px-2.5 text-xs">
                   </div>
                   <div>
                     <label for="billOther" class="label !mb-1 !text-[11px] !font-medium text-stone-500">Other / Lab</label>
@@ -1473,7 +1472,7 @@
               <!-- Total Preview Box -->
               <div class="p-3.5 rounded-xl bg-stone-50 border border-stone-200/80 flex justify-between items-center">
                 <span class="text-xs font-semibold text-stone-600">Total Payable Amount</span>
-                <span id="billTotalPreview" class="text-xl font-black text-stone-900 font-mono">$85.00</span>
+                <span id="billTotalPreview" class="text-xl font-black text-stone-900 font-mono">$0.00</span>
               </div>
 
               <button type="submit" id="billingSubmitBtn" class="btn btn-dark w-full shadow-sm">
@@ -1502,10 +1501,9 @@
           </div>
           <div class="min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-lg sm:text-xl font-bold text-stone-900 tracking-tight truncate">Clinic Intelligence &amp; Patient Sentiment</h2>
-              <span class="pill bg-brand-50 text-brand-700 border border-brand-200/60 font-semibold text-[11px]">Real-Time VADER Heuristics</span>
+              <h2 class="text-lg sm:text-xl font-bold text-stone-900 tracking-tight truncate">Patient Sentiment Analytics</h2>
             </div>
-            <p class="text-xs text-stone-500 truncate mt-0.5">Automated sentiment triage, quality ratings, and real-time clinical satisfaction metrics.</p>
+            <p class="text-xs text-stone-500 truncate mt-0.5">How patients rate their visits, with alerts when feedback needs attention.</p>
           </div>
         </div>
 
@@ -1518,7 +1516,7 @@
       <!-- KPI Metric Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
         <div class="card card-pad border-stone-200/80 bg-white shadow-sm">
-          <span class="stat-label text-stone-500">Net Sentiment Score (NSS)</span>
+          <span class="stat-label text-stone-500">Overall Sentiment</span>
           <div class="flex items-baseline gap-2 flex-wrap my-1">
             <span id="statNSS" class="stat-value text-brand-600 font-mono tracking-tight">+100.0</span>
             <span class="text-xs text-stone-400 font-medium">(&minus;100 to +100)</span>
@@ -1536,12 +1534,12 @@
         </div>
 
         <div class="card card-pad border-stone-200/80 bg-white shadow-sm">
-          <span class="stat-label text-stone-500">Total Analyzed Feedback</span>
+          <span class="stat-label text-stone-500">Total Feedback</span>
           <div class="flex items-baseline gap-2 my-1">
             <span id="statTotalReviews" class="stat-value text-stone-800 font-mono tracking-tight">0</span>
             <span class="text-xs text-stone-400 font-medium">Verified submissions</span>
           </div>
-          <span class="inline-block mt-1 text-[11px] font-semibold text-stone-500">Continuous sentiment pipeline</span>
+          <span class="inline-block mt-1 text-[11px] font-semibold text-stone-500">Updates with each submission</span>
         </div>
       </div>
 
@@ -1552,7 +1550,7 @@
         <div class="card card-pad border-stone-200/80 bg-white shadow-sm">
           <div class="flex items-center gap-2 mb-4 pb-3 border-b border-stone-100">
             <svg class="icon w-4 h-4 text-brand-600"><use href="#i-chart"/></svg>
-            <h3 class="card-title text-base font-bold text-stone-900">Sentiment Distribution Spectrum</h3>
+            <h3 class="card-title text-base font-bold text-stone-900">Sentiment Distribution</h3>
           </div>
 
           <div class="space-y-4">
@@ -1868,6 +1866,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.11.1"></script>
+  <script src="/static/app.js?v=2.11.2"></script>
 </body>
 </html>

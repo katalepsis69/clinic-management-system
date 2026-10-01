@@ -96,10 +96,11 @@ def test_feedback_analytics_empty(client, db_session):
     res = client.get("/api/feedback/analytics", headers=staff_headers)
     assert res.status_code == 200
     data = res.json()
+    # Empty state reports no numbers rather than defaults that read as real data.
     assert data == {
         "total": 0,
-        "avg_rating": 5.0,
-        "positive_pct": 100,
+        "avg_rating": None,
+        "positive_pct": 0,
         "negative_pct": 0,
         "critical_count": 0,
         "items": [],
