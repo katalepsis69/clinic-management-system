@@ -26,6 +26,8 @@
       .input, .select, input, select, textarea { font-size: 16px !important; }
     }
     html, body { overflow-x: hidden; max-width: 100vw; }
+    /* 44px tap floor for the sign-in/sign-up toggle (utility not in compiled css) */
+    #portalModeSignInBtn, #portalModeRegisterBtn { min-height: 44px; }
   </style>
 </head>
 <body class="bg-[#FAF8F5] text-stone-800 antialiased min-h-[100dvh] flex flex-col font-sans">
@@ -340,10 +342,10 @@
 
         <!-- Mode Toggle: Sign In vs Register -->
         <div class="flex bg-stone-100 p-1 rounded-xl mt-4 text-xs font-semibold" role="tablist" aria-label="Sign In or Register">
-          <button type="button" id="portalModeSignInBtn" onclick="window.ClinicApp.switchPortalMode('login')" class="flex-1 py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all">
+          <button type="button" id="portalModeSignInBtn" onclick="window.ClinicApp.switchPortalMode('login')" class="flex-1 min-h-[44px] py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all">
             Sign In
           </button>
-          <button type="button" id="portalModeRegisterBtn" onclick="window.ClinicApp.switchPortalMode('register')" class="flex-1 py-2 rounded-lg text-stone-500 hover:text-stone-900 transition-all">
+          <button type="button" id="portalModeRegisterBtn" onclick="window.ClinicApp.switchPortalMode('register')" class="flex-1 min-h-[44px] py-2 rounded-lg text-stone-500 hover:text-stone-900 transition-all">
             Sign Up
           </button>
         </div>
@@ -374,7 +376,7 @@
           <!-- Card 1: Shared Account Credentials -->
           <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400">01 Account Credentials</span>
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">01 Account Credentials</span>
               <span id="regRoleBadge" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-100 text-brand-800">Patient</span>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -401,7 +403,7 @@
           <div id="portalRegPatientFields" class="space-y-3">
             <!-- Patient Card 1: Clinical Demographics -->
             <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">02 Clinical Demographics</span>
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">02 Clinical Demographics</span>
               <div>
                 <label for="portalRegDob" class="label !text-xs !mb-1">Date of Birth</label>
                 <input type="date" id="portalRegDob" class="input !text-sm !py-2 bg-white">
@@ -437,7 +439,7 @@
 
             <!-- Patient Card 2: Medical History & Allergies -->
             <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">03 Clinical History & Allergies</span>
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">03 Clinical History & Allergies</span>
               <div>
                 <label for="portalRegCustomAllergies" class="label !text-xs !mb-1.5">Known Allergies</label>
                 <div class="flex flex-wrap gap-1.5 mb-2" id="regAllergyPresetChips">
@@ -467,7 +469,7 @@
 
             <!-- Patient Card 3: Emergency Contact -->
             <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">04 Emergency Contact</span>
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">04 Emergency Contact</span>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label for="portalRegEmergencyName" class="label !text-xs !mb-1">Contact Name</label>
@@ -484,7 +486,7 @@
           <!-- Role-Specific: Doctor Credentials -->
           <div id="portalRegDoctorFields" class="hidden space-y-3">
             <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">02 Clinical Practice & Credentials</span>
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">02 Clinical Practice & Credentials</span>
               <div>
                 <label for="portalRegSpecialization" class="label !text-xs !mb-1.5">Specialization *</label>
                 <div class="flex flex-wrap gap-1.5 mb-2" id="regDoctorSpecChips">
@@ -528,7 +530,7 @@
           <!-- Role-Specific: Staff Department -->
           <div id="portalRegStaffFields" class="hidden space-y-3">
             <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">02 Workspace & Department Assignment</span>
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">02 Workspace & Department Assignment</span>
               <div>
                 <label for="portalRegDepartment" class="label !text-xs !mb-1.5">Department / Operational Desk *</label>
                 <div class="grid grid-cols-2 gap-2 mb-2" id="regStaffDeptPills">
@@ -565,7 +567,7 @@
           <!-- Role-Specific: Admin Title -->
           <div id="portalRegAdminFields" class="hidden space-y-3">
             <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400 block">02 Governance & Security Access</span>
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">02 Governance & Security Access</span>
               <div>
                 <label for="portalRegAdminTitle" class="label !text-xs !mb-1.5">Administrative Title *</label>
                 <div class="flex flex-wrap gap-1.5 mb-2" id="regAdminTitleChips">
@@ -601,9 +603,6 @@
     <div class="max-w-6xl mx-auto mt-12 sm:mt-16 pt-8 border-t border-stone-200/70">
       <!-- Section Header -->
       <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 border border-brand-200/70 mb-3">
-          <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-cross"/></svg> Clinical Infrastructure
-        </span>
         <h3 class="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">Care Operations &amp; Patient Flow</h3>
         <p class="text-xs sm:text-sm text-stone-500 mt-2 leading-relaxed">
           Real-time queue dispatching, verified EMR records, automated cashier desk, and 24/7 bilingual triage.
@@ -622,9 +621,8 @@
               <div class="flex flex-wrap items-center justify-between gap-2.5 mb-4">
                 <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                   <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
-                  Live WebSocket Feed
+                  <span id="showcaseLiveLabel">Live Queue</span>
                 </span>
-                <span class="text-xs font-mono text-stone-400">Zero-Latency State Sync</span>
               </div>
               
               <h4 class="text-xl sm:text-2xl font-bold tracking-tight text-white mb-2">
@@ -634,25 +632,24 @@
                 Dynamic ticket issuing, automated wait calculation, and dual-screen broadcast to clinic monitors. Patients track their position anywhere while clinical staff advance tickets with a single click.
               </p>
 
-              <!-- Live Queue Simulation Preview Box -->
+              <!-- Live queue preview: wired to /api/queue/live-status by app.js -->
               <div class="mt-5 p-4 rounded-xl bg-stone-900/90 border border-stone-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
                 <div class="sm:border-r sm:border-stone-800 sm:pr-3">
                   <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Now Serving</span>
                   <div class="flex items-baseline gap-2 mt-0.5">
-                    <span class="text-2xl font-extrabold text-emerald-400 font-mono tracking-tight">#A-104</span>
-                    <span class="text-xs text-stone-400">Room 102</span>
+                    <span id="showcaseServing" class="text-2xl font-extrabold text-emerald-400 font-mono tracking-tight">STANDBY</span>
+                    <span id="showcaseRoom" class="text-xs text-stone-400">Room N/A</span>
                   </div>
                 </div>
                 <div class="sm:border-r sm:border-stone-800 sm:pr-3">
                   <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Next in Line</span>
                   <div class="flex items-baseline gap-2 mt-0.5">
-                    <span class="text-lg font-bold text-stone-200 font-mono">#A-105</span>
-                    <span class="text-xs text-stone-400">~8 min wait</span>
+                    <span id="showcaseNext" class="text-lg font-bold text-stone-200 font-mono">No one waiting</span>
                   </div>
                 </div>
                 <div>
-                  <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Consulting Doctor</span>
-                  <p class="text-xs font-semibold text-stone-200 mt-0.5 truncate">Dr. Emily Stone, MD</p>
+                  <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Patients Waiting</span>
+                  <p class="text-xs font-semibold text-stone-200 mt-0.5 truncate"><span id="showcaseCount">0</span> in queue</p>
                 </div>
               </div>
             </div>
@@ -683,10 +680,9 @@
               </div>
               <div class="flex items-center gap-2 mb-2">
                 <h4 class="text-base font-bold text-stone-900 tracking-tight">AI Virtual Assistant</h4>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-100 text-brand-800">Smart Router</span>
               </div>
               <p class="text-xs text-stone-600 leading-relaxed">
-                24/7 bilingual patient triage with adaptive intent routing. Answers clinic operational FAQs, provides safe OTC guidance, and searches local pharmacy availability.
+                Answers clinic questions in English and Filipino: hours, booking, locations, safe OTC guidance, and local pharmacy availability.
               </p>
 
               <div class="mt-4 space-y-1.5 text-[11px] text-stone-500 font-medium">
@@ -721,10 +717,9 @@
               </div>
               <div class="flex items-center gap-2 mb-2">
                 <h4 class="text-base font-bold text-stone-900 tracking-tight">Clinical EMR &amp; Rx</h4>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700">Verification Hash</span>
               </div>
               <p class="text-xs text-stone-600 leading-relaxed">
-                Patient medical histories, allergies tracking, and digital consultation notes with cryptographic verification tags ensuring authentic prescriptions.
+                Patient medical histories, allergy tracking, and consultation notes, with a unique verification hash recorded on every prescription.
               </p>
 
               <div class="mt-4 p-2.5 rounded-xl bg-violet-50/50 border border-violet-100 flex items-center gap-2.5">
@@ -756,7 +751,6 @@
               </div>
               <div class="flex items-center gap-2 mb-2">
                 <h4 class="text-base font-bold text-stone-900 tracking-tight">Staff Triage &amp; Billing</h4>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Fast Invoicing</span>
               </div>
               <p class="text-xs text-stone-600 leading-relaxed">
                 Walk-in patient check-in, immediate queue assignment, itemized invoicing with automated totals, and verified receipt generation.
@@ -791,17 +785,16 @@
               </div>
               <div class="flex items-center gap-2 mb-2">
                 <h4 class="text-base font-bold text-stone-900 tracking-tight">Sentiment &amp; Analytics</h4>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">VADER + NLP</span>
               </div>
               <p class="text-xs text-stone-600 leading-relaxed">
-                Automated sentiment scoring on post-consultation reviews. Administrators spot bottlenecks, track satisfaction trends, and review immutable audit records.
+                Automated sentiment scoring on post-consultation reviews. Administrators spot bottlenecks, track satisfaction trends, and review audit logs.
               </p>
 
               <div class="mt-4 p-2.5 rounded-xl bg-rose-50/50 border border-rose-100 flex items-center gap-2.5">
                 <svg class="icon w-4 h-4 text-rose-600 shrink-0" aria-hidden="true"><use href="#i-star"/></svg>
                 <div class="min-w-0">
-                  <span class="text-[11px] font-bold text-rose-900 block truncate">4.8 / 5.0 Rating Avg</span>
-                  <span class="text-[10px] text-rose-700 truncate block">92% Positive Sentiment Score</span>
+                  <span class="text-[11px] font-bold text-rose-900 block truncate">Ratings and sentiment, computed live</span>
+                  <span class="text-[10px] text-rose-700 truncate block">From real patient feedback in the Analytics portal</span>
                 </div>
               </div>
             </div>
@@ -1577,7 +1570,7 @@
   <!-- FLOATING CHAT WIDGET: fullscreen sheet on mobile, panel on desktop -->
   <!-- ================================================================= -->
   <div id="chatLauncherWrap" class="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-50 transition-all duration-200">
-    <button id="chatLauncher" onclick="window.ClinicApp.toggleChat()" class="btn w-13 h-13 sm:w-14 sm:h-14 !p-0 !min-h-0 rounded-full bg-brand-600 text-white shadow-lift hover:bg-brand-700" aria-label="Open live chat" aria-expanded="false" aria-controls="chatWindow">
+    <button id="chatLauncher" onclick="window.ClinicApp.toggleChat()" class="btn w-12 h-12 sm:w-14 sm:h-14 !p-0 !min-h-0 rounded-full bg-brand-600 text-white shadow-lift hover:bg-brand-700" aria-label="Open live chat" aria-expanded="false" aria-controls="chatWindow">
       <svg class="icon w-6 h-6" aria-hidden="true"><use href="#i-message"/></svg>
     </button>
   </div>
@@ -1689,7 +1682,7 @@
           
           <!-- Card 1: Personal Details -->
           <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400">Personal Information</div>
+            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Personal Information</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label for="editFullName" class="label !text-xs !mb-1">Full Name <span class="text-red-500">*</span></label>
@@ -1718,7 +1711,7 @@
           <!-- Card 2: Clinical Details -->
           <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3.5">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400">Clinical Records</span>
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Clinical Records</span>
               <span id="selectedBloodLabel" class="text-xs font-mono font-bold text-brand-700"></span>
             </div>
 
@@ -1770,7 +1763,7 @@
 
           <!-- Card 3: Emergency Contact -->
           <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-400">Emergency Contact</div>
+            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Emergency Contact</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label for="editEmergencyName" class="label !text-xs !mb-1">Contact Name</label>
@@ -1799,8 +1792,8 @@
     </div>
   </div>
 
-  <footer class="bg-white border-t border-stone-200 py-4 text-center text-xs text-stone-400 mt-auto mb-16 sm:mb-0">
-    Clinic Management System &bull; Intelligent Real-Time Healthcare Portal &bull; Python 3.12+ &amp; FastAPI
+  <footer class="bg-white border-t border-stone-200 py-4 text-center text-xs text-stone-500 mt-auto mb-16 sm:mb-0">
+    Clinic Management System &bull; City Health Clinic
   </footer>
 
   <!-- ================================================================= -->
@@ -1827,6 +1820,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.10.0"></script>
+  <script src="/static/app.js?v=2.10.1"></script>
 </body>
 </html>

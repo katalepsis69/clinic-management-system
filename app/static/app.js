@@ -1128,6 +1128,19 @@
     if (state.myTicket && serving === state.myTicket) {
       showToast(`Attention: Your ticket ${state.myTicket} is now being called to ${room}!`, 'success');
     }
+
+    // Login-gateway preview box mirrors the same live queue state
+    const scServing = document.getElementById('showcaseServing');
+    if (scServing) {
+      const isServing = serving && serving !== 'None';
+      scServing.textContent = isServing ? serving : 'STANDBY';
+      const scRoom = document.getElementById('showcaseRoom');
+      if (scRoom) scRoom.textContent = isServing ? room : 'Room N/A';
+      const scNext = document.getElementById('showcaseNext');
+      if (scNext) scNext.textContent = waiting[0] || 'No one waiting';
+      const scCount = document.getElementById('showcaseCount');
+      if (scCount) scCount.textContent = count;
+    }
   }
 
   async function issueMyQueueTicket() {
@@ -1829,7 +1842,14 @@
       state.chatWs.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
-          hideTypingIndicator();
+          const textKey = payload.message || payload.message_text || '';
+          const isBot = payload.is_bot_reply || payload.role === 'bot';
+          // The server echoes my own message before the bot answers; the echo
+          // must not clear the typing indicator or it flashes and vanishes.
+          const isMyEcho = !isBot && pendingOptimisticMessages.has(textKey);
+          if (!isMyEcho) {
+            hideTypingIndicator();
+          }
           appendChatMessage(payload);
           if (payload.limit_reached) {
             updateChatGuestUI(0);
@@ -1843,6 +1863,7 @@
       };
 
       state.chatWs.onclose = () => {
+        hideTypingIndicator();
         console.log('Chat WebSocket closed');
       };
     } catch (err) {
@@ -2098,7 +2119,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.10.0';
+  const APP_BUILD_VERSION = '2.10.1';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
