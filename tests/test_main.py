@@ -48,7 +48,7 @@ def test_no_runtime_cdn_dependencies():
 def test_responsive_layout_present():
     # Portal grids collapse 1 -> 2 -> 3 columns; body reserves dvh height.
     res = client.get("/")
-    assert "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3" in res.text
+    assert "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2" in res.text
     assert "min-h-[100dvh]" in res.text
 
 

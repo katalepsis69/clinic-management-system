@@ -150,9 +150,10 @@ class SetupAdminPayload(BaseModel):
 
 @router.get("/setup-status")
 def setup_status(db: Session = Depends(get_db)):
-    """Public: true once any administrator exists; gates the first-run wizard."""
+    """Public: true once any administrator exists; gates the first-run wizard.
+    demo_mode tells the UI whether to show one-tap seeded logins."""
     initialized = db.query(User).filter(User.role == UserRole.ADMIN).first() is not None
-    return {"initialized": initialized}
+    return {"initialized": initialized, "demo_mode": settings.DEMO_MODE}
 
 
 @router.post("/setup-admin")

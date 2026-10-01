@@ -326,7 +326,8 @@ def test_setup_admin_first_run_flow(db_session):
 
     res = client.get("/api/auth/setup-status")
     assert res.status_code == 200
-    assert res.json() == {"initialized": False}
+    assert res.json()["initialized"] is False
+    assert res.json()["demo_mode"] is True
 
     payload = {
         "full_name": "Clinic Director",
@@ -344,7 +345,7 @@ def test_setup_admin_first_run_flow(db_session):
     assert res2.status_code == 403
 
     res3 = client.get("/api/auth/setup-status")
-    assert res3.json() == {"initialized": True}
+    assert res3.json()["initialized"] is True
 
     # Weak password rejected before the lock check creates anything else
     db_session.delete(db_session.query(User).filter(User.role == UserRole.ADMIN).first())

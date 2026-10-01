@@ -875,6 +875,23 @@
     }
   }
 
+  // One-tap seeded logins for demo deployments (row is revealed by init()
+  // only when /api/auth/setup-status reports demo_mode).
+  async function demoLogin(role) {
+    const creds = {
+      patient: ['patient@demo.com', 'patient123'],
+      doctor: ['doctor@demo.com', 'doctor123'],
+      staff: ['staff@demo.com', 'staff123'],
+      admin: ['admin@demo.com', 'admin123'],
+    };
+    const [email, password] = creds[role] || creds.patient;
+    try {
+      await login(email, password);
+    } catch (_) {
+      // login() already surfaced the error toast
+    }
+  }
+
   function showProfileModal() {
     if (!state.user) {
       switchTab('login');
@@ -1407,6 +1424,17 @@
       }
       document.getElementById('emrHistory').textContent = emr.medical_history || 'No chronic history';
 
+      // Auto-catch: surface allergies next to the prescribing desk so they are
+      // impossible to miss when issuing a prescription for this patient.
+      const rxAlert = document.getElementById('rxAllergyBanner');
+      if (rxAlert) {
+        const allergyText = (emr.allergies || '').trim();
+        const hasAllergy = allergyText && !['none', 'none known', 'no known allergies', 'nka'].includes(allergyText.toLowerCase());
+        rxAlert.classList.toggle('hidden', !hasAllergy);
+        const rxAlertText = document.getElementById('rxAllergyText');
+        if (rxAlertText) rxAlertText.textContent = hasAllergy ? `Allergy alert: ${allergyText}. Check medications against this list before prescribing.` : '';
+      }
+
       const rxList = document.getElementById('emrPrescriptionsList');
       if (rxList) {
         if (!emr.prescriptions || emr.prescriptions.length === 0) {
@@ -1427,6 +1455,8 @@
         }
       }
     } catch (err) {
+      const rxAlert = document.getElementById('rxAllergyBanner');
+      if (rxAlert) rxAlert.classList.add('hidden');
       showToast(`EMR lookup failed: ${err.message}`, 'error');
     }
   }
@@ -2124,7 +2154,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.10.1';
+  const APP_BUILD_VERSION = '2.11.0';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
@@ -2287,6 +2317,14 @@
     fetchQueueStatus();
     initQueueWebSocket();
 
+    // Reveal one-tap demo logins only on demo deployments
+    fetch('/api/auth/setup-status').then(r => r.json()).then(s => {
+      if (s && s.demo_mode) {
+        const row = document.getElementById('demoLoginRow');
+        if (row) row.classList.remove('hidden');
+      }
+    }).catch(() => {});
+
     // Pre-connect chat websocket when hovering or touching launcher
     const chatLauncher = document.getElementById('chatLauncher');
     if (chatLauncher) {
@@ -2367,6 +2405,7 @@
     sendQuickFaq,
     showcaseSelectRole,
     showcaseOpenChat,
+    demoLogin,
     openLoginGateway,
     selectRegGender,
     selectRegBlood,
