@@ -7,10 +7,11 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
-      # ponytail: production must not seed demo accounts or drop the cookie
-      # Secure flag; set dashboard secrets (GEMINI keys, DATABASE_URL) after deploy
+      # ponytail: thesis/demo artifact, so the deployed profile intentionally runs
+      # as a demo: seeded reviewer accounts, no secret management. If this ever
+      # becomes a real deployment, flip to "false" and set a strong SECRET_KEY.
       - key: DEMO_MODE
-        value: "false"
+        value: "true"
       - key: SECRET_KEY
         generateValue: true
       - key: GEMINI_API_KEY
