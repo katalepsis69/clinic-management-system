@@ -1,4 +1,3 @@
-import json
 import uuid
 import pytest
 from unittest.mock import AsyncMock
@@ -11,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import get_db
 from app.models import Base, ChatMessage, User, UserRole
 from app.auth import create_access_token
-from app.chat_bot import get_bot_response, FAQ_RULES, classify_query_intent
+from app.chat_bot import get_bot_response, classify_query_intent
 from app.routers.chat import router as chat_router, chat_hub, ChatConnectionHub
 
 

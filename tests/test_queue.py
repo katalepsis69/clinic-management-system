@@ -1,4 +1,3 @@
-import json
 import pytest
 from unittest.mock import AsyncMock
 from fastapi import FastAPI
@@ -6,7 +5,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models import Base, User, Patient, Doctor, QueueTicket, QueueStatus, UserRole

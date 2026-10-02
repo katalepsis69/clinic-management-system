@@ -13,8 +13,6 @@ Validates the complete clinical lifecycle across all subsystems:
 """
 
 import uuid
-from datetime import date
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app

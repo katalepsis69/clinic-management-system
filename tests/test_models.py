@@ -1,7 +1,7 @@
 import os
 import tempfile
 import pytest
-from datetime import date, datetime, timezone
+from datetime import date
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.models import (
@@ -19,7 +19,7 @@ from app.models import (
     AppointmentStatus,
     QueueStatus,
 )
-from app.database import engine as app_engine, SessionLocal, get_db
+from app.database import get_db
 
 
 @pytest.fixture

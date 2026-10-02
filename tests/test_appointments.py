@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient

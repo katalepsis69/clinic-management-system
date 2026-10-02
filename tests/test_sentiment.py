@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import get_db
-from app.models import Base, User, UserRole, Patient, Doctor, PatientFeedback
+from app.models import Base, User, UserRole, Patient, PatientFeedback
 from app.auth import create_access_token
 from app.sentiment import analyze_sentiment
 from app.routers.feedback import router as feedback_router
