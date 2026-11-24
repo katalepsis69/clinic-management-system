@@ -7,11 +7,10 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
-      # ponytail: thesis/demo artifact, so the deployed profile intentionally runs
-      # as a demo: seeded reviewer accounts, no secret management. If this ever
-      # becomes a real deployment, flip to "false" and set a strong SECRET_KEY.
+      # Production mode by default: first visitor initializes the primary admin
+      # via the browser First-Run Setup Wizard. Flip to "true" only for seeded demos.
       - key: DEMO_MODE
-        value: "true"
+        value: "false"
       - key: SECRET_KEY
         generateValue: true
       - key: GEMINI_API_KEY

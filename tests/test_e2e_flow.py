@@ -12,11 +12,16 @@ Validates the complete clinical lifecycle across all subsystems:
 9. Reception chat relay and FAQ bot inquiry verification (/api/chat/ws/{session_id} and /api/chat/send)
 """
 
+from datetime import timedelta
 import uuid
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from app.config import get_settings
 from app.main import app
-from app.database import engine, Base, SessionLocal
+from app.database import engine, Base, SessionLocal, get_db
 from app.models import QueueTicket, QueueStatus, Appointment
 from app.seed import seed_demo_data
 
@@ -81,14 +86,16 @@ def test_complete_e2e_clinical_workflow():
     Health -> Doctor Directory -> Patient Booking -> Queue Ticket -> Ticket Call ->
     Doctor EMR & Prescription -> Staff Billing -> Patient VADER Feedback -> Chat & Bot FAQ.
     """
-    # Clean slate for the queue and the fixed e2e booking date: close every live
+    future_date = (get_settings().clinic_today() + timedelta(days=1)).isoformat()
+
+    # Clean slate for the queue and the e2e booking date: close every live
     # ticket (CALLED/IN_CONSULTATION block re-issuance) and drop stale bookings
     _cleanup = SessionLocal()
     try:
         _cleanup.query(QueueTicket).filter(QueueTicket.status != QueueStatus.COMPLETED).update(
             {"status": QueueStatus.COMPLETED}
         )
-        _cleanup.query(Appointment).filter(Appointment.appointment_date == "2026-11-20").delete()
+        _cleanup.query(Appointment).filter(Appointment.appointment_date == future_date).delete()
         _cleanup.commit()
     finally:
         _cleanup.close()
@@ -137,7 +144,7 @@ def test_complete_e2e_clinical_workflow():
     unique_suffix = uuid.uuid4().hex[:4]
     booking_payload = {
         "doctor_id": doctor_id,
-        "appointment_date": "2026-11-20",
+        "appointment_date": future_date,
         "time_slot": f"09:{unique_suffix[:2]} - 10:00",
         "reason_for_visit": "Annual health checkup and hypertension review",
     }
@@ -154,7 +161,7 @@ def test_complete_e2e_clinical_workflow():
 
     # Verify the schedule endpoint is protected (anonymous -> 401, patient cookie -> 403)
     schedule_anon = client.get(
-        f"/api/appointments/doctor-schedule/{doctor_id}?schedule_date=2026-11-20"
+        f"/api/appointments/doctor-schedule/{doctor_id}?schedule_date={future_date}"
     )
     assert schedule_anon.status_code in (401, 403)
 
@@ -196,7 +203,7 @@ def test_complete_e2e_clinical_workflow():
 
     # Staff views the doctor schedule (staff-only endpoint) and sees the new booking
     schedule_res = client.get(
-        f"/api/appointments/doctor-schedule/{doctor_id}?schedule_date=2026-11-20",
+        f"/api/appointments/doctor-schedule/{doctor_id}?schedule_date={future_date}",
         headers=staff_headers,
     )
     assert schedule_res.status_code == 200
@@ -474,3 +481,224 @@ def test_e2e_rbac_and_boundary_checks():
         headers=staff_headers,
     )
     assert no_queue_call.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 4. Production Mode (DEMO_MODE=false) Zero-Seed Full Browser Flow
+# ---------------------------------------------------------------------------
+
+def test_production_mode_end_to_end_zero_seed_workflow(monkeypatch):
+    """Verify the entire clinic lifecycle starting from an empty database with
+    DEMO_MODE=false: first-run setup -> admin provisions staff & doctor ->
+    patient registers -> booking -> queue -> /display -> EMR/Rx -> billing ->
+    sentiment feedback -> chat.
+    """
+    import app.main as main_module
+    import app.routers.auth as auth_module
+
+    monkeypatch.setattr(main_module.settings, "DEMO_MODE", False)
+    monkeypatch.setattr(auth_module.settings, "DEMO_MODE", False)
+
+    mem_engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=mem_engine)
+    MemSession = sessionmaker(bind=mem_engine)
+    db = MemSession()
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        prod_client = TestClient(app)
+
+        # 1. Empty DB: setup-status reports initialized=false, demo_mode=false
+        status_res = prod_client.get("/api/auth/setup-status")
+        assert status_res.status_code == 200
+        assert status_res.json() == {"initialized": False, "demo_mode": False}
+        assert prod_client.get("/api/appointments/doctors").json() == []
+
+        # 2. First-run admin setup via browser wizard endpoint (http localhost -> cookie not Secure)
+        setup_res = prod_client.post("/api/auth/setup-admin", json={
+            "full_name": "Director Elena Vance",
+            "email": "admin@realclinic.test",
+            "password": "adminPassword123",
+            "phone": "555-0100",
+        })
+        assert setup_res.status_code == 200
+        assert "Secure" not in setup_res.headers.get("set-cookie", "")
+        assert prod_client.get("/api/auth/setup-status").json() == {
+            "initialized": True,
+            "demo_mode": False,
+        }
+
+        # Admin cookie authenticates /api/auth/me and /api/admin/users
+        assert prod_client.get("/api/auth/me").json()["role"] == "admin"
+
+        # 3. Admin creates staff and doctor via User Management
+        staff_res = prod_client.post("/api/admin/users", json={
+            "full_name": "Nurse Jackie Peyton",
+            "email": "staff@realclinic.test",
+            "password": "staffPassword123",
+            "phone": "555-0101",
+            "role": "staff",
+        })
+        assert staff_res.status_code == 201
+
+        doc_res = prod_client.post("/api/admin/users", json={
+            "full_name": "Dr. Marcus Chen",
+            "email": "doctor@realclinic.test",
+            "password": "doctorPassword123",
+            "phone": "555-0102",
+            "role": "doctor",
+            "specialization": "Internal Medicine",
+            "license_number": "MD-77102",
+            "room_number": "Room 201",
+            "consultation_fee": 80.00,
+        })
+        assert doc_res.status_code == 201
+        doctor_id = doc_res.json()["user"]["doctor_id"]
+        assert doctor_id is not None
+
+        users_res = prod_client.get("/api/admin/users")
+        assert users_res.status_code == 200
+        assert len(users_res.json()) == 3
+
+        # 4. Patient self-registers (cookie switches to patient)
+        prod_client.post("/api/auth/logout")
+        pat_res = prod_client.post("/api/auth/register", json={
+            "full_name": "Marco Reyes",
+            "email": "marco@realclinic.test",
+            "password": "patientPassword123",
+            "phone": "555-0199",
+            "role": "patient",
+            "date_of_birth": "1992-03-15",
+            "gender": "Male",
+            "blood_group": "A+",
+            "allergies": "Penicillin",
+            "medical_history": "Seasonal rhinitis",
+        })
+        assert pat_res.status_code == 201
+        patient_id = pat_res.json()["user"]["patient_id"]
+        assert patient_id is not None
+
+        # 5. Patient books appointment & issues queue ticket
+        future_date = (get_settings().clinic_today() + timedelta(days=1)).isoformat()
+        book_res = prod_client.post("/api/appointments/book", json={
+            "doctor_id": doctor_id,
+            "appointment_date": future_date,
+            "time_slot": "10:00 AM",
+            "reason_for_visit": "Persistent cough",
+        })
+        assert book_res.status_code == 200
+
+        ticket_res = prod_client.post("/api/queue/issue", json={
+            "doctor_id": doctor_id,
+            "priority": "normal",
+        })
+        assert ticket_res.status_code == 200
+        ticket_id = ticket_res.json()["id"]
+        ticket_number = ticket_res.json()["ticket_number"]
+
+        # 6. Staff logs in, calls next patient, and /display + live-status reflect it
+        assert prod_client.post("/api/auth/login", json={
+            "email": "staff@realclinic.test",
+            "password": "staffPassword123",
+        }).status_code == 200
+        call_res = prod_client.post(f"/api/queue/call-next?doctor_id={doctor_id}")
+        assert call_res.status_code == 200
+        assert call_res.json()["called_ticket"] == ticket_number
+
+        assert prod_client.get("/display").status_code == 200
+        live = prod_client.get("/api/queue/live-status").json()
+        assert live["currently_serving"] == ticket_number
+        assert live["currently_serving_room"] == "Room 201"
+
+        # 7. Doctor logs in, checks schedule & EMR, and issues prescription
+        assert prod_client.post("/api/auth/login", json={
+            "email": "doctor@realclinic.test",
+            "password": "doctorPassword123",
+        }).status_code == 200
+        sched = prod_client.get(
+            f"/api/appointments/doctor-schedule/{doctor_id}?schedule_date={future_date}"
+        )
+        assert sched.status_code == 200
+        assert len(sched.json()) == 1
+
+        emr = prod_client.get(f"/api/emr/patient/{patient_id}")
+        assert emr.status_code == 200
+        assert emr.json()["allergies"] == "Penicillin"
+
+        rx_res = prod_client.post("/api/emr/prescription/create", json={
+            "patient_id": patient_id,
+            "diagnosis": "Acute upper respiratory infection",
+            "clinical_notes": "Hydrate and rest",
+            "medications": [{
+                "drug_name": "Cetirizine",
+                "dosage": "10mg",
+                "frequency": "Once daily",
+                "duration": "5 days",
+                "instructions": "At bedtime",
+            }],
+        })
+        assert rx_res.status_code == 200
+        assert len(rx_res.json()["qr_code_hash"]) == 16
+
+        # 8. Staff logs in and creates itemized billing invoice
+        assert prod_client.post("/api/auth/login", json={
+            "email": "staff@realclinic.test",
+            "password": "staffPassword123",
+        }).status_code == 200
+        bill_res = prod_client.post("/api/billing/create", json={
+            "patient_id": patient_id,
+            "queue_ticket_id": ticket_id,
+            "consultation_fee": 80.00,
+            "medication_fee": 15.00,
+            "other_fees": 0.00,
+            "discount_amount": 5.00,
+            "payment_method": "cash",
+        })
+        assert bill_res.status_code == 200
+        assert bill_res.json()["total"] == 90.0
+
+        # 9. Patient logs in, submits feedback & uses chat
+        assert prod_client.post("/api/auth/login", json={
+            "email": "marco@realclinic.test",
+            "password": "patientPassword123",
+        }).status_code == 200
+        fb_res = prod_client.post("/api/feedback", json={
+            "doctor_id": doctor_id,
+            "rating": 5,
+            "tags": ["Friendly Staff"],
+            "comment_text": "Fast queue and very thorough doctor!",
+        })
+        assert fb_res.status_code == 200
+        assert fb_res.json()["sentiment"]["sentiment_label"] == "positive"
+
+        chat_session = f"prod-chat-{uuid.uuid4().hex[:8]}"
+        chat_res = prod_client.post("/api/chat/send", json={
+            "session_id": chat_session,
+            "message": "What are your clinic hours?",
+        })
+        assert chat_res.status_code == 200
+        assert chat_res.json()["bot_reply"] is not None
+
+        # 10. Admin logs in and views live analytics + directory
+        assert prod_client.post("/api/auth/login", json={
+            "email": "admin@realclinic.test",
+            "password": "adminPassword123",
+        }).status_code == 200
+        analytics = prod_client.get("/api/feedback/analytics")
+        assert analytics.status_code == 200
+        assert analytics.json()["total"] == 1
+        assert analytics.json()["positive_pct"] == 100.0
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+        mem_engine.dispose()

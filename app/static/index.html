@@ -436,7 +436,7 @@
         <form id="portalLoginForm" onsubmit="window.ClinicApp.handlePortalLogin(event)" class="mt-5 space-y-4">
           <div>
             <label for="portalLoginEmail" class="label">Email Address</label>
-            <input type="email" id="portalLoginEmail" required autocomplete="email" placeholder="patient@demo.com" class="input">
+            <input type="email" id="portalLoginEmail" required autocomplete="email" placeholder="patient@clinic.com" class="input">
           </div>
           <div>
             <div class="flex justify-between items-center mb-1.5">
@@ -1139,7 +1139,7 @@
             <div class="mt-4 pt-3 border-t border-stone-100">
               <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block mb-2">Look Up Chart by Patient ID</span>
               <div class="flex gap-2">
-                <input type="number" id="emrPatientId" value="1" placeholder="ID #" aria-label="Patient ID lookup" class="input !py-1.5 !px-3 text-xs w-20 shrink-0">
+                <input type="number" id="emrPatientId" placeholder="ID #" aria-label="Patient ID lookup" class="input !py-1.5 !px-3 text-xs w-20 shrink-0">
                 <button type="button" onclick="window.ClinicApp.searchPatientEMR()" class="btn btn-outline btn-sm !min-h-[36px] flex-1 text-xs font-bold">
                   <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-search"/></svg>
                   <span>Search EMR</span>
@@ -1160,15 +1160,15 @@
                   <svg class="icon w-4 h-4"><use href="#i-user"/></svg>
                 </div>
                 <div>
-                  <h3 class="text-base font-bold text-stone-900 leading-tight" id="emrName">Sarah Connor</h3>
-                  <span class="text-xs text-stone-500" id="emrDob">1990-05-14 / Female</span>
+                  <h3 class="text-base font-bold text-stone-900 leading-tight" id="emrName">No patient selected</h3>
+                  <span class="text-xs text-stone-500" id="emrDob">Select a patient from Today's Patient Roster or search by ID</span>
                 </div>
               </div>
 
               <!-- High-Alert Allergies Callout -->
               <div class="flex items-center gap-2">
                 <span class="text-xs text-stone-400 font-medium">Allergies:</span>
-                <span id="emrAllergies" class="text-xs font-bold text-red-700 bg-red-50 border border-red-200/80 px-2.5 py-0.5 rounded-lg">Penicillin</span>
+                <span id="emrAllergies" class="text-xs font-semibold text-stone-600 bg-stone-100 border border-stone-200/80 px-2.5 py-0.5 rounded-lg">--</span>
               </div>
             </div>
 
@@ -1176,11 +1176,11 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-1 text-xs">
               <div class="flex justify-between p-2.5 rounded-xl bg-stone-50 border border-stone-200/60">
                 <span class="text-stone-500 font-medium">Blood Group:</span>
-                <span id="emrBlood" class="font-bold text-stone-800">O+</span>
+                <span id="emrBlood" class="font-bold text-stone-800">--</span>
               </div>
               <div class="flex justify-between p-2.5 rounded-xl bg-stone-50 border border-stone-200/60">
                 <span class="text-stone-500 font-medium">Chronic History:</span>
-                <span id="emrHistory" class="font-semibold text-stone-800 text-right truncate">Mild Asthma</span>
+                <span id="emrHistory" class="font-semibold text-stone-800 text-right truncate">--</span>
               </div>
             </div>
 
@@ -1218,8 +1218,8 @@
 
             <form id="prescriptionForm" onsubmit="window.ClinicApp.generatePrescription(event)" class="space-y-4 mt-4 text-xs">
               <!-- Hidden bound patient ID & doctor ID inputs -->
-              <input type="hidden" id="rxPatientId" value="1">
-              <input type="hidden" id="rxDoctorId" value="1">
+              <input type="hidden" id="rxPatientId" value="">
+              <input type="hidden" id="rxDoctorId" value="">
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1345,7 +1345,7 @@
             <!-- Call Next Action -->
             <div class="flex flex-col sm:flex-row gap-2 mb-4">
               <select id="callDoctorId" aria-label="Doctor to call for" class="select flex-1 !py-2 text-xs">
-                <option value="1">Dr. Emily Stone (Room 102)</option>
+                <option value="">Loading doctors...</option>
               </select>
               <button onclick="window.ClinicApp.callNextPatient()" class="btn btn-warning sm:w-auto px-5 !min-h-[42px] shadow-sm font-bold text-xs">
                 <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-bell"/></svg>
@@ -1380,15 +1380,15 @@
             <form id="walkinForm" onsubmit="window.ClinicApp.registerWalkin(event)" class="space-y-3.5 mt-4">
               <div>
                 <label for="walkinPatientId" class="label">Patient ID *</label>
-                <input type="number" id="walkinPatientId" value="1" required class="input !py-2 text-xs">
-                <span class="hint">Patient ID #1 = Sarah Connor (Demo Default)</span>
+                <input type="number" id="walkinPatientId" placeholder="e.g. 1" required class="input !py-2 text-xs">
+                <span class="hint">Enter the patient's numeric ID from registration or Admin User Management</span>
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label for="walkinDoctorSelect" class="label">Attending Doctor</label>
                   <select id="walkinDoctorSelect" required class="select !py-2 text-xs">
-                    <option value="1">Dr. Emily Stone (Cardiology)</option>
+                    <option value="">Loading doctors...</option>
                   </select>
                 </div>
                 <div>
@@ -1428,7 +1428,7 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label for="billPatientId" class="label">Patient ID *</label>
-                  <input type="number" id="billPatientId" value="1" required class="input !py-2 text-xs">
+                  <input type="number" id="billPatientId" placeholder="e.g. 1" required class="input !py-2 text-xs">
                 </div>
                 <div>
                   <label for="billTicketId" class="label">Ticket ID <span class="font-normal text-stone-400">(optional)</span></label>
@@ -1608,6 +1608,115 @@
         </div>
 
       </div>
+
+      <!-- Admin User Provisioning & Directory -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Provision Staff or Doctor Account (5 cols) -->
+        <div class="lg:col-span-5 card card-pad border-stone-200/80 bg-white shadow-sm">
+          <div class="flex items-center gap-2.5 mb-1 pb-3 border-b border-stone-100">
+            <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0 border border-brand-200/60" aria-hidden="true">
+              <svg class="icon w-4 h-4"><use href="#i-user-plus"/></svg>
+            </span>
+            <div>
+              <h3 class="card-title text-base font-bold text-stone-900">User Management</h3>
+              <p class="card-subtitle text-xs text-stone-500">Provision staff and doctor accounts directly.</p>
+            </div>
+          </div>
+
+          <div id="adminUserErrorMsg" role="alert" aria-live="polite" class="hidden mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700"></div>
+
+          <form id="adminCreateUserForm" onsubmit="window.ClinicApp.createAdminUser(event)" class="space-y-3.5 mt-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="adminUserRole" class="label !text-xs !mb-1">Role *</label>
+                <select id="adminUserRole" onchange="window.ClinicApp.toggleAdminUserRoleFields()" class="select !py-2 text-xs">
+                  <option value="staff">Staff / Front Desk</option>
+                  <option value="doctor">Doctor / Physician</option>
+                </select>
+              </div>
+              <div>
+                <label for="adminUserPhone" class="label !text-xs !mb-1">Phone</label>
+                <input type="tel" id="adminUserPhone" placeholder="+1 555-0199" class="input !py-2 text-xs">
+              </div>
+            </div>
+
+            <div>
+              <label for="adminUserFullName" class="label !text-xs !mb-1">Full Name *</label>
+              <input type="text" id="adminUserFullName" required placeholder="e.g. Dr. Marcus Vance" class="input !py-2 text-xs">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="adminUserEmail" class="label !text-xs !mb-1">Email *</label>
+                <input type="email" id="adminUserEmail" required placeholder="user@clinic.com" class="input !py-2 text-xs">
+              </div>
+              <div>
+                <label for="adminUserPassword" class="label !text-xs !mb-1">Password (Min. 6) *</label>
+                <input type="password" id="adminUserPassword" required minlength="6" placeholder="••••••••" class="input !py-2 text-xs">
+              </div>
+            </div>
+
+            <div id="adminUserDoctorFields" class="hidden bg-stone-50/70 rounded-2xl p-3.5 border border-stone-200/60 space-y-3">
+              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">Doctor Credentials</span>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="adminUserSpec" class="label !text-xs !mb-1">Specialization</label>
+                  <input type="text" id="adminUserSpec" placeholder="General Medicine" class="input !py-2 text-xs bg-white">
+                </div>
+                <div>
+                  <label for="adminUserLicense" class="label !text-xs !mb-1">License Number</label>
+                  <input type="text" id="adminUserLicense" placeholder="e.g. MD-55421" class="input !py-2 text-xs bg-white">
+                </div>
+                <div>
+                  <label for="adminUserRoom" class="label !text-xs !mb-1">Room Number</label>
+                  <input type="text" id="adminUserRoom" placeholder="e.g. Room 101" class="input !py-2 text-xs bg-white">
+                </div>
+                <div>
+                  <label for="adminUserFee" class="label !text-xs !mb-1">Consultation Fee (USD)</label>
+                  <input type="number" id="adminUserFee" step="0.01" min="0" value="60.00" class="input !py-2 text-xs bg-white">
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" id="adminUserSubmitBtn" class="btn btn-primary w-full shadow-sm">
+              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-user-plus"/></svg>
+              <span>Create Account</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Existing Clinic Accounts Directory (7 cols) -->
+        <div class="lg:col-span-7 card card-pad border-stone-200/80 bg-white shadow-sm">
+          <div class="flex justify-between items-center mb-4 pb-3 border-b border-stone-100 gap-3">
+            <div>
+              <h3 class="card-title text-base font-bold text-stone-900">Clinic Accounts</h3>
+              <p class="card-subtitle text-xs text-stone-500">All registered admins, doctors, staff, and patients.</p>
+            </div>
+            <button type="button" onclick="window.ClinicApp.loadAdminUsers()" class="btn btn-outline btn-sm !min-h-[36px] shrink-0" aria-label="Refresh user directory">
+              <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto max-h-96 overflow-y-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-stone-200 text-[11px] uppercase tracking-wider text-stone-500">
+                  <th class="py-2 pr-3 font-bold">Name</th>
+                  <th class="py-2 pr-3 font-bold">Email</th>
+                  <th class="py-2 pr-3 font-bold">Role</th>
+                  <th class="py-2 font-bold text-right">Profile ID</th>
+                </tr>
+              </thead>
+              <tbody id="adminUsersList">
+                <tr><td colspan="4" class="py-6 text-center text-stone-400">Loading accounts...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </section>
 
   </main>
@@ -1692,6 +1801,53 @@
     </form>
   </div>
 
+
+  <!-- First-Run Administrator Setup Modal (shown only when initialized === false) -->
+  <div id="setupAdminModal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="setupAdminTitle">
+    <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-stone-200/80 flex flex-col overflow-hidden">
+      <div class="px-6 py-4 border-b border-stone-100 bg-[#FAF8F5]/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-sm" aria-hidden="true">
+            <svg class="icon w-5 h-5"><use href="#i-cross"/></svg>
+          </div>
+          <div>
+            <h3 id="setupAdminTitle" class="text-base font-bold text-stone-900 tracking-tight">First-Run Administrator Setup</h3>
+            <p class="text-xs text-stone-500">Create the primary clinic administrator account to initialize the system.</p>
+          </div>
+        </div>
+      </div>
+
+      <form id="setupAdminForm" onsubmit="window.ClinicApp.handleSetupAdmin(event)" class="p-5 sm:p-6 space-y-4">
+        <div id="setupAdminErrorMsg" role="alert" aria-live="polite" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700"></div>
+
+        <div>
+          <label for="setupAdminFullName" class="label">Full Name *</label>
+          <input type="text" id="setupAdminFullName" required placeholder="e.g. Dr. Elena Vance" class="input">
+        </div>
+
+        <div>
+          <label for="setupAdminEmail" class="label">Administrator Email *</label>
+          <input type="email" id="setupAdminEmail" required autocomplete="email" placeholder="admin@yourclinic.com" class="input">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="setupAdminPassword" class="label">Password (Min. 6 chars) *</label>
+            <input type="password" id="setupAdminPassword" required minlength="6" autocomplete="new-password" placeholder="••••••••" class="input">
+          </div>
+          <div>
+            <label for="setupAdminPhone" class="label">Phone <span class="font-normal text-stone-400">(optional)</span></label>
+            <input type="tel" id="setupAdminPhone" placeholder="+1 555-0100" class="input">
+          </div>
+        </div>
+
+        <button type="submit" id="setupAdminSubmitBtn" class="btn btn-primary w-full shadow-md shadow-brand-900/10">
+          <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-check"/></svg>
+          <span>Create Primary Admin &amp; Sign In</span>
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- Edit Profile Modal (Hospitality Wellness / Linear-tier Architecture) -->
   <style>
@@ -1866,6 +2022,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.11.3"></script>
+  <script src="/static/app.js?v=2.11.4"></script>
 </body>
 </html>

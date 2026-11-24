@@ -35,6 +35,11 @@
       profile: '/api/auth/profile',
       me: '/api/auth/me',
       logout: '/api/auth/logout',
+      setupStatus: '/api/auth/setup-status',
+      setupAdmin: '/api/auth/setup-admin',
+    },
+    admin: {
+      users: '/api/admin/users',
     },
     queue: {
       liveStatus: '/api/queue/live-status',
@@ -73,6 +78,7 @@
     selectedRating: 5,
     selectedTags: [],
     myTicket: localStorage.getItem('my_ticket') || null,
+    selectedEmrPatientId: null,
     // ponytail: fresh UUID per login; random session IDs prevent guest-session enumeration
     chatSessionId: localStorage.getItem('chat_session_id') || crypto.randomUUID(),
     guestChatRemaining: 5,
@@ -213,11 +219,17 @@
 
     if (tabName === 'doctor') {
       loadDoctorSchedule();
-      searchPatientEMR(1);
+      if (state.selectedEmrPatientId) {
+        searchPatientEMR(state.selectedEmrPatientId);
+      } else {
+        resetDoctorEMRView();
+      }
     } else if (tabName === 'staff') {
+      loadDoctors();
       fetchQueueStatus();
     } else if (tabName === 'analytics') {
       loadAnalytics();
+      loadAdminUsers();
     } else if (tabName === 'patient') {
       loadDoctors();
       fetchQueueStatus();
@@ -265,6 +277,8 @@
       localStorage.removeItem('user_profile');
       localStorage.removeItem('my_ticket');
       state.myTicket = null;
+      state.selectedEmrPatientId = null;
+      resetDoctorEMRView();
       state.chatSessionId = crypto.randomUUID();
       localStorage.setItem('chat_session_id', state.chatSessionId);
       updateUserUI();
@@ -487,28 +501,28 @@
       btnText: 'Sign In as Patient',
       regBtnText: 'Create Patient Account',
       icon: '#i-user',
-      emailPlaceholder: 'patient@demo.com',
+      emailPlaceholder: 'patient@clinic.com',
     },
     doctor: {
       title: 'Doctor Clinical Console',
       btnText: 'Sign In as Doctor',
       regBtnText: 'Register Doctor Account',
       icon: '#i-stethoscope',
-      emailPlaceholder: 'doctor@demo.com',
+      emailPlaceholder: 'doctor@clinic.com',
     },
     staff: {
       title: 'Staff & Billing Desk',
       btnText: 'Sign In as Staff',
       regBtnText: 'Register Staff Account',
       icon: '#i-clipboard',
-      emailPlaceholder: 'staff@demo.com',
+      emailPlaceholder: 'staff@clinic.com',
     },
     admin: {
       title: 'Administrator Console',
       btnText: 'Sign In as Administrator',
       regBtnText: 'Register Administrator Account',
       icon: '#i-chart',
-      emailPlaceholder: 'admin@demo.com',
+      emailPlaceholder: 'admin@clinic.com',
     },
   };
 
@@ -872,6 +886,50 @@
     const chatInput = document.getElementById('chatInput');
     if (chatInput) {
       setTimeout(() => chatInput.focus(), 250);
+    }
+  }
+
+  async function handleSetupAdmin(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('setupAdminErrorMsg');
+    if (errEl) errEl.classList.add('hidden');
+    const submitBtn = document.getElementById('setupAdminSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const payload = {
+      full_name: document.getElementById('setupAdminFullName').value.trim(),
+      email: document.getElementById('setupAdminEmail').value.trim(),
+      password: document.getElementById('setupAdminPassword').value,
+      phone: document.getElementById('setupAdminPhone')?.value.trim() || null,
+    };
+
+    try {
+      const data = await apiFetch(API.auth.setupAdmin, {
+        method: 'POST',
+        body: payload,
+      });
+      state.user = data.user;
+      localStorage.setItem('user_profile', JSON.stringify(state.user));
+      state.chatSessionId = crypto.randomUUID();
+      localStorage.setItem('chat_session_id', state.chatSessionId);
+
+      const modal = document.getElementById('setupAdminModal');
+      if (modal) modal.classList.add('hidden');
+      const form = document.getElementById('setupAdminForm');
+      if (form) form.reset();
+
+      updateUserUI();
+      showToast(`System initialized! Welcome, ${state.user.full_name || state.user.email}.`, 'success');
+      switchTab('analytics');
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || 'Administrator setup failed.';
+        errEl.classList.remove('hidden');
+      } else {
+        showToast(err.message, 'error');
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
 
@@ -1303,6 +1361,11 @@
         if (appSelect) appSelect.innerHTML = doctors.map(optionFull).join('');
         if (walkSelect) walkSelect.innerHTML = doctors.map(optionBrief).join('');
         if (callSelect) callSelect.innerHTML = doctors.map(optionBrief).join('');
+      } else {
+        const emptyOpt = '<option value="">No doctors available yet</option>';
+        if (appSelect) appSelect.innerHTML = emptyOpt;
+        if (walkSelect) walkSelect.innerHTML = emptyOpt;
+        if (callSelect) callSelect.innerHTML = emptyOpt;
       }
     } catch (err) {
       console.warn('Failed to load doctors list:', err);
@@ -1407,16 +1470,51 @@
     selectConsultationPatient(pid, row.getAttribute('data-patient-name') || '');
   });
 
+  function resetDoctorEMRView() {
+    const nameEl = document.getElementById('emrName');
+    const dobEl = document.getElementById('emrDob');
+    const bloodEl = document.getElementById('emrBlood');
+    const allergyEl = document.getElementById('emrAllergies');
+    const historyEl = document.getElementById('emrHistory');
+    const rxList = document.getElementById('emrPrescriptionsList');
+    const rxAlert = document.getElementById('rxAllergyBanner');
+    const rxPatientId = document.getElementById('rxPatientId');
+    const emrInput = document.getElementById('emrPatientId');
+    const rxResult = document.getElementById('prescriptionResultCard');
+
+    if (nameEl) nameEl.textContent = 'No patient selected';
+    if (dobEl) dobEl.textContent = 'Select a patient from Today\'s Patient Roster or search by ID';
+    if (bloodEl) bloodEl.textContent = '--';
+    if (allergyEl) {
+      allergyEl.textContent = '--';
+      allergyEl.className = 'text-xs font-semibold text-stone-600 bg-stone-100 border border-stone-200/80 px-2.5 py-0.5 rounded-lg';
+    }
+    if (historyEl) historyEl.textContent = '--';
+    if (rxList) rxList.innerHTML = '<p class="text-stone-400 py-2 text-center">Select a patient to view prescription history.</p>';
+    if (rxAlert) rxAlert.classList.add('hidden');
+    if (rxPatientId) rxPatientId.value = '';
+    if (emrInput) emrInput.value = '';
+    if (rxResult) rxResult.classList.add('hidden');
+  }
+
   // EMR & Prescriptions
   async function searchPatientEMR(explicitId = null) {
     const idInput = document.getElementById('emrPatientId');
-    const patientId = explicitId || (idInput ? parseInt(idInput.value, 10) : 1) || 1;
+    const parsedInput = idInput ? parseInt(idInput.value, 10) : NaN;
+    const patientId = explicitId || (Number.isFinite(parsedInput) && parsedInput > 0 ? parsedInput : null);
+    if (!patientId) {
+      showToast('Please enter a Patient ID or select a patient from the schedule.', 'info');
+      return;
+    }
 
     try {
       const emr = await apiFetch(`${API.emr.patient}/${patientId}`);
-      document.getElementById('emrName').textContent = emr.name || 'Sarah Connor';
-      document.getElementById('emrDob').textContent = `${emr.dob || '1990-05-14'} / ${emr.gender || 'Female'}`;
-      document.getElementById('emrBlood').textContent = emr.blood_group || 'O+';
+      state.selectedEmrPatientId = emr.patient_id || patientId;
+      const rxInput = document.getElementById('rxPatientId');
+      if (rxInput) rxInput.value = state.selectedEmrPatientId;
+      document.getElementById('emrName').textContent = emr.name || `Patient #${patientId}`;
+      document.getElementById('emrDob').textContent = `${emr.dob || 'N/A'} / ${emr.gender || 'Unspecified'}`;
+      document.getElementById('emrBlood').textContent = emr.blood_group || 'Unknown';
       const allergyEl = document.getElementById('emrAllergies');
       if (allergyEl) {
         allergyEl.textContent = emr.allergies || 'None';
@@ -1491,6 +1589,10 @@
   async function generatePrescription(e) {
     e.preventDefault();
     const patientId = parseInt(document.getElementById('rxPatientId').value, 10);
+    if (!Number.isFinite(patientId) || patientId <= 0) {
+      showToast('Please select a patient from the schedule or look up their chart by ID first.', 'error');
+      return;
+    }
     const diagnosis = document.getElementById('rxDiagnosis').value;
     const clinicalNotes = document.getElementById('rxNotes').value;
 
@@ -1769,6 +1871,91 @@
       }
     } catch (err) {
       console.warn('Failed to load analytics:', err);
+    }
+  }
+
+  // Admin User Management
+  function toggleAdminUserRoleFields() {
+    const role = document.getElementById('adminUserRole')?.value || 'staff';
+    const docFields = document.getElementById('adminUserDoctorFields');
+    if (docFields) docFields.classList.toggle('hidden', role !== 'doctor');
+  }
+
+  async function loadAdminUsers() {
+    const tbody = document.getElementById('adminUsersList');
+    if (!tbody || !state.user || state.user.role !== 'admin') return;
+    try {
+      const users = await apiFetch(API.admin.users);
+      if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-stone-400">No accounts found.</td></tr>';
+        return;
+      }
+      const roleColors = {
+        admin: 'bg-rose-100 text-rose-800',
+        doctor: 'bg-violet-100 text-violet-800',
+        staff: 'bg-amber-100 text-amber-800',
+        patient: 'bg-sky-100 text-sky-800',
+      };
+      tbody.innerHTML = users.map(u => {
+        const badge = roleColors[u.role] || 'bg-stone-100 text-stone-700';
+        const profileTag = u.patient_id ? `Patient #${u.patient_id}` : (u.doctor_id ? `Doctor #${u.doctor_id}` : `User #${u.id}`);
+        return `
+          <tr class="border-b border-stone-100">
+            <td class="py-2.5 pr-3 font-semibold text-stone-900">${escapeHTML(u.full_name)}</td>
+            <td class="py-2.5 pr-3 text-stone-600">${escapeHTML(u.email)}</td>
+            <td class="py-2.5 pr-3"><span class="pill ${badge} uppercase text-[10px] font-bold">${escapeHTML(u.role)}</span></td>
+            <td class="py-2.5 text-right font-mono text-[11px] text-stone-500">${escapeHTML(profileTag)}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-rose-600">${escapeHTML(err.message || 'Failed to load accounts')}</td></tr>`;
+    }
+  }
+
+  async function createAdminUser(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('adminUserErrorMsg');
+    if (errEl) errEl.classList.add('hidden');
+    const submitBtn = document.getElementById('adminUserSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const role = document.getElementById('adminUserRole').value;
+    const payload = {
+      role,
+      full_name: document.getElementById('adminUserFullName').value.trim(),
+      email: document.getElementById('adminUserEmail').value.trim(),
+      password: document.getElementById('adminUserPassword').value,
+      phone: document.getElementById('adminUserPhone')?.value.trim() || null,
+    };
+
+    if (role === 'doctor') {
+      payload.specialization = document.getElementById('adminUserSpec')?.value.trim() || null;
+      payload.license_number = document.getElementById('adminUserLicense')?.value.trim() || null;
+      payload.room_number = document.getElementById('adminUserRoom')?.value.trim() || null;
+      const feeVal = parseFloat(document.getElementById('adminUserFee')?.value);
+      if (Number.isFinite(feeVal)) payload.consultation_fee = feeVal;
+    }
+
+    try {
+      const res = await apiFetch(API.admin.users, {
+        method: 'POST',
+        body: payload,
+      });
+      document.getElementById('adminCreateUserForm')?.reset();
+      toggleAdminUserRoleFields();
+      showToast(`Created ${res.user.role} account for ${res.user.full_name}`, 'success');
+      loadAdminUsers();
+      if (role === 'doctor') loadDoctors();
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || 'Failed to create account.';
+        errEl.classList.remove('hidden');
+      } else {
+        showToast(err.message, 'error');
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
 
@@ -2172,7 +2359,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.11.3';
+  const APP_BUILD_VERSION = '2.11.4';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
@@ -2342,11 +2529,17 @@
     fetchQueueStatus();
     initQueueWebSocket();
 
-    // Reveal one-tap demo logins only on demo deployments
-    fetch('/api/auth/setup-status').then(r => r.json()).then(s => {
-      if (s && s.demo_mode) {
+    // Inspect deployment status: reveal demo logins only in DEMO_MODE, and
+    // show First-Run Administrator Setup when no admin exists yet.
+    fetch(API.auth.setupStatus).then(r => r.json()).then(s => {
+      if (!s) return;
+      if (s.demo_mode) {
         const row = document.getElementById('demoLoginRow');
         if (row) row.classList.remove('hidden');
+      }
+      const setupModal = document.getElementById('setupAdminModal');
+      if (setupModal) {
+        setupModal.classList.toggle('hidden', Boolean(s.initialized));
       }
     }).catch(() => {});
 
@@ -2422,6 +2615,10 @@
     toggleTag,
     submitFeedback,
     loadAnalytics,
+    loadAdminUsers,
+    toggleAdminUserRoleFields,
+    createAdminUser,
+    handleSetupAdmin,
     toggleChat,
     clearChat,
     copyChatText,

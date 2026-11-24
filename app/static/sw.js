@@ -1,5 +1,5 @@
 // ClinicCare PWA Service Worker
-const CACHE_NAME = 'cliniccare-pwa-v2.11.3';
+const CACHE_NAME = 'cliniccare-pwa-v2.11.4';
 const STATIC_ASSETS = [
   '/',
   '/static/index.html',

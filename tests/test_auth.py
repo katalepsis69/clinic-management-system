@@ -327,7 +327,7 @@ def test_setup_admin_first_run_flow(db_session):
     res = client.get("/api/auth/setup-status")
     assert res.status_code == 200
     assert res.json()["initialized"] is False
-    assert res.json()["demo_mode"] is True
+    assert res.json()["demo_mode"] is False
 
     payload = {
         "full_name": "Clinic Director",
@@ -404,3 +404,40 @@ def test_admin_user_management_endpoints(db_session):
     emails = [u["email"] for u in res_list.json()]
     assert "nurse.jackie@clinic.test" in emails
     assert "vance@clinic.test" in emails
+
+
+def test_auth_cookie_secure_flag_matches_request_scheme(db_session, monkeypatch):
+    import app.routers.auth as auth_module
+
+    monkeypatch.setattr(auth_module.settings, "DEMO_MODE", False)
+    client = _client_with_routers(db_session)
+
+    # Local HTTP (e.g., http://localhost:8000): cookie must NOT set Secure even when DEMO_MODE=false
+    setup_res = client.post("/api/auth/setup-admin", json={
+        "full_name": "Local Admin",
+        "email": "localadmin@clinic.test",
+        "password": "password123",
+    })
+    assert setup_res.status_code == 200
+    set_cookie_http = setup_res.headers.get("set-cookie", "")
+    assert "access_token=" in set_cookie_http
+    assert "Secure" not in set_cookie_http
+
+    # Behind HTTPS reverse proxy (X-Forwarded-Proto: https): cookie MUST set Secure
+    login_https_proxy = client.post(
+        "/api/auth/login",
+        headers={"X-Forwarded-Proto": "https"},
+        json={"email": "localadmin@clinic.test", "password": "password123"},
+    )
+    assert login_https_proxy.status_code == 200
+    assert "Secure" in login_https_proxy.headers.get("set-cookie", "")
+
+    # Direct HTTPS request URL scheme: cookie MUST set Secure
+    https_client = TestClient(_client_with_routers(db_session).app, base_url="https://testserver")
+    reg_https = https_client.post("/api/auth/register", json={
+        "full_name": "HTTPS Patient",
+        "email": "https.patient@clinic.test",
+        "password": "password123",
+    })
+    assert reg_https.status_code == 201
+    assert "Secure" in reg_https.headers.get("set-cookie", "")

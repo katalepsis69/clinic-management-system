@@ -71,12 +71,18 @@ def _user_profile(user: User) -> dict:
     return data
 
 
-def _set_auth_cookie(response: Response, token: str):
+def _is_https(request: Request) -> bool:
+    forwarded = request.headers.get("x-forwarded-proto", "")
+    proto = forwarded.split(",")[0].strip().lower() if forwarded else ""
+    return proto == "https" or request.url.scheme == "https"
+
+
+def _set_auth_cookie(request: Request, response: Response, token: str):
     response.set_cookie(
         key="access_token",
         value=f"Bearer {token}",
         httponly=True,
-        secure=not settings.DEMO_MODE,
+        secure=_is_https(request),
         samesite="strict",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
@@ -121,7 +127,7 @@ async def login(
     _FAILED_LOGINS.pop(email, None)
     role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
     token = create_access_token({"sub": user.email, "role": role_val})
-    _set_auth_cookie(response, token)
+    _set_auth_cookie(request, response, token)
 
     return {
         "access_token": token,
@@ -159,6 +165,7 @@ def setup_status(db: Session = Depends(get_db)):
 @router.post("/setup-admin")
 def setup_admin(
     payload: SetupAdminPayload,
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ):
@@ -188,7 +195,7 @@ def setup_admin(
     db.refresh(user)
 
     token = create_access_token({"sub": user.email, "role": user.role.value})
-    _set_auth_cookie(response, token)
+    _set_auth_cookie(request, response, token)
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -221,6 +228,7 @@ class RegisterUserPayload(BaseModel):
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_user(
     payload: RegisterUserPayload,
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ):
@@ -299,7 +307,7 @@ def register_user(
 
     role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
     token = create_access_token({"sub": user.email, "role": role_val})
-    _set_auth_cookie(response, token)
+    _set_auth_cookie(request, response, token)
 
     return {
         "access_token": token,

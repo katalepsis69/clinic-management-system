@@ -1,15 +1,17 @@
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
-from pydantic import model_validator
+import secrets
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     APP_NAME: str = "Clinic Management System"
-    SECRET_KEY: str = "dev-secret-key-change-in-production-1234567890"
+    # ponytail: ephemeral per-process secret when unset; set SECRET_KEY env var for persistent sessions across restarts or multi-worker
+    SECRET_KEY: str = Field(default_factory=lambda: secrets.token_hex(32))
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     DATABASE_URL: str = "sqlite:///./data/clinic.db"
-    DEMO_MODE: bool = True
+    DEMO_MODE: bool = False
     # ponytail: fixed PHT offset (Philippine clinics have no DST); switch to
     # zoneinfo only if the clinic ever moves to a DST timezone
     CLINIC_UTC_OFFSET: int = 8
