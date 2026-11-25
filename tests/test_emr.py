@@ -556,3 +556,47 @@ def test_emr_tolerates_malformed_medications_json(client, db_session):
     res = client.get(f"/api/emr/patient/{pat.id}", headers={"Authorization": f"Bearer {token}"})
     assert res.status_code == 200
     assert res.json()["prescriptions"][0]["medications"] == []
+
+
+def test_patient_my_prescriptions_with_qr_image(client, db_session):
+    u_doc = User(email="dr.myrx@clinic.test", hashed_password="pw", full_name="Dr. MyRx", role=UserRole.DOCTOR)
+    u_pat = User(email="pat.myrx@clinic.test", hashed_password="pw", full_name="Pat MyRx", role=UserRole.PATIENT)
+    u_other = User(email="pat.otherrx@clinic.test", hashed_password="pw", full_name="Pat OtherRx", role=UserRole.PATIENT)
+    db_session.add_all([u_doc, u_pat, u_other])
+    db_session.commit()
+
+    doc = Doctor(user_id=u_doc.id, specialization="Cardiology", license_number="L88", room_number="108")
+    pat = Patient(user_id=u_pat.id)
+    other = Patient(user_id=u_other.id)
+    db_session.add_all([doc, pat, other])
+    db_session.commit()
+
+    doc_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_doc.email, 'role': 'doctor'})}"}
+    pat_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_pat.email, 'role': 'patient'})}"}
+    other_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_other.email, 'role': 'patient'})}"}
+
+    rx_res = client.post(
+        "/api/emr/prescription/create",
+        headers=doc_headers,
+        json={
+            "patient_id": pat.id,
+            "diagnosis": "Seasonal Cough",
+            "clinical_notes": "Hydrate well",
+            "medications": [{"drug_name": "Cetirizine", "dosage": "10mg", "frequency": "OD", "duration": "5 days", "instructions": ""}],
+        },
+    )
+    assert rx_res.status_code == 200
+    assert rx_res.json()["qr_code_image"].startswith("data:image/svg+xml;base64,")
+
+    my_res = client.get("/api/emr/my-prescriptions", headers=pat_headers)
+    assert my_res.status_code == 200
+    rows = my_res.json()
+    assert len(rows) == 1
+    assert rows[0]["diagnosis"] == "Seasonal Cough"
+    assert rows[0]["doctor_name"] == "Dr. MyRx"
+    assert rows[0]["qr_code_image"].startswith("data:image/svg+xml;base64,")
+
+    # Other patient sees only their own prescriptions; doctors cannot call patient-only route
+    assert client.get("/api/emr/my-prescriptions", headers=other_headers).json() == []
+    assert client.get("/api/emr/my-prescriptions", headers=doc_headers).status_code == 403
+    assert client.get("/api/emr/my-prescriptions").status_code == 401

@@ -171,6 +171,28 @@ def test_philippine_currency_and_phone_formatting():
     res_app = client.get("/static/app.js")
     assert res_app.status_code == 200
     assert "en-PH" in res_app.text
+
+
+def test_qr_generator_and_panel_feature_hooks():
+    from app.qr import _format_bits, encode_qr_matrix, make_qr_data_uri
+
+    # ISO/IEC 18004 format info for ECC-L (01) + Mask 0 (000) == 0x77C4
+    assert _format_bits(0) == 0x77C4
+    assert len(encode_qr_matrix("RX:1234")) == 25
+    assert len(encode_qr_matrix("REC:REC-20260905-ABCD1234|PHP:1500.00")) == 29
+    uri = make_qr_data_uri("RX:ABCD1234")
+    assert uri.startswith("data:image/svg+xml;base64,")
+
+    res_html = client.get("/")
+    assert res_html.status_code == 200
+    assert 'id="patientPrescriptionsList"' in res_html.text
+    assert 'id="staffAppointmentsList"' in res_html.text
+    assert 'id="walkinNewFields"' in res_html.text
+
+    res_app = client.get("/static/app.js")
+    assert res_app.status_code == 200
+    for symbol in ("loadMyPrescriptions", "loadStaffAppointments", "switchWalkinMode", "checkInAppointment"):
+        assert symbol in res_app.text
     assert "formatPHP" in res_app.text
     assert "formatPHPhone" in res_app.text
     assert "loadMyAppointments" in res_app.text

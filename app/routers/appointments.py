@@ -1,12 +1,12 @@
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta, timezone
+from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field
 from app.config import get_settings
 from app.database import get_db
-from app.models import Appointment, AppointmentStatus, Doctor, Patient, User, UserRole
+from app.models import Appointment, AppointmentStatus, Doctor, Patient, QueueTicket, User, UserRole
 from app.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/appointments", tags=["Appointments & Schedule"])
@@ -130,6 +130,74 @@ def get_my_appointments(
     ]
 
 
+class UpdateAppointmentStatusRequest(BaseModel):
+    status: Literal["confirmed", "completed", "cancelled"]
+
+
+@router.get("/daily")
+def get_daily_appointments(
+    schedule_date: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN])),
+):
+    if schedule_date:
+        try:
+            target_date = datetime.strptime(schedule_date, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid date format, expected YYYY-MM-DD")
+    else:
+        target_date = settings.clinic_today()
+
+    apps = (
+        db.query(Appointment)
+        .filter(Appointment.appointment_date == target_date)
+        .order_by(Appointment.time_slot.asc(), Appointment.id.asc())
+        .all()
+    )
+    return [
+        {
+            "id": a.id,
+            "patient_id": a.patient_id,
+            "patient_name": a.patient.user.full_name if a.patient and a.patient.user else "Unknown",
+            "doctor_id": a.doctor_id,
+            "doctor_name": a.doctor.user.full_name if a.doctor and a.doctor.user else "Clinic Physician",
+            "room_number": a.doctor.room_number if a.doctor else "N/A",
+            "appointment_date": str(a.appointment_date),
+            "time_slot": a.time_slot,
+            "status": a.status.value if hasattr(a.status, "value") else str(a.status),
+            "reason": a.reason_for_visit,
+        }
+        for a in apps
+    ]
+
+
+@router.post("/{appointment_id}/status")
+def update_appointment_status(
+    appointment_id: int,
+    data: UpdateAppointmentStatusRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STAFF, UserRole.DOCTOR, UserRole.ADMIN])),
+):
+    appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    if current_user.role == UserRole.DOCTOR:
+        own = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+        if not own or appointment.doctor_id != own.id:
+            raise HTTPException(status_code=403, detail="Doctors can only update their own appointments")
+
+    appointment.status = AppointmentStatus(data.status)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Time slot is already booked by another appointment",
+        )
+    return {"status": "success", "appointment_id": appointment.id, "appointment_status": data.status}
+
+
 @router.get("/doctor-schedule/{doctor_id}")
 def get_doctor_schedule(
     doctor_id: int,
@@ -162,9 +230,10 @@ def get_doctor_schedule(
         .all()
     )
 
-    return [
+    items = [
         {
             "id": a.id,
+            "entry_type": "appointment",
             "patient_id": a.patient_id,
             "patient_name": a.patient.user.full_name if a.patient and a.patient.user else "Unknown",
             "patient_phone": a.patient.user.phone if a.patient and a.patient.user else None,
@@ -174,6 +243,35 @@ def get_doctor_schedule(
         }
         for a in apps
     ]
+
+    # Include walk-in queue tickets issued on target_date in clinic timezone
+    offset = timedelta(hours=settings.CLINIC_UTC_OFFSET)
+    day_start_utc = datetime.combine(target_date, datetime.min.time()) - offset
+    day_end_utc = day_start_utc + timedelta(days=1)
+    walkins = (
+        db.query(QueueTicket)
+        .filter(
+            QueueTicket.doctor_id == doctor_id,
+            QueueTicket.issued_at >= day_start_utc,
+            QueueTicket.issued_at < day_end_utc,
+        )
+        .order_by(QueueTicket.id.asc())
+        .all()
+    )
+    for t in walkins:
+        items.append({
+            "id": t.id,
+            "entry_type": "walk_in",
+            "ticket_number": t.ticket_number,
+            "patient_id": t.patient_id,
+            "patient_name": t.patient.user.full_name if t.patient and t.patient.user else "Walk-in",
+            "patient_phone": t.patient.user.phone if t.patient and t.patient.user else None,
+            "time_slot": f"Walk-in ({t.ticket_number})",
+            "status": t.status.value if hasattr(t.status, "value") else str(t.status),
+            "reason": f"Priority: {t.priority or 'normal'}",
+        })
+
+    return items
 
 
 @router.post("/{appointment_id}/cancel")

@@ -372,3 +372,41 @@ def test_search_patients_for_staff_and_doctor(client, db_session):
     pat_headers = {"Authorization": f"Bearer {create_access_token({'sub': pat_user.email, 'role': 'patient'})}"}
     assert client.get("/api/queue/patients?q=Patient", headers=pat_headers).status_code == 403
     assert client.get("/api/queue/patients?q=Patient").status_code == 401
+
+
+def test_walkin_register_creates_patient_and_ticket(client, db_session):
+    doc, _ = _make_doctor_and_patients(db_session, n_patients=1, tag="walkinreg")
+    staff_headers = _staff_headers(db_session)
+
+    res = client.post(
+        "/api/queue/walkin-register",
+        headers=staff_headers,
+        json={
+            "full_name": "Juan Dela Cruz",
+            "phone": "0917 555 1234",
+            "gender": "Male",
+            "allergies": "Penicillin",
+            "doctor_id": doc.id,
+            "priority": "urgent",
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["patient_name"] == "Juan Dela Cruz"
+    assert body["ticket_number"].startswith("Q-")
+    created_patient = db_session.query(Patient).filter(Patient.id == body["patient_id"]).first()
+    assert created_patient is not None
+    assert created_patient.allergies == "Penicillin"
+
+    # Patient role cannot register walk-ins
+    u_pat = db_session.query(User).filter(User.role == UserRole.PATIENT).first()
+    pat_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_pat.email, 'role': 'patient'})}"}
+    assert client.post(
+        "/api/queue/walkin-register",
+        headers=pat_headers,
+        json={"full_name": "Unauthorized Walkin", "doctor_id": doc.id},
+    ).status_code == 403
+    assert client.post(
+        "/api/queue/walkin-register",
+        json={"full_name": "Anon Walkin", "doctor_id": doc.id},
+    ).status_code == 401

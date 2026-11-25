@@ -701,3 +701,90 @@ def test_get_my_appointments_patient_only(db_session):
 
     assert client.get("/api/appointments/my", headers={"Authorization": f"Bearer {staff_token}"}).status_code == 403
     assert client.get("/api/appointments/my").status_code == 401
+
+
+def test_staff_daily_appointments_status_and_doctor_schedule_walkins(db_session):
+    from datetime import datetime, timezone
+    from app.models import QueueTicket, QueueStatus
+
+    u_doc = User(email="dr.daily@clinic.test", hashed_password="pw", full_name="Dr. Daily", role=UserRole.DOCTOR)
+    u_other_doc = User(email="dr.otherd@clinic.test", hashed_password="pw", full_name="Dr. OtherD", role=UserRole.DOCTOR)
+    u_pat = User(email="pat.daily@clinic.test", hashed_password="pw", full_name="Pat Booked", role=UserRole.PATIENT)
+    u_walk = User(email="pat.walkin@clinic.test", hashed_password="pw", full_name="Pat Walkin", role=UserRole.PATIENT)
+    u_staff = User(email="staff.daily@clinic.test", hashed_password="pw", full_name="Staff Daily", role=UserRole.STAFF)
+    db_session.add_all([u_doc, u_other_doc, u_pat, u_walk, u_staff])
+    db_session.commit()
+
+    doc = Doctor(user_id=u_doc.id, specialization="General", license_number="LD1", room_number="Room 101")
+    other_doc = Doctor(user_id=u_other_doc.id, specialization="ENT", license_number="LD2", room_number="Room 102")
+    pat = Patient(user_id=u_pat.id)
+    walk = Patient(user_id=u_walk.id)
+    db_session.add_all([doc, other_doc, pat, walk])
+    db_session.commit()
+
+    pat_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_pat.email, 'role': 'patient'})}"}
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff.email, 'role': 'staff'})}"}
+    doc_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_doc.email, 'role': 'doctor'})}"}
+    other_doc_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_other_doc.email, 'role': 'doctor'})}"}
+
+    today_str = CLINIC.isoformat()
+    booked = client.post(
+        "/api/appointments/book",
+        headers=pat_headers,
+        json={"doctor_id": doc.id, "appointment_date": today_str, "time_slot": "09:00 AM", "reason": "Checkup"},
+    )
+    assert booked.status_code == 200
+    appt_id = booked.json()["appointment_id"]
+
+    # Walk-in ticket issued today in clinic timezone (UTC+8)
+    offset = timedelta(hours=get_settings().CLINIC_UTC_OFFSET)
+    issued_utc = datetime.combine(CLINIC, datetime.min.time()) - offset + timedelta(hours=10)
+    db_session.add(QueueTicket(
+        ticket_number="Q-901",
+        patient_id=walk.id,
+        doctor_id=doc.id,
+        status=QueueStatus.WAITING,
+        priority="urgent",
+        issued_at=issued_utc,
+    ))
+    db_session.commit()
+
+    # Staff daily list
+    daily_res = client.get(f"/api/appointments/daily?schedule_date={today_str}", headers=staff_headers)
+    assert daily_res.status_code == 200
+    assert len(daily_res.json()) == 1
+    assert daily_res.json()[0]["patient_name"] == "Pat Booked"
+    assert client.get("/api/appointments/daily", headers=pat_headers).status_code == 403
+
+    # Doctor schedule shows both booked appointment and walk-in ticket
+    sched_res = client.get(f"/api/appointments/doctor-schedule/{doc.id}?schedule_date={today_str}", headers=doc_headers)
+    assert sched_res.status_code == 200
+    entries = sched_res.json()
+    assert {e["entry_type"] for e in entries} == {"appointment", "walk_in"}
+    assert any(e["patient_name"] == "Pat Walkin" and "Q-901" in e["time_slot"] for e in entries)
+
+    # Other doctor cannot update status; staff can mark completed
+    assert client.post(
+        f"/api/appointments/{appt_id}/status",
+        headers=other_doc_headers,
+        json={"status": "completed"},
+    ).status_code == 403
+    upd = client.post(
+        f"/api/appointments/{appt_id}/status",
+        headers=staff_headers,
+        json={"status": "completed"},
+    )
+    assert upd.status_code == 200
+    assert upd.json()["appointment_status"] == "completed"
+
+    # Cancelled slot re-booked by someone else cannot be forced back to confirmed (409)
+    cancel_res = client.post(f"/api/appointments/{appt_id}/status", headers=staff_headers, json={"status": "cancelled"})
+    assert cancel_res.status_code == 200
+    rebook_res = client.post(
+        "/api/appointments/book",
+        headers=pat_headers,
+        json={"doctor_id": doc.id, "appointment_date": today_str, "time_slot": "09:00 AM", "reason": "Rebook"},
+    )
+    assert rebook_res.status_code == 200
+    conflict_res = client.post(f"/api/appointments/{appt_id}/status", headers=staff_headers, json={"status": "confirmed"})
+    assert conflict_res.status_code == 409

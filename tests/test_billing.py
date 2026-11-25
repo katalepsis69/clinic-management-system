@@ -463,6 +463,7 @@ def test_get_receipt_by_number(client, db_session):
     assert receipt_data["discount_amount"] == 10.0
     assert receipt_data["total_amount"] == 70.0
     assert receipt_data["payment_method"] == "insurance"
+    assert receipt_data["qr_code_image"].startswith("data:image/svg+xml;base64,")
 
     # Not found
     resp_404 = client.get(

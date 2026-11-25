@@ -1,14 +1,16 @@
 from datetime import datetime, timezone
+import secrets
 from typing import Literal, Optional
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.models import QueueTicket, QueueStatus, Patient, Doctor, User, UserRole
-from app.auth import get_current_user, require_roles
+from app.auth import get_current_user, get_password_hash, require_roles
 from app.websocket_manager import queue_manager
 
 router = APIRouter(prefix="/api/queue", tags=["Queue Management"])
@@ -18,6 +20,15 @@ class IssueTicketRequest(BaseModel):
     doctor_id: int
     # ponytail: staff may issue walk-ins for another patient; patients are always self-issued
     patient_id: Optional[int] = None
+    priority: Literal["normal", "urgent"] = "normal"
+
+
+class WalkinRegisterRequest(BaseModel):
+    full_name: str = Field(min_length=1, max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=50)
+    gender: Optional[str] = Field(default=None, max_length=20)
+    allergies: Optional[str] = Field(default=None, max_length=500)
+    doctor_id: int
     priority: Literal["normal", "urgent"] = "normal"
 
 
@@ -86,6 +97,59 @@ def get_live_status(db: Session = Depends(get_db)):
     }
 
 
+def _allocate_queue_ticket(db: Session, patient_id: int, doctor_id: int, priority: str) -> QueueTicket:
+    active = (
+        db.query(QueueTicket)
+        .filter(
+            QueueTicket.patient_id == patient_id,
+            QueueTicket.status.in_([QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_CONSULTATION]),
+        )
+        .first()
+    )
+    if active:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Patient already has an active ticket ({active.ticket_number})",
+        )
+
+    # ponytail: MAX+1 + unique-constraint retry survives restores/deletions where
+    # count+101 deadlocked; switch to a counter table/sequence if contention grows
+    ticket = None
+    for _ in range(5):
+        max_num = db.execute(
+            text("SELECT COALESCE(MAX(CAST(SUBSTR(ticket_number, 3) AS INTEGER)), 100) FROM queue_tickets")
+        ).scalar()
+        candidate = QueueTicket(
+            ticket_number=f"Q-{max_num + 1}",
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            status=QueueStatus.WAITING,
+            priority=priority,
+            issued_at=datetime.now(timezone.utc),
+        )
+        db.add(candidate)
+        try:
+            db.commit()
+            ticket = candidate
+            break
+        except IntegrityError:
+            db.rollback()
+            still_active = (
+                db.query(QueueTicket)
+                .filter(QueueTicket.patient_id == patient_id, QueueTicket.status == QueueStatus.WAITING)
+                .first()
+            )
+            if still_active:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Patient already has an active ticket ({still_active.ticket_number})",
+                )
+    if ticket is None:
+        raise HTTPException(status_code=503, detail="Could not allocate a ticket number, please retry")
+    db.refresh(ticket)
+    return ticket
+
+
 @router.post("/issue")
 async def issue_ticket(
     data: IssueTicketRequest,
@@ -107,58 +171,60 @@ async def issue_ticket(
         if not patient:
             raise HTTPException(status_code=404, detail="Patient not found")
 
-    active = (
-        db.query(QueueTicket)
-        .filter(
-            QueueTicket.patient_id == patient.id,
-            QueueTicket.status.in_([QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_CONSULTATION]),
-        )
-        .first()
-    )
-    if active:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Patient already has an active ticket ({active.ticket_number})",
-        )
-
-    # ponytail: MAX+1 + unique-constraint retry survives restores/deletions where
-    # count+101 deadlocked; switch to a counter table/sequence if contention grows
-    ticket = None
-    for _ in range(5):
-        max_num = db.execute(
-            text("SELECT COALESCE(MAX(CAST(SUBSTR(ticket_number, 3) AS INTEGER)), 100) FROM queue_tickets")
-        ).scalar()
-        candidate = QueueTicket(
-            ticket_number=f"Q-{max_num + 1}",
-            patient_id=patient.id,
-            doctor_id=data.doctor_id,
-            status=QueueStatus.WAITING,
-            priority=data.priority,
-            issued_at=datetime.now(timezone.utc),
-        )
-        db.add(candidate)
-        try:
-            db.commit()
-            ticket = candidate
-            break
-        except IntegrityError:
-            db.rollback()
-            still_active = (
-                db.query(QueueTicket)
-                .filter(QueueTicket.patient_id == patient.id, QueueTicket.status == QueueStatus.WAITING)
-                .first()
-            )
-            if still_active:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Patient already has an active ticket ({still_active.ticket_number})",
-                )
-    if ticket is None:
-        raise HTTPException(status_code=503, detail="Could not allocate a ticket number, please retry")
-    db.refresh(ticket)
-
+    ticket = _allocate_queue_ticket(db, patient.id, data.doctor_id, data.priority)
     await queue_manager.broadcast({"event": "QUEUE_UPDATED", "ticket": ticket.ticket_number, "status": "issued"})
     return {"status": "success", "ticket_number": ticket.ticket_number, "id": ticket.id}
+
+
+@router.post("/walkin-register")
+async def register_walkin_patient(
+    data: WalkinRegisterRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN])),
+):
+    """Register an unregistered walk-in patient at the front desk and issue a queue ticket."""
+    doctor = (
+        db.query(Doctor)
+        .join(User)
+        .filter(Doctor.id == data.doctor_id, User.is_approved == True)
+        .first()
+    )
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    name = data.full_name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Patient name is required")
+
+    user = User(
+        email=f"walkin.{uuid.uuid4().hex[:12]}@clinic.local",
+        hashed_password=get_password_hash(secrets.token_urlsafe(16)),
+        full_name=name,
+        phone=data.phone.strip() if data.phone else None,
+        role=UserRole.PATIENT,
+        is_approved=True,
+    )
+    db.add(user)
+    db.flush()
+
+    patient = Patient(
+        user_id=user.id,
+        gender=data.gender.strip() if data.gender else None,
+        allergies=data.allergies.strip() if data.allergies else None,
+    )
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
+
+    ticket = _allocate_queue_ticket(db, patient.id, data.doctor_id, data.priority)
+    await queue_manager.broadcast({"event": "QUEUE_UPDATED", "ticket": ticket.ticket_number, "status": "issued"})
+    return {
+        "status": "success",
+        "patient_id": patient.id,
+        "patient_name": user.full_name,
+        "ticket_number": ticket.ticket_number,
+        "id": ticket.id,
+    }
 
 
 @router.post("/call-next")

@@ -44,6 +44,7 @@
     queue: {
       liveStatus: '/api/queue/live-status',
       issue: '/api/queue/issue',
+      walkinRegister: '/api/queue/walkin-register',
       callNext: '/api/queue/call-next',
       advance: '/api/queue/advance',
       patients: '/api/queue/patients',
@@ -53,11 +54,13 @@
       doctors: '/api/appointments/doctors',
       book: '/api/appointments/book',
       my: '/api/appointments/my',
+      daily: '/api/appointments/daily',
       base: '/api/appointments',
       schedule: '/api/appointments/doctor-schedule',
     },
     emr: {
       patient: '/api/emr/patient',
+      myPrescriptions: '/api/emr/my-prescriptions',
       createPrescription: '/api/emr/prescription/create',
     },
     billing: {
@@ -326,6 +329,7 @@
     } else if (tabName === 'staff') {
       loadDoctors();
       fetchQueueStatus();
+      loadStaffAppointments();
       loadBillingHistory();
     } else if (tabName === 'analytics') {
       loadAnalytics();
@@ -336,6 +340,7 @@
       if (state.user && state.user.role === 'patient') {
         renderPatientProfile(state.user);
         loadMyAppointments();
+        loadMyPrescriptions();
       } else {
         renderGuestPatientProfile();
       }
@@ -503,6 +508,8 @@
     if (guestAuthBtn) guestAuthBtn.classList.remove('hidden');
     const apptList = document.getElementById('patientAppointmentsList');
     if (apptList) apptList.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your appointments.</p>';
+    const rxList = document.getElementById('patientPrescriptionsList');
+    if (rxList) rxList.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your prescriptions.</p>';
   }
 
   function renderPatientProfile(user) {
@@ -1338,25 +1345,90 @@
     }
   }
 
+  let walkinMode = 'existing';
+
+  function switchWalkinMode(mode) {
+    walkinMode = mode === 'new' ? 'new' : 'existing';
+    const existingBox = document.getElementById('walkinExistingFields');
+    const newBox = document.getElementById('walkinNewFields');
+    const patientIdInput = document.getElementById('walkinPatientId');
+    const newNameInput = document.getElementById('walkinNewName');
+    const existingBtn = document.getElementById('walkinModeExistingBtn');
+    const newBtn = document.getElementById('walkinModeNewBtn');
+
+    if (existingBox) existingBox.classList.toggle('hidden', walkinMode === 'new');
+    if (newBox) newBox.classList.toggle('hidden', walkinMode !== 'new');
+    if (patientIdInput) patientIdInput.required = walkinMode === 'existing';
+    if (newNameInput) newNameInput.required = walkinMode === 'new';
+
+    if (existingBtn) {
+      existingBtn.setAttribute('aria-pressed', String(walkinMode === 'existing'));
+      existingBtn.classList.toggle('btn-primary', walkinMode === 'existing');
+      existingBtn.classList.toggle('btn-outline', walkinMode !== 'existing');
+    }
+    if (newBtn) {
+      newBtn.setAttribute('aria-pressed', String(walkinMode === 'new'));
+      newBtn.classList.toggle('btn-primary', walkinMode === 'new');
+      newBtn.classList.toggle('btn-outline', walkinMode !== 'new');
+    }
+  }
+
   async function registerWalkin(e) {
     e.preventDefault();
-    const patientId = parseInt(document.getElementById('walkinPatientId').value, 10) || 1;
     const doctorId = parseInt(document.getElementById('walkinDoctorSelect').value, 10) || 1;
     const priority = document.getElementById('walkinPriority').value || 'normal';
 
     try {
-      const res = await apiFetch(API.queue.issue, {
-        method: 'POST',
-        body: { patient_id: patientId, doctor_id: doctorId, priority: priority },
-      });
+      let res;
+      let resolvedPatientId;
+      let resolvedName = '';
+
+      if (walkinMode === 'new') {
+        const fullName = (document.getElementById('walkinNewName')?.value || '').trim();
+        if (!fullName) {
+          showToast('Please enter the walk-in patient full name.', 'error');
+          return;
+        }
+        const phone = formatPHPhone(document.getElementById('walkinNewPhone')?.value || '');
+        const gender = document.getElementById('walkinNewGender')?.value || '';
+        const allergies = (document.getElementById('walkinNewAllergies')?.value || '').trim();
+        res = await apiFetch(API.queue.walkinRegister, {
+          method: 'POST',
+          body: {
+            full_name: fullName,
+            phone,
+            gender,
+            allergies,
+            doctor_id: doctorId,
+            priority,
+          },
+        });
+        resolvedPatientId = res.patient_id;
+        resolvedName = res.patient_name || fullName;
+        const walkInput = document.getElementById('walkinPatientId');
+        const billInput = document.getElementById('billPatientId');
+        if (walkInput) walkInput.value = resolvedPatientId;
+        if (billInput) billInput.value = resolvedPatientId;
+        ['walkinNewName', 'walkinNewPhone', 'walkinNewGender', 'walkinNewAllergies'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+      } else {
+        resolvedPatientId = parseInt(document.getElementById('walkinPatientId').value, 10) || 1;
+        res = await apiFetch(API.queue.issue, {
+          method: 'POST',
+          body: { patient_id: resolvedPatientId, doctor_id: doctorId, priority },
+        });
+      }
 
       const resultBox = document.getElementById('walkinTicketResult');
       if (resultBox) {
         resultBox.classList.remove('hidden');
+        const who = resolvedName ? `${escapeHTML(resolvedName)} (ID #${resolvedPatientId})` : `Patient ID #${resolvedPatientId}`;
         resultBox.innerHTML = `
           <span class="text-xs text-brand-800 font-semibold block">Ticket Issued Successfully</span>
           <span class="text-3xl font-black text-brand-700 font-mono my-1 block">${escapeHTML(res.ticket_number)}</span>
-          <span class="text-[11px] text-brand-600">Patient ID #${patientId} &bull; Triage: ${escapeHTML(priority)}</span>
+          <span class="text-[11px] text-brand-600">${who} &bull; Triage: ${escapeHTML(priority)}</span>
         `;
       }
       showToast(`Ticket ${res.ticket_number} created!`, 'success');
@@ -1527,6 +1599,116 @@
     }
   }
 
+  async function loadMyPrescriptions() {
+    const list = document.getElementById('patientPrescriptionsList');
+    if (!list) return;
+    if (!state.user || state.user.role !== 'patient') {
+      list.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your prescriptions.</p>';
+      return;
+    }
+    try {
+      const rows = await apiFetch(API.emr.myPrescriptions);
+      if (!rows || rows.length === 0) {
+        list.innerHTML = '<p class="text-stone-600 py-3 text-center">No prescriptions issued yet.</p>';
+        return;
+      }
+      list.innerHTML = rows.map(rx => {
+        const medsHtml = (rx.medications || []).map(m =>
+          `<div>&bull; <strong>${escapeHTML(m.drug_name || m.name || '')}</strong> ${escapeHTML(m.dosage || '')} &mdash; ${escapeHTML(m.frequency || '')} (${escapeHTML(m.duration || '')})</div>`
+        ).join('');
+        const qrHtml = rx.qr_code_image && rx.qr_code_image.startsWith('data:image/')
+          ? `<img src="${rx.qr_code_image}" alt="Prescription QR code for ${escapeHTML(rx.qr_code_hash)}" class="w-16 h-16 rounded border border-brand-200 bg-white p-0.5 shrink-0">`
+          : '';
+        return `
+          <div class="p-3 rounded-xl bg-stone-50 border border-stone-200/80 flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-bold text-stone-900 truncate">${escapeHTML(rx.diagnosis)}</span>
+                <span class="text-[10px] text-stone-600 shrink-0">${escapeHTML(rx.created_at)}</span>
+              </div>
+              <span class="text-[11px] text-stone-600 block">${escapeHTML(rx.doctor_name)} &bull; ${escapeHTML(rx.specialization || '')}</span>
+              ${rx.notes ? `<p class="text-[11px] text-stone-600">${escapeHTML(rx.notes)}</p>` : ''}
+              ${medsHtml ? `<div class="text-[11px] text-brand-800 bg-brand-50 p-2 rounded-lg space-y-0.5">${medsHtml}</div>` : ''}
+              <span class="text-[10px] font-mono text-stone-600 block">Rx Code: ${escapeHTML(rx.qr_code_hash)}</span>
+            </div>
+            ${qrHtml}
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      list.innerHTML = `<p class="text-rose-600 py-3 text-center">${escapeHTML(err.message || 'Failed to load prescriptions')}</p>`;
+    }
+  }
+
+  async function loadStaffAppointments() {
+    const list = document.getElementById('staffAppointmentsList');
+    if (!list || !state.user || (state.user.role !== 'staff' && state.user.role !== 'admin')) return;
+    try {
+      const rows = await apiFetch(`${API.appointments.daily}?schedule_date=${clinicTodayISO()}`);
+      if (!rows || rows.length === 0) {
+        list.innerHTML = '<p class="text-stone-600 py-3 text-center">No appointments scheduled for today.</p>';
+        return;
+      }
+      list.innerHTML = rows.map(a => {
+        const isCancelled = a.status === 'cancelled';
+        const isCompleted = a.status === 'completed';
+        const statusCls = isCancelled
+          ? 'bg-rose-100 text-rose-800'
+          : (isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-brand-50 text-brand-700');
+        const actions = a.status === 'confirmed' ? `
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <button type="button" onclick="window.ClinicApp.checkInAppointment(${a.patient_id}, ${a.doctor_id})" class="btn btn-primary btn-sm">Check In</button>
+            <button type="button" onclick="window.ClinicApp.updateAppointmentStatus(${a.id}, 'completed')" class="btn btn-outline btn-sm">Complete</button>
+            <button type="button" onclick="window.ClinicApp.updateAppointmentStatus(${a.id}, 'cancelled')" class="btn btn-outline btn-sm text-rose-700 border-rose-200 hover:bg-rose-50">Cancel</button>
+          </div>` : '';
+        return `
+          <div class="p-3 rounded-xl bg-stone-50 border border-stone-200/80">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="font-bold text-stone-900 block truncate">${escapeHTML(a.time_slot)} &bull; ${escapeHTML(a.patient_name)} (#${a.patient_id})</span>
+                <span class="text-[11px] text-stone-600 block truncate">${escapeHTML(a.doctor_name)} (${escapeHTML(a.room_number || 'Room N/A')})</span>
+              </div>
+              <span class="pill ${statusCls} uppercase text-[10px] font-bold shrink-0">${escapeHTML(a.status)}</span>
+            </div>
+            ${actions}
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      list.innerHTML = `<p class="text-rose-600 py-3 text-center">${escapeHTML(err.message || 'Failed to load appointments')}</p>`;
+    }
+  }
+
+  async function checkInAppointment(patientId, doctorId) {
+    try {
+      const res = await apiFetch(API.queue.issue, {
+        method: 'POST',
+        body: { patient_id: patientId, doctor_id: doctorId, priority: 'normal' },
+      });
+      const walkInput = document.getElementById('walkinPatientId');
+      const billInput = document.getElementById('billPatientId');
+      if (walkInput) walkInput.value = patientId;
+      if (billInput) billInput.value = patientId;
+      showToast(`Checked in Patient #${patientId} — Ticket ${res.ticket_number}`, 'success');
+      fetchQueueStatus();
+    } catch (err) {
+      showToast(`Check-in failed: ${err.message}`, 'error');
+    }
+  }
+
+  async function updateAppointmentStatus(appointmentId, targetStatus) {
+    try {
+      await apiFetch(`${API.appointments.base}/${appointmentId}/status`, {
+        method: 'POST',
+        body: { status: targetStatus },
+      });
+      showToast(`Appointment marked ${targetStatus}.`, 'success');
+      loadStaffAppointments();
+    } catch (err) {
+      showToast(`Status update failed: ${err.message}`, 'error');
+    }
+  }
+
   // Shared patient name/ID search helper for Staff check-in/billing and Doctor EMR lookup
   let patientLookupTimer = null;
   function lookupPatients(query, containerId, targetMode) {
@@ -1600,17 +1782,31 @@
         return;
       }
 
-      list.innerHTML = data.map(app => `
+      list.innerHTML = data.map(app => {
+        const isWalkin = app.entry_type === 'walk_in';
+        const statusCls = app.status === 'cancelled'
+          ? 'bg-rose-100 text-rose-800 border-rose-200'
+          : (app.status === 'completed'
+            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+            : (isWalkin ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200/60'));
+        const typeBadge = isWalkin
+          ? '<span class="pill bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold uppercase shrink-0">Walk-In</span>'
+          : '';
+        return `
         <div class="schedule-patient-item p-3 rounded-xl bg-white hover:bg-brand-50/70 border border-stone-200/80 text-xs flex justify-between items-center gap-2 cursor-pointer transition-all shadow-sm hover:border-brand-300"
              data-patient-id="${parseInt(app.patient_id, 10) || ''}"
              data-patient-name="${escapeHTML(app.patient_name || 'Patient')}">
           <div class="min-w-0">
             <span class="font-bold text-stone-900 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
-            <span class="text-stone-500 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
+            <span class="text-stone-600 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
           </div>
-          <span class="pill bg-brand-50 text-brand-700 uppercase shrink-0 border border-brand-200/60 text-[10px] font-bold">${escapeHTML(app.status)}</span>
+          <div class="flex items-center gap-1.5 shrink-0">
+            ${typeBadge}
+            <span class="pill ${statusCls} uppercase border text-[10px] font-bold">${escapeHTML(app.status)}</span>
+          </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     } catch (err) {
       console.warn('Failed to load schedule:', err);
     }
@@ -1860,14 +2056,22 @@
 
       const card = document.getElementById('billingResultCard');
       if (card) {
+        const qrImg = res.qr_code_image && res.qr_code_image.startsWith('data:image/')
+          ? `<img src="${res.qr_code_image}" alt="Receipt verification QR code" class="w-16 h-16 rounded border border-stone-200 bg-white p-0.5 shrink-0">`
+          : '';
         card.classList.remove('hidden');
         card.innerHTML = `
-          <span class="text-xs font-bold text-stone-800 block">Receipt: ${escapeHTML(res.receipt_number)}</span>
-          <div class="flex justify-between items-center my-1 text-stone-600">
-            <span>Total Paid (${escapeHTML(method.toUpperCase())}):</span>
-            <span class="font-extrabold text-stone-900 font-mono tabular-nums">${escapeHTML(formatPHP(res.total))}</span>
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <span class="text-xs font-bold text-stone-800 block">Receipt: ${escapeHTML(res.receipt_number)}</span>
+              <div class="flex justify-between items-center my-1 text-stone-600 gap-2">
+                <span>Total Paid (${escapeHTML(method.toUpperCase())}):</span>
+                <span class="font-extrabold text-stone-900 font-mono tabular-nums">${escapeHTML(formatPHP(res.total))}</span>
+              </div>
+              <span class="text-[10px] text-brand-600 font-semibold block">Transaction Finalized &amp; Paid</span>
+            </div>
+            ${qrImg}
           </div>
-          <span class="text-[10px] text-brand-600 font-semibold block">Transaction Finalized &amp; Paid</span>
         `;
       }
       showToast(`Invoice ${res.receipt_number} generated!`, 'success');
@@ -2831,10 +3035,16 @@
     issueMyQueueTicket,
     callNextPatient,
     advanceServingTicket,
+    formatPHPhone,
+    switchWalkinMode,
     registerWalkin,
     submitAppointment,
     loadMyAppointments,
     cancelMyAppointment,
+    loadMyPrescriptions,
+    loadStaffAppointments,
+    checkInAppointment,
+    updateAppointmentStatus,
     lookupPatients,
     selectFoundPatient,
     loadDoctorSchedule,

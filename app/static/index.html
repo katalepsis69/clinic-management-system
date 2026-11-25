@@ -993,6 +993,23 @@
             </div>
           </div>
 
+          <!-- My E-Prescriptions List -->
+          <div id="myPrescriptionsCard" class="card card-pad border-stone-200/80 shadow-sm">
+            <div class="flex items-center justify-between gap-2 pb-3 border-b border-stone-100">
+              <div>
+                <h3 class="card-title text-base font-bold text-stone-900">My E-Prescriptions</h3>
+                <p class="card-subtitle text-xs text-stone-600">View medications and verification QR codes from your doctor.</p>
+              </div>
+              <button type="button" onclick="window.ClinicApp.loadMyPrescriptions()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh prescriptions">
+                <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
+                <span>Refresh</span>
+              </button>
+            </div>
+            <div id="patientPrescriptionsList" class="space-y-2.5 mt-3 max-h-72 overflow-y-auto text-xs" aria-live="polite">
+              <p class="text-stone-600 py-3 text-center">Sign in to view your prescriptions.</p>
+            </div>
+          </div>
+
           <!-- Quick FAQ / Assistant Prompt Card -->
           <div class="p-4 rounded-2xl bg-brand-50/60 border border-brand-200/70 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 min-w-0">
@@ -1359,28 +1376,79 @@
             </div>
           </div>
 
+          <!-- Today's Booked Appointments Console -->
+          <div id="staffAppointmentsCard" class="card card-pad border-stone-200/80 shadow-sm bg-white">
+            <div class="flex items-center justify-between gap-2 pb-3 border-b border-stone-100">
+              <div>
+                <h3 class="card-title text-base font-bold text-stone-900">Today's Appointments</h3>
+                <p class="card-subtitle text-xs text-stone-600">Check patients in or update appointment status.</p>
+              </div>
+              <button type="button" onclick="window.ClinicApp.loadStaffAppointments()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh daily appointments">
+                <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
+                <span>Refresh</span>
+              </button>
+            </div>
+            <div id="staffAppointmentsList" class="space-y-2.5 mt-3 max-h-72 overflow-y-auto text-xs" aria-live="polite">
+              <p class="text-stone-600 py-3 text-center">Loading today's appointments...</p>
+            </div>
+          </div>
+
           <!-- Walk-in Registration Card -->
           <div class="card card-pad border-stone-200/80 shadow-sm bg-white">
-            <div class="flex items-center gap-2.5 mb-1 pb-3 border-b border-stone-100">
-              <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0 border border-brand-200/60" aria-hidden="true">
-                <svg class="icon w-4 h-4"><use href="#i-user-plus"/></svg>
-              </span>
-              <div>
-                <h3 class="card-title text-base font-bold text-stone-900">Walk-in Patient Check-in</h3>
-                <p class="card-subtitle text-xs text-stone-500">Issue on-site tickets for arriving walk-in patients.</p>
+            <div class="flex items-center justify-between gap-2.5 mb-1 pb-3 border-b border-stone-100 flex-wrap">
+              <div class="flex items-center gap-2.5">
+                <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0 border border-brand-200/60" aria-hidden="true">
+                  <svg class="icon w-4 h-4"><use href="#i-user-plus"/></svg>
+                </span>
+                <div>
+                  <h3 class="card-title text-base font-bold text-stone-900">Walk-in Patient Check-in</h3>
+                  <p class="card-subtitle text-xs text-stone-600">Issue tickets or register walk-in patients on site.</p>
+                </div>
+              </div>
+              <div class="flex gap-1.5" role="group" aria-label="Walk-in mode">
+                <button type="button" id="walkinModeExistingBtn" onclick="window.ClinicApp.switchWalkinMode('existing')" aria-pressed="true" class="btn btn-primary btn-sm">Existing</button>
+                <button type="button" id="walkinModeNewBtn" onclick="window.ClinicApp.switchWalkinMode('new')" aria-pressed="false" class="btn btn-outline btn-sm">New Walk-in</button>
               </div>
             </div>
 
             <form id="walkinForm" onsubmit="window.ClinicApp.registerWalkin(event)" class="space-y-3.5 mt-4">
-              <div>
-                <label for="staffPatientSearch" class="label">Find Patient by Name</label>
-                <input type="search" id="staffPatientSearch" placeholder="Type patient name (e.g. Sarah)..." oninput="window.ClinicApp.lookupPatients(this.value, 'staffPatientMatches', 'staff')" class="input !py-2 text-xs">
-                <div id="staffPatientMatches" class="hidden flex flex-wrap gap-1.5 mt-2"></div>
+              <div id="walkinExistingFields" class="space-y-3.5">
+                <div>
+                  <label for="staffPatientSearch" class="label">Find Patient by Name</label>
+                  <input type="search" id="staffPatientSearch" placeholder="Type patient name (e.g. Sarah)..." oninput="window.ClinicApp.lookupPatients(this.value, 'staffPatientMatches', 'staff')" class="input !py-2 text-xs">
+                  <div id="staffPatientMatches" class="hidden flex flex-wrap gap-1.5 mt-2"></div>
+                </div>
+                <div>
+                  <label for="walkinPatientId" class="label">Patient ID *</label>
+                  <input type="number" id="walkinPatientId" placeholder="e.g. 1" required class="input !py-2 text-xs">
+                  <span class="hint">Auto-filled when you pick a patient above (also fills Billing Patient ID)</span>
+                </div>
               </div>
-              <div>
-                <label for="walkinPatientId" class="label">Patient ID *</label>
-                <input type="number" id="walkinPatientId" placeholder="e.g. 1" required class="input !py-2 text-xs">
-                <span class="hint">Auto-filled when you pick a patient above (also fills Billing Patient ID)</span>
+
+              <div id="walkinNewFields" class="hidden space-y-3">
+                <div>
+                  <label for="walkinNewName" class="label">Full Name *</label>
+                  <input type="text" id="walkinNewName" placeholder="e.g. Juan Dela Cruz" class="input !py-2 text-xs">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label for="walkinNewPhone" class="label">Mobile Number</label>
+                    <input type="tel" id="walkinNewPhone" placeholder="0917 123 4567" oninput="this.value = window.ClinicApp.formatPHPhone(this.value)" class="input !py-2 text-xs">
+                  </div>
+                  <div>
+                    <label for="walkinNewGender" class="label">Gender</label>
+                    <select id="walkinNewGender" class="select !py-2 text-xs">
+                      <option value="">Select...</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label for="walkinNewAllergies" class="label">Known Allergies</label>
+                  <input type="text" id="walkinNewAllergies" placeholder="e.g. Penicillin or None" class="input !py-2 text-xs">
+                </div>
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2038,6 +2106,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.12.2"></script>
+  <script src="/static/app.js?v=2.13.0"></script>
 </body>
 </html>

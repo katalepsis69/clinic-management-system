@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models import Patient, Doctor, Prescription, User, UserRole
 from app.auth import require_roles
+from app.qr import make_qr_data_uri
 
 router = APIRouter(prefix="/api/emr", tags=["EMR & Prescriptions"])
 
@@ -106,6 +107,50 @@ def create_prescription(
         "status": "success",
         "prescription_id": rx.id,
         "qr_code_hash": rx.qr_code_hash,
-        "qr_code_image": None,
+        "qr_code_image": make_qr_data_uri(f"RX:{rx.qr_code_hash}"),
     }
+
+
+@router.get("/my-prescriptions")
+def get_my_prescriptions(
+    user: User = Depends(require_roles([UserRole.PATIENT])),
+    db: Session = Depends(get_db),
+):
+    patient = db.query(Patient).filter(Patient.user_id == user.id).first()
+    if not patient:
+        return []
+    prescriptions = (
+        db.query(Prescription)
+        .filter(Prescription.patient_id == patient.id)
+        .order_by(Prescription.created_at.desc(), Prescription.id.desc())
+        .limit(20)
+        .all()
+    )
+    doctor_ids = {p.doctor_id for p in prescriptions if p.doctor_id}
+    doctors = (
+        {d.id: d for d in db.query(Doctor).filter(Doctor.id.in_(doctor_ids)).all()}
+        if doctor_ids
+        else {}
+    )
+    items = []
+    for p in prescriptions:
+        doc = doctors.get(p.doctor_id)
+        try:
+            meds = json.loads(p.medications_json)
+            if not isinstance(meds, list):
+                meds = []
+        except (ValueError, TypeError):
+            meds = []
+        items.append({
+            "id": p.id,
+            "doctor_name": doc.user.full_name if doc and doc.user else "Clinic Physician",
+            "specialization": doc.specialization if doc else "",
+            "diagnosis": p.diagnosis,
+            "notes": p.clinical_notes,
+            "medications": meds,
+            "created_at": p.created_at.strftime("%Y-%m-%d %H:%M"),
+            "qr_code_hash": p.qr_code_hash,
+            "qr_code_image": make_qr_data_uri(f"RX:{p.qr_code_hash}"),
+        })
+    return items
 

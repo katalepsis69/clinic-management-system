@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.database import get_db
 from app.models import Invoice, Patient, QueueTicket, User, UserRole
 from app.auth import require_roles
+from app.qr import make_qr_data_uri
 
 router = APIRouter(prefix="/api/billing", tags=["Billing & Digital Invoicing"])
 
@@ -74,6 +75,7 @@ def create_invoice(
         "invoice_id": inv.id,
         "receipt_number": inv.receipt_number,
         "total": float(inv.total_amount),
+        "qr_code_image": make_qr_data_uri(f"REC:{inv.receipt_number}|PHP:{float(inv.total_amount):.2f}"),
     }
 
 
@@ -110,6 +112,7 @@ def _serialize_invoice(inv: Invoice) -> dict:
         "payment_method": inv.payment_method,
         "payment_status": inv.payment_status,
         "paid_at": inv.paid_at.strftime("%Y-%m-%d %H:%M") if inv.paid_at else None,
+        "qr_code_image": make_qr_data_uri(f"REC:{inv.receipt_number}|PHP:{float(inv.total_amount):.2f}"),
     }
 
 
