@@ -65,6 +65,11 @@ def get_current_user(
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account pending administrator approval",
+        )
     return user
 
 
@@ -88,7 +93,8 @@ def get_optional_current_user(
     if not email:
         return None
 
-    return db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == email).first()
+    return user if (user and user.is_approved) else None
 
 
 def require_roles(allowed_roles: List[UserRole]):

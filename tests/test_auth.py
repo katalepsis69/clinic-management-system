@@ -264,7 +264,7 @@ def test_auth_router_endpoints(db_session):
     assert dup_res.status_code == 400
     assert "already exists" in dup_res.json()["detail"]
 
-    # 8. Doctor registration
+    # 8. Doctor, staff, and admin self-registrations require admin approval
     doc_res = client.post("/api/auth/register", json={
         "email": "dr.house@clinic.test",
         "password": "password123",
@@ -278,10 +278,12 @@ def test_auth_router_endpoints(db_session):
     })
     assert doc_res.status_code == 201
     doc_data = doc_res.json()
+    assert doc_data["pending_approval"] is True
+    assert "access_token" not in doc_data
     assert doc_data["user"]["role"] == "doctor"
+    assert doc_data["user"]["is_approved"] is False
     assert doc_data["user"]["doctor_id"] is not None
 
-    # 9. Staff self-registration is now rejected (admin-provisioned only)
     staff_res = client.post("/api/auth/register", json={
         "email": "nurse.jackie@clinic.test",
         "password": "password123",
@@ -289,9 +291,10 @@ def test_auth_router_endpoints(db_session):
         "role": "staff",
         "phone": "555-8888",
     })
-    assert staff_res.status_code == 403
+    assert staff_res.status_code == 201
+    assert staff_res.json()["pending_approval"] is True
+    assert staff_res.json()["user"]["is_approved"] is False
 
-    # 10. Admin self-registration is now rejected (first-run setup or another admin)
     admin_res = client.post("/api/auth/register", json={
         "email": "head.admin@clinic.test",
         "password": "password123",
@@ -299,7 +302,14 @@ def test_auth_router_endpoints(db_session):
         "role": "admin",
         "phone": "555-9999",
     })
-    assert admin_res.status_code == 403
+    assert admin_res.status_code == 201
+    assert admin_res.json()["pending_approval"] is True
+    assert admin_res.json()["user"]["is_approved"] is False
+
+    # Pending accounts cannot log in until approved
+    assert client.post("/api/auth/login", json={
+        "email": "head.admin@clinic.test", "password": "password123",
+    }).status_code == 403
 
 
 def _client_with_routers(db_session, include_admin=False):
@@ -404,6 +414,38 @@ def test_admin_user_management_endpoints(db_session):
     emails = [u["email"] for u in res_list.json()]
     assert "nurse.jackie@clinic.test" in emails
     assert "vance@clinic.test" in emails
+
+    # Admin can create another admin directly and approve/reject pending requests
+    res_new_admin = client.post("/api/admin/users", headers=admin_headers, json={
+        "full_name": "Deputy Admin", "email": "deputy@clinic.test",
+        "password": "password123", "role": "admin",
+    })
+    assert res_new_admin.status_code == 201
+    assert res_new_admin.json()["user"]["role"] == "admin"
+    assert res_new_admin.json()["user"]["is_approved"] is True
+
+    pend_res = client.post("/api/auth/register", json={
+        "full_name": "Pending Staff", "email": "pending.staff@clinic.test",
+        "password": "password123", "role": "staff",
+    })
+    pend_id = pend_res.json()["user"]["id"]
+    assert client.post("/api/auth/login", json={
+        "email": "pending.staff@clinic.test", "password": "password123",
+    }).status_code == 403
+
+    app_res = client.post(f"/api/admin/users/{pend_id}/approve", headers=admin_headers)
+    assert app_res.status_code == 200
+    assert app_res.json()["user"]["is_approved"] is True
+    assert client.post("/api/auth/login", json={
+        "email": "pending.staff@clinic.test", "password": "password123",
+    }).status_code == 200
+
+    rej_res = client.post("/api/auth/register", json={
+        "full_name": "Reject Me", "email": "reject@clinic.test",
+        "password": "password123", "role": "admin",
+    })
+    rej_id = rej_res.json()["user"]["id"]
+    assert client.delete(f"/api/admin/users/{rej_id}", headers=admin_headers).status_code == 200
 
 
 def test_auth_cookie_secure_flag_matches_request_scheme(db_session, monkeypatch):

@@ -504,14 +504,14 @@
     staff: {
       title: 'Staff & Billing Desk',
       btnText: 'Sign In as Staff',
-      regBtnText: 'Register Staff Account',
+      regBtnText: 'Request Staff Account',
       icon: '#i-clipboard',
       emailPlaceholder: 'staff@clinic.com',
     },
     admin: {
       title: 'Administrator Console',
       btnText: 'Sign In as Administrator',
-      regBtnText: 'Register Administrator Account',
+      regBtnText: 'Request Admin Account',
       icon: '#i-chart',
       emailPlaceholder: 'admin@clinic.com',
     },
@@ -539,36 +539,35 @@
     const loginForm = document.getElementById('portalLoginForm');
     const regForm = document.getElementById('portalRegisterForm');
     const errEl = document.getElementById('portalLoginErrorMsg');
+    const infoEl = document.getElementById('portalLoginInfoMsg');
     if (errEl) errEl.classList.add('hidden');
+    if (infoEl) infoEl.classList.add('hidden');
+
+    const activeCls = 'flex-1 min-h-[44px] py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all';
+    const inactiveCls = 'flex-1 min-h-[44px] py-2 rounded-lg text-stone-600 hover:text-stone-900 transition-all font-semibold';
 
     if (currentPortalMode === 'register') {
       if (signInBtn) {
-        signInBtn.className = 'flex-1 py-2 rounded-lg text-stone-500 hover:text-stone-900 transition-all font-semibold';
+        signInBtn.className = inactiveCls;
+        signInBtn.setAttribute('aria-selected', 'false');
       }
       if (regBtn) {
-        regBtn.className = 'flex-1 py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all';
+        regBtn.className = activeCls;
+        regBtn.setAttribute('aria-selected', 'true');
       }
       if (loginForm) loginForm.classList.add('hidden');
       if (regForm) regForm.classList.remove('hidden');
     } else {
       if (signInBtn) {
-        signInBtn.className = 'flex-1 py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all';
+        signInBtn.className = activeCls;
+        signInBtn.setAttribute('aria-selected', 'true');
       }
       if (regBtn) {
-        regBtn.className = 'flex-1 py-2 rounded-lg text-stone-500 hover:text-stone-900 transition-all font-semibold';
+        regBtn.className = inactiveCls;
+        regBtn.setAttribute('aria-selected', 'false');
       }
       if (loginForm) loginForm.classList.remove('hidden');
       if (regForm) regForm.classList.add('hidden');
-    }
-
-    // Staff and admin accounts are admin-provisioned only: hide their sign-up pills
-    ['staff', 'admin'].forEach(r => {
-      const pill = document.getElementById(`pill-${r}`);
-      if (pill) pill.classList.toggle('hidden', currentPortalMode === 'register');
-    });
-    if (currentPortalMode === 'register' && (currentLoginRole === 'staff' || currentLoginRole === 'admin')) {
-      switchLoginRole('patient');
-      return;
     }
 
     updatePortalHeader();
@@ -783,7 +782,9 @@
   async function handlePortalRegister(e) {
     e.preventDefault();
     const errEl = document.getElementById('portalLoginErrorMsg');
+    const infoEl = document.getElementById('portalLoginInfoMsg');
     if (errEl) errEl.classList.add('hidden');
+    if (infoEl) infoEl.classList.add('hidden');
     const submitBtn = document.getElementById('portalRegSubmitBtn');
     if (submitBtn) submitBtn.disabled = true;
 
@@ -816,10 +817,6 @@
       payload.license_number = document.getElementById('portalRegLicense')?.value.trim() || 'MD-REG';
       payload.room_number = document.getElementById('portalRegRoom')?.value.trim() || 'Room 101';
       payload.consultation_fee = parseFloat(document.getElementById('portalRegFee')?.value) || 60.00;
-    } else if (currentLoginRole === 'staff') {
-      payload.department = document.getElementById('portalRegDepartment')?.value || 'Front Desk & Reception';
-    } else if (currentLoginRole === 'admin') {
-      payload.admin_title = document.getElementById('portalRegAdminTitle')?.value.trim() || 'Clinic Administrator';
     }
 
     try {
@@ -827,6 +824,19 @@
         method: 'POST',
         body: payload,
       });
+
+      if (data.pending_approval) {
+        document.getElementById('portalRegisterForm')?.reset();
+        switchPortalMode('login');
+        const msg = data.message || 'Account request submitted. An administrator must approve it before you can sign in.';
+        if (infoEl) {
+          infoEl.textContent = msg;
+          infoEl.classList.remove('hidden');
+        }
+        showToast(msg, 'info');
+        return;
+      }
+
       state.user = data.user;
       localStorage.setItem('user_profile', JSON.stringify(state.user));
       state.chatSessionId = crypto.randomUUID();
@@ -1878,7 +1888,7 @@
     try {
       const users = await apiFetch(API.admin.users);
       if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-stone-400">No accounts found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-stone-400">No accounts found.</td></tr>';
         return;
       }
       const roleColors = {
@@ -1889,18 +1899,50 @@
       };
       tbody.innerHTML = users.map(u => {
         const badge = roleColors[u.role] || 'bg-stone-100 text-stone-700';
+        const isPending = u.is_approved === false;
+        const statusPill = isPending
+          ? '<span class="pill bg-amber-100 text-amber-900 uppercase text-[10px] font-bold">Pending</span>'
+          : '<span class="pill bg-emerald-100 text-emerald-800 uppercase text-[10px] font-bold">Active</span>';
         const profileTag = u.patient_id ? `Patient #${u.patient_id}` : (u.doctor_id ? `Doctor #${u.doctor_id}` : `User #${u.id}`);
+        const actions = isPending
+          ? `<div class="inline-flex items-center gap-1.5">
+              <button type="button" onclick="window.ClinicApp.approveAdminUser(${u.id})" class="btn btn-primary !min-h-[34px] !py-1 !px-2.5 text-[11px]">Approve</button>
+              <button type="button" onclick="window.ClinicApp.rejectAdminUser(${u.id})" class="btn btn-outline !min-h-[34px] !py-1 !px-2.5 text-[11px] text-rose-700 border-rose-200 hover:bg-rose-50">Reject</button>
+            </div>`
+          : `<span class="font-mono text-[11px] text-stone-500">${escapeHTML(profileTag)}</span>`;
         return `
-          <tr class="border-b border-stone-100">
+          <tr class="border-b border-stone-100 ${isPending ? 'bg-amber-50/40' : ''}">
             <td class="py-2.5 pr-3 font-semibold text-stone-900">${escapeHTML(u.full_name)}</td>
             <td class="py-2.5 pr-3 text-stone-600">${escapeHTML(u.email)}</td>
             <td class="py-2.5 pr-3"><span class="pill ${badge} uppercase text-[10px] font-bold">${escapeHTML(u.role)}</span></td>
-            <td class="py-2.5 text-right font-mono text-[11px] text-stone-500">${escapeHTML(profileTag)}</td>
+            <td class="py-2.5 pr-3">${statusPill}</td>
+            <td class="py-2.5 text-right">${actions}</td>
           </tr>
         `;
       }).join('');
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-rose-600">${escapeHTML(err.message || 'Failed to load accounts')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-rose-600">${escapeHTML(err.message || 'Failed to load accounts')}</td></tr>`;
+    }
+  }
+
+  async function approveAdminUser(userId) {
+    try {
+      const res = await apiFetch(`${API.admin.users}/${userId}/approve`, { method: 'POST' });
+      showToast(`Approved ${res.user.full_name} (${res.user.role})`, 'success');
+      loadAdminUsers();
+      if (res.user.role === 'doctor') loadDoctors();
+    } catch (err) {
+      showToast(err.message || 'Failed to approve user', 'error');
+    }
+  }
+
+  async function rejectAdminUser(userId) {
+    try {
+      await apiFetch(`${API.admin.users}/${userId}`, { method: 'DELETE' });
+      showToast('Pending request removed', 'info');
+      loadAdminUsers();
+    } catch (err) {
+      showToast(err.message || 'Failed to reject request', 'error');
     }
   }
 
@@ -2362,32 +2404,20 @@
       });
     }
 
-    // 1. Register Service Worker for offline caching & handle auto-refresh
+    // 1. Register Service Worker for offline caching & single-reload update
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
           .then((reg) => {
             console.log('PWA: ServiceWorker registered successfully with scope:', reg.scope);
-            // Check for service worker updates immediately on page load
             reg.update();
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              if (newWorker) {
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    // New code deployed: auto-reload to display latest changes
-                    window.location.reload();
-                  }
-                });
-              }
-            });
           })
           .catch((err) => {
             console.warn('PWA: ServiceWorker registration failed:', err);
           });
       });
 
-      // Reload once when service worker controller takes over (ONLY on updates to an existing worker)
+      // Reload once when an updated service worker takes control (skipWaiting + clients.claim)
       const hadExistingController = Boolean(navigator.serviceWorker.controller);
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -2414,13 +2444,12 @@
       }
     });
 
-    // 2b. For browsers like Kiwi or Safari that suppress beforeinstallprompt:
+    // 2b. Touch browsers (e.g. Safari/Kiwi) without beforeinstallprompt: show synchronously at boot to avoid post-load shift
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    if (!isStandalone && sessionStorage.getItem('pwa_dismissed') !== 'true') {
-      setTimeout(() => {
-        const banner = document.getElementById('pwaInstallBanner');
-        if (banner) banner.classList.remove('hidden');
-      }, 1200);
+    const isTouchBrowser = window.matchMedia('(pointer: coarse)').matches;
+    if (!isStandalone && isTouchBrowser && sessionStorage.getItem('pwa_dismissed') !== 'true') {
+      const banner = document.getElementById('pwaInstallBanner');
+      if (banner) banner.classList.remove('hidden');
     }
 
     // 3. Listen for successful installation
@@ -2489,33 +2518,35 @@
     if (headerBtn && deferredInstallPrompt) headerBtn.classList.remove('hidden');
   }
 
-  // Graceful Skeleton Loading Dismissal with Hospitality Wellness Motion
+  // Hide skeleton immediately before revealing the active portal so content never jumps
   function dismissAppSkeleton() {
     const skeleton = document.getElementById('appSkeletonLoader');
     if (!skeleton || skeleton.classList.contains('hidden')) return;
-    skeleton.classList.add('skeleton-fade-out');
-    setTimeout(() => {
-      skeleton.classList.add('hidden');
-      skeleton.setAttribute('aria-hidden', 'true');
-    }, 360);
+    skeleton.classList.add('hidden');
+    skeleton.setAttribute('aria-hidden', 'true');
   }
 
   // Initialize on page load
   async function init() {
     initPWA();
 
-    // Fallback safety timeout: ensure skeleton always fades within 2s even if offline/slow
-    const skeletonFallbackTimer = setTimeout(dismissAppSkeleton, 2000);
-
-    // Immediately set active portal tab before network roundtrip to eliminate reload flicker
     const roleMap = { patient: 'patient', doctor: 'doctor', staff: 'staff', admin: 'analytics' };
-    if (state.user && state.user.role && roleMap[state.user.role]) {
-      switchTab(roleMap[state.user.role]);
-    } else {
-      switchTab('login');
-    }
+    let bootSettled = false;
 
-    updateUserUI();
+    const revealInitialPortal = (targetTab) => {
+      if (bootSettled) return;
+      bootSettled = true;
+      dismissAppSkeleton();
+      updateUserUI();
+      switchTab(targetTab);
+    };
+
+    // Fallback safety timeout: ensure skeleton clears within 2s even if offline/slow
+    const skeletonFallbackTimer = setTimeout(() => {
+      const optimisticTab = (state.user && state.user.role && roleMap[state.user.role]) || 'login';
+      revealInitialPortal(optimisticTab);
+    }, 2000);
+
     loadDoctors();
     fetchQueueStatus();
     initQueueWebSocket();
@@ -2560,17 +2591,23 @@
       const me = await apiFetch(API.auth.me);
       state.user = me;
       localStorage.setItem('user_profile', JSON.stringify(me));
-      updateUserUI();
-      const roleMap = { patient: 'patient', doctor: 'doctor', staff: 'staff', admin: 'analytics' };
-      switchTab(roleMap[me.role] || 'patient');
+      clearTimeout(skeletonFallbackTimer);
+      if (bootSettled) {
+        updateUserUI();
+        switchTab(roleMap[me.role] || 'patient');
+      } else {
+        revealInitialPortal(roleMap[me.role] || 'patient');
+      }
     } catch (_) {
       state.user = null;
       localStorage.removeItem('user_profile');
-      updateUserUI();
-      switchTab('login');
-    } finally {
       clearTimeout(skeletonFallbackTimer);
-      dismissAppSkeleton();
+      if (bootSettled) {
+        updateUserUI();
+        switchTab('login');
+      } else {
+        revealInitialPortal('login');
+      }
     }
   }
 
@@ -2607,6 +2644,8 @@
     submitFeedback,
     loadAnalytics,
     loadAdminUsers,
+    approveAdminUser,
+    rejectAdminUser,
     toggleAdminUserRoleFields,
     createAdminUser,
     handleSetupAdmin,

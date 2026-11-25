@@ -48,6 +48,7 @@ def _user_profile(user: User) -> dict:
         "email": user.email,
         "full_name": user.full_name,
         "role": role_val,
+        "is_approved": bool(user.is_approved),
         "phone": user.phone,
         "patient_id": user.patient.id if user.patient else None,
         "doctor_id": user.doctor.id if user.doctor else None,
@@ -123,6 +124,11 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by a clinic administrator.",
+        )
 
     _FAILED_LOGINS.pop(email, None)
     role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
@@ -156,9 +162,14 @@ class SetupAdminPayload(BaseModel):
 
 @router.get("/setup-status")
 def setup_status(db: Session = Depends(get_db)):
-    """Public: true once any administrator exists; gates the first-run wizard.
+    """Public: true once any approved administrator exists; gates the first-run wizard.
     demo_mode tells the UI whether to show one-tap seeded logins."""
-    initialized = db.query(User).filter(User.role == UserRole.ADMIN).first() is not None
+    initialized = (
+        db.query(User)
+        .filter(User.role == UserRole.ADMIN, User.is_approved == True)
+        .first()
+        is not None
+    )
     return {"initialized": initialized, "demo_mode": settings.DEMO_MODE}
 
 
@@ -170,7 +181,12 @@ def setup_admin(
     db: Session = Depends(get_db),
 ):
     """First-run bootstrap: creates the primary admin, then locks permanently."""
-    if db.query(User).filter(User.role == UserRole.ADMIN).first() is not None:
+    if (
+        db.query(User)
+        .filter(User.role == UserRole.ADMIN, User.is_approved == True)
+        .first()
+        is not None
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="System already initialized",
@@ -245,16 +261,15 @@ def register_user(
         raise HTTPException(status_code=400, detail="An account with this email already exists")
 
     target_role_str = (payload.role or "patient").strip().lower()
-    if target_role_str in ("staff", "admin"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Staff and admin accounts cannot be self-registered. Ask an administrator to provision one via /api/admin/users.",
-        )
     role_map = {
         "patient": UserRole.PATIENT,
         "doctor": UserRole.DOCTOR,
+        "staff": UserRole.STAFF,
+        "admin": UserRole.ADMIN,
     }
     user_role = role_map.get(target_role_str, UserRole.PATIENT)
+    # Patients activate immediately; doctor, staff, and admin sign-ups require admin approval
+    is_approved = user_role == UserRole.PATIENT
 
     user = User(
         email=email,
@@ -262,6 +277,7 @@ def register_user(
         full_name=payload.full_name.strip(),
         phone=payload.phone.strip() if payload.phone else None,
         role=user_role,
+        is_approved=is_approved,
     )
     db.add(user)
     db.flush()
@@ -305,6 +321,13 @@ def register_user(
     db.commit()
     db.refresh(user)
 
+    if not is_approved:
+        return {
+            "pending_approval": True,
+            "message": "Account request submitted. A clinic administrator must approve it before you can sign in.",
+            "user": _user_profile(user),
+        }
+
     role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
     token = create_access_token({"sub": user.email, "role": role_val})
     _set_auth_cookie(request, response, token)
@@ -312,6 +335,7 @@ def register_user(
     return {
         "access_token": token,
         "token_type": "bearer",
+        "pending_approval": False,
         "user": _user_profile(user),
     }
 

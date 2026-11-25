@@ -59,7 +59,7 @@
     <symbol id="i-message" viewBox="0 0 256 256"><circle cx="128" cy="128" r="12"/><circle cx="84" cy="128" r="12"/><circle cx="172" cy="128" r="12"/><path d="M79.93,211.11a96,96,0,1,0-35-35h0L32.42,213.46a8,8,0,0,0,10.12,10.12l37.39-12.47Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-x" viewBox="0 0 256 256"><line x1="200" y1="56" x2="56" y2="200" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="200" y1="200" x2="56" y2="56" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-send" viewBox="0 0 256 256"><line x1="108" y1="148" x2="160" y2="96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M223.69,42.18a8,8,0,0,0-9.87-9.87l-192,58.22a8,8,0,0,0-1.25,14.93L108,148l42.54,87.42a8,8,0,0,0,14.93-1.25Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
-    <symbol id="i-bot" viewBox="0 0 256 256"><line x1="148" y1="144" x2="148" y2="184" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="108" y1="144" x2="108" y2="184" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="128" y1="56" x2="128" y2="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><circle cx="84" cy="108" r="12"/><circle cx="172" cy="108" r="12"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 256 256"><rect x="40" y="56" width="176" height="144" rx="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="128" y1="56" x2="128" y2="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><circle cx="96" cy="116" r="12"/><circle cx="160" cy="116" r="12"/><line x1="96" y1="156" x2="160" y2="156" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-map-pin" viewBox="0 0 256 256"><circle cx="128" cy="104" r="32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M208,104c0,72-80,128-80,128S48,176,48,104a80,80,0,0,1,160,0Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
     <symbol id="i-alert" viewBox="0 0 256 256"><path d="M142.41,40.22l87.46,151.87C236,202.79,228.08,216,215.46,216H40.54C27.92,216,20,202.79,26.13,192.09L113.59,40.22C119.89,29.26,136.11,29.26,142.41,40.22Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="128" y1="144" x2="128" y2="104" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><circle cx="128" cy="180" r="12"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 256 256"><polyline points="168 96 216 96 216 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M216,96,187.72,67.72A88,88,0,0,0,64,67" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="88 160 40 160 40 208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M40,160l28.28,28.28A88,88,0,0,0,192,189" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></symbol>
@@ -327,12 +327,12 @@
     <!-- PORTAL 0: LOGIN GATEWAY (SPLIT: LIVE CLINIC PANEL + FORM) -->
     <!-- ================================================================= -->
     <section id="portal-login" role="tabpanel" aria-label="Clinic Login Portal" class="tab-content hidden w-full py-4 sm:py-8 pb-16 sm:pb-8">
-      <div id="loginSplitGrid" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8 items-stretch">
+      <div id="loginSplitGrid" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8 items-start">
 
         <!-- Brand panel: identity + the real live queue (wired by app.js) -->
-        <div id="loginBrandPanel" class="lg:col-span-2 rounded-3xl border border-stone-800/80 p-1.5 bg-stone-900 shadow-xl relative overflow-hidden">
+        <div id="loginBrandPanel" class="lg:col-span-2 lg:sticky lg:top-6 rounded-3xl border border-stone-800/80 p-1.5 bg-stone-900 shadow-xl relative overflow-hidden">
           <div class="absolute -right-12 -bottom-12 w-64 h-64 bg-brand-600/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
-          <div class="rounded-2xl bg-stone-950 p-6 sm:p-7 border border-stone-800/90 flex flex-col justify-between h-full relative z-10">
+          <div class="rounded-2xl bg-stone-950 p-6 sm:p-7 border border-stone-800/90 flex flex-col gap-5 relative z-10">
             <div>
               <div class="flex items-center gap-3">
                 <div class="w-11 h-11 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-black/40 shrink-0" aria-hidden="true">
@@ -386,7 +386,7 @@
               <span>Guests can chat with the clinic assistant. No account needed.</span>
             </div>
 
-            <div class="flex flex-wrap items-center gap-3 mt-6 pt-5 border-t border-stone-800/80">
+            <div class="flex flex-wrap items-center gap-3 pt-4 border-t border-stone-800/80">
               <a href="/display" target="_blank" rel="noopener" class="btn btn-sm !rounded-full bg-brand-600 hover:bg-brand-500 text-white font-semibold shadow-sm inline-flex items-center gap-2 pl-4 pr-2">
                 <span>Launch TV Display</span>
                 <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
@@ -426,16 +426,17 @@
 
         <!-- Mode Toggle: Sign In vs Register -->
         <div class="flex bg-stone-100 p-1 rounded-xl mt-4 text-xs font-semibold" role="tablist" aria-label="Sign In or Register">
-          <button type="button" id="portalModeSignInBtn" onclick="window.ClinicApp.switchPortalMode('login')" class="flex-1 min-h-[44px] py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all">
+          <button type="button" role="tab" aria-selected="true" id="portalModeSignInBtn" onclick="window.ClinicApp.switchPortalMode('login')" class="flex-1 min-h-[44px] py-2 rounded-lg bg-white text-stone-900 shadow-sm font-bold transition-all">
             Sign In
           </button>
-          <button type="button" id="portalModeRegisterBtn" onclick="window.ClinicApp.switchPortalMode('register')" class="flex-1 min-h-[44px] py-2 rounded-lg text-stone-500 hover:text-stone-900 transition-all">
+          <button type="button" role="tab" aria-selected="false" id="portalModeRegisterBtn" onclick="window.ClinicApp.switchPortalMode('register')" class="flex-1 min-h-[44px] py-2 rounded-lg text-stone-600 hover:text-stone-900 transition-all">
             Sign Up
           </button>
         </div>
 
-        <!-- Error alert -->
+        <!-- Error / Info alerts -->
         <div id="portalLoginErrorMsg" role="alert" aria-live="polite" class="hidden mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700"></div>
+        <div id="portalLoginInfoMsg" role="status" aria-live="polite" class="hidden mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800"></div>
 
         <!-- Mode 1: Sign In Form -->
         <form id="portalLoginForm" onsubmit="window.ClinicApp.handlePortalLogin(event)" class="mt-5 space-y-4">
@@ -597,7 +598,7 @@
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <label for="portalRegFee" class="label !text-xs !mb-0">Consultation Fee ($ USD) *</label>
-                  <span class="text-[11px] text-stone-400">Quick Select:</span>
+                  <span class="text-[11px] font-medium text-stone-600">Quick Select:</span>
                 </div>
                 <div class="flex flex-wrap gap-1.5 mb-2" id="regDoctorFeeChips">
                   <button type="button" onclick="window.ClinicApp.selectRegFee('40.00')" data-fee="40.00" class="spec-pill">$40.00</button>
@@ -611,63 +612,23 @@
             </div>
           </div>
 
-          <!-- Role-Specific: Staff Department -->
-          <div id="portalRegStaffFields" class="hidden space-y-3">
-            <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">02 Workspace & Department Assignment</span>
-              <div>
-                <label for="portalRegDepartment" class="label !text-xs !mb-1.5">Department / Operational Desk *</label>
-                <div class="grid grid-cols-2 gap-2 mb-2" id="regStaffDeptPills">
-                  <button type="button" onclick="window.ClinicApp.selectRegDepartment('Front Desk & Reception')" data-dept="Front Desk & Reception" class="spec-pill !py-2 !text-xs" aria-selected="true">Front Desk</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegDepartment('Billing & Invoicing')" data-dept="Billing & Invoicing" class="spec-pill !py-2 !text-xs">Billing & Invoicing</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegDepartment('Triage & Nursing')" data-dept="Triage & Nursing" class="spec-pill !py-2 !text-xs">Triage & Nursing</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegDepartment('Pharmacy Desk')" data-dept="Pharmacy Desk" class="spec-pill !py-2 !text-xs">Pharmacy Desk</button>
-                </div>
-                <select id="portalRegDepartment" class="input !text-sm !py-2 bg-white hidden">
-                  <option value="Front Desk & Reception" selected>Front Desk &amp; Reception</option>
-                  <option value="Billing & Invoicing">Billing &amp; Invoicing</option>
-                  <option value="Triage & Nursing">Triage &amp; Nursing</option>
-                  <option value="Pharmacy Desk">Pharmacy Desk</option>
-                </select>
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label for="portalRegStaffDesk" class="label !text-xs !mb-1">Desk Station / Counter</label>
-                  <input type="text" id="portalRegStaffDesk" placeholder="e.g. Counter 1 - Reception" class="input !text-sm !py-2 bg-white">
-                </div>
-                <div>
-                  <label for="portalRegStaffShift" class="label !text-xs !mb-1">Shift Schedule</label>
-                  <select id="portalRegStaffShift" class="input !text-sm !py-2 bg-white">
-                    <option value="Day Shift (08:00 - 16:00)">Day Shift (08:00 - 16:00)</option>
-                    <option value="Evening Shift (16:00 - 00:00)">Evening Shift (16:00 - 00:00)</option>
-                    <option value="Rotating / On-Call">Rotating / On-Call</option>
-                  </select>
-                </div>
+          <!-- Role-Specific: Staff & Admin Approval Notice -->
+          <div id="portalRegStaffFields" class="hidden">
+            <div class="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex items-start gap-2.5 text-xs">
+              <svg class="icon w-4 h-4 text-amber-700 shrink-0 mt-0.5" aria-hidden="true"><use href="#i-clipboard"/></svg>
+              <div class="min-w-0">
+                <span class="font-bold text-amber-950 block">Administrator Approval Required</span>
+                <span class="text-amber-800 text-[11px] block mt-0.5">Staff requests stay pending until an existing clinic administrator approves your account in Analytics &gt; User Management.</span>
               </div>
             </div>
           </div>
 
-          <!-- Role-Specific: Admin Title -->
-          <div id="portalRegAdminFields" class="hidden space-y-3">
-            <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/60 space-y-3">
-              <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500 block">02 Governance & Security Access</span>
-              <div>
-                <label for="portalRegAdminTitle" class="label !text-xs !mb-1.5">Administrative Title *</label>
-                <div class="flex flex-wrap gap-1.5 mb-2" id="regAdminTitleChips">
-                  <button type="button" onclick="window.ClinicApp.selectRegAdminTitle('Operations Director')" data-title="Operations Director" class="spec-pill" aria-selected="true">Operations Director</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegAdminTitle('Clinic Manager')" data-title="Clinic Manager" class="spec-pill">Clinic Manager</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegAdminTitle('Chief Medical Officer')" data-title="Chief Medical Officer" class="spec-pill">Chief Medical Officer</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegAdminTitle('IT Administrator')" data-title="IT Administrator" class="spec-pill">IT Administrator</button>
-                </div>
-                <input type="text" id="portalRegAdminTitle" value="Operations Director" placeholder="e.g. Operations Director / Clinic Manager" class="input !text-sm !py-2 bg-white">
-              </div>
-              <div class="p-3 rounded-xl bg-rose-50/70 border border-rose-200/60 flex items-start gap-2.5">
-                <svg class="icon w-4 h-4 text-rose-600 shrink-0 mt-0.5" aria-hidden="true"><use href="#i-chart"/></svg>
-                <div class="min-w-0 text-xs">
-                  <span class="font-bold text-rose-900 block">Full Administrator Console Clearance</span>
-                  <span class="text-rose-700 text-[11px] block mt-0.5">Grants audit log access, staff oversight, and clinical analytics management.</span>
-                </div>
+          <div id="portalRegAdminFields" class="hidden">
+            <div class="p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200/80 flex items-start gap-2.5 text-xs">
+              <svg class="icon w-4 h-4 text-rose-700 shrink-0 mt-0.5" aria-hidden="true"><use href="#i-chart"/></svg>
+              <div class="min-w-0">
+                <span class="font-bold text-rose-950 block">Administrator Approval Required</span>
+                <span class="text-rose-800 text-[11px] block mt-0.5">Administrator sign-up requests stay pending until an existing administrator approves them. On a fresh database, use First-Run Setup.</span>
               </div>
             </div>
           </div>
@@ -1638,6 +1599,7 @@
                 <select id="adminUserRole" onchange="window.ClinicApp.toggleAdminUserRoleFields()" class="select !py-2 text-xs">
                   <option value="staff">Staff / Front Desk</option>
                   <option value="doctor">Doctor / Physician</option>
+                  <option value="admin">Administrator</option>
                 </select>
               </div>
               <div>
@@ -1711,11 +1673,12 @@
                   <th class="py-2 pr-3 font-bold">Name</th>
                   <th class="py-2 pr-3 font-bold">Email</th>
                   <th class="py-2 pr-3 font-bold">Role</th>
-                  <th class="py-2 font-bold text-right">Profile ID</th>
+                  <th class="py-2 pr-3 font-bold">Status</th>
+                  <th class="py-2 font-bold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody id="adminUsersList">
-                <tr><td colspan="4" class="py-6 text-center text-stone-400">Loading accounts...</td></tr>
+                <tr><td colspan="5" class="py-6 text-center text-stone-400">Loading accounts...</td></tr>
               </tbody>
             </table>
           </div>
@@ -2027,6 +1990,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.11.5"></script>
+  <script src="/static/app.js?v=2.11.7"></script>
 </body>
 </html>

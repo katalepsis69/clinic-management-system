@@ -20,13 +20,14 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.config import get_settings
-from app.main import app
+from app.main import app, ensure_runtime_schema
 from app.database import engine, Base, SessionLocal, get_db
 from app.models import QueueTicket, QueueStatus, Appointment
 from app.seed import seed_demo_data
 
 # Ensure database tables and seed data are initialized
 Base.metadata.create_all(bind=engine)
+ensure_runtime_schema(engine)
 _init_db = SessionLocal()
 try:
     seed_demo_data(_init_db)

@@ -16,9 +16,7 @@ class AdminCreateUserRequest(BaseModel):
     email: str
     password: str = Field(min_length=6)
     phone: Optional[str] = None
-    # ponytail: admins are created by other admins here; "admin" excluded so a
-    # compromised staff token chain can never mint one
-    role: Literal["doctor", "staff"]
+    role: Literal["doctor", "staff", "admin"]
     specialization: Optional[str] = None
     license_number: Optional[str] = None
     room_number: Optional[str] = None
@@ -30,13 +28,14 @@ def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles([UserRole.ADMIN])),
 ):
-    users = db.query(User).order_by(User.id.asc()).all()
+    users = db.query(User).order_by(User.is_approved.asc(), User.id.asc()).all()
     return [
         {
             "id": u.id,
             "email": u.email,
             "full_name": u.full_name,
             "role": u.role.value if hasattr(u.role, "value") else str(u.role),
+            "is_approved": bool(u.is_approved),
             "phone": u.phone,
             "doctor_id": u.doctor.id if u.doctor else None,
             "patient_id": u.patient.id if u.patient else None,
@@ -57,13 +56,19 @@ def create_user(
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="An account with this email already exists")
 
-    role = UserRole.DOCTOR if payload.role == "doctor" else UserRole.STAFF
+    role_map = {
+        "doctor": UserRole.DOCTOR,
+        "staff": UserRole.STAFF,
+        "admin": UserRole.ADMIN,
+    }
+    role = role_map[payload.role]
     user = User(
         email=email,
         hashed_password=get_password_hash(payload.password),
         full_name=payload.full_name.strip(),
         phone=payload.phone.strip() if payload.phone else None,
         role=role,
+        is_approved=True,
     )
     db.add(user)
     db.flush()
@@ -79,3 +84,40 @@ def create_user(
     db.commit()
     db.refresh(user)
     return {"status": "success", "user": _user_profile(user)}
+
+
+@router.post("/users/{user_id}/approve")
+def approve_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.ADMIN])),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_approved = True
+    db.commit()
+    db.refresh(user)
+    return {"status": "success", "user": _user_profile(user)}
+
+
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.ADMIN])),
+):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.is_approved:
+        raise HTTPException(status_code=400, detail="Only pending accounts can be rejected here")
+    if user.doctor:
+        db.delete(user.doctor)
+    if user.patient:
+        db.delete(user.patient)
+    db.delete(user)
+    db.commit()
+    return {"status": "success"}

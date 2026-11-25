@@ -129,4 +129,28 @@ def test_guest_navigation_cannot_trap_user_on_login_or_patient():
     res_app = client.get("/static/app.js")
     assert res_app.status_code == 200
     assert "syncChromeNav" in res_app.text
-    assert "nav.classList.toggle('sm:block', !isLogin)" in res_app.text
+    assert "nav.classList.toggle('sm:block', !isLogin)" in res_app.text
+
+
+def test_boot_avoids_double_reload_and_skeleton_jump():
+    res_app = client.get("/static/app.js")
+    assert res_app.status_code == 200
+    # Only one reload path on SW update (controllerchange), never a second reload in updatefound
+    assert res_app.text.count("window.location.reload()") == 1
+    assert "updatefound" not in res_app.text
+    # Boot settles skeleton -> portal in one swap without delayed 1200ms banner shift
+    assert "revealInitialPortal" in res_app.text
+    assert "1200" not in res_app.text
+
+
+def test_signup_layout_and_pending_approval_ui():
+    res = client.get("/")
+    assert res.status_code == 200
+    assert 'id="loginSplitGrid" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8 items-start"' in res.text
+    assert 'id="portalLoginInfoMsg"' in res.text
+    assert '<option value="admin">Administrator</option>' in res.text
+
+    res_app = client.get("/static/app.js")
+    assert res_app.status_code == 200
+    assert "pending_approval" in res_app.text
+    assert "approveAdminUser" in res_app.text

@@ -4,7 +4,7 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from app.config import get_settings
 from app.database import engine, Base, SessionLocal
 from app.seed import seed_demo_data
@@ -14,20 +14,27 @@ from app.middleware.audit import AuditLoggingMiddleware
 logger = logging.getLogger(__name__)
 
 
+def ensure_runtime_schema(target_engine=engine):
+    """Idempotent startup migrations for pre-existing databases."""
+    with target_engine.begin() as conn:
+        user_cols = {c["name"] for c in inspect(conn).get_columns("users")}
+        if "is_approved" not in user_cols:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN is_approved BOOLEAN NOT NULL DEFAULT TRUE"
+            ))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_queue_patient_active "
+            "ON queue_tickets (patient_id) WHERE status = 'WAITING'"
+        ))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    # ponytail: idempotent startup migration so the active-ticket index also lands
-    # on databases created before it existed; alembic when schema changes grow
     try:
-        with engine.begin() as conn:
-            conn.execute(text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ux_queue_patient_active "
-                "ON queue_tickets (patient_id) WHERE status = 'WAITING'"
-            ))
+        ensure_runtime_schema(engine)
     except Exception:
-        logger.exception("Could not ensure ux_queue_patient_active index; "
-                         "existing rows may violate the one-active-ticket rule")
+        logger.exception("Could not complete idempotent startup migrations")
     if settings.DATABASE_URL.startswith("sqlite") and (
         os.environ.get("WEB_CONCURRENCY") or os.environ.get("RENDER_EXTERNAL_URL")
     ):

@@ -22,7 +22,12 @@ class BookAppointmentRequest(BaseModel):
 
 @router.get("/doctors")
 def list_doctors(db: Session = Depends(get_db)):
-    doctors = db.query(Doctor).filter(Doctor.is_available == True).all()
+    doctors = (
+        db.query(Doctor)
+        .join(User)
+        .filter(Doctor.is_available == True, User.is_approved == True)
+        .all()
+    )
     return [
         {
             "id": d.id,
@@ -54,7 +59,12 @@ def book_appointment(
     if app_date < settings.clinic_today():
         raise HTTPException(status_code=400, detail="Appointment date cannot be in the past")
 
-    doctor = db.query(Doctor).filter(Doctor.id == data.doctor_id).first()
+    doctor = (
+        db.query(Doctor)
+        .join(User)
+        .filter(Doctor.id == data.doctor_id, User.is_approved == True)
+        .first()
+    )
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
 
