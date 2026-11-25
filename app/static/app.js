@@ -153,6 +153,42 @@
     }
   }
 
+  // Keep header auth controls and responsive nav chrome synchronized with activeTab & user state
+  function syncChromeNav() {
+    const nav = document.getElementById('portalNav');
+    const mobNav = document.getElementById('mobileBottomNav');
+    const headerLoginBtn = document.getElementById('headerLoginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const isLogin = state.activeTab === 'login';
+
+    if (nav) {
+      // Toggle sm:block alongside hidden because sm:block in CSS overrides .hidden at >=640px
+      nav.classList.add('hidden');
+      nav.classList.toggle('sm:block', !isLogin);
+    }
+
+    if (headerLoginBtn) {
+      headerLoginBtn.classList.toggle('hidden', Boolean(state.user) || isLogin);
+    }
+    if (logoutBtn) {
+      logoutBtn.classList.toggle('hidden', !state.user);
+    }
+
+    const visibleMobileTabs = ['patient', 'doctor', 'staff', 'analytics']
+      .map(id => document.getElementById(`mob-tab-${id}`))
+      .filter(el => el && !el.classList.contains('hidden'));
+    const shouldShowMobNav = !isLogin && visibleMobileTabs.length > 1;
+    if (mobNav) {
+      mobNav.classList.toggle('hidden', !shouldShowMobNav);
+    }
+
+    const chatWrap = document.getElementById('chatLauncherWrap');
+    if (chatWrap) {
+      chatWrap.classList.toggle('bottom-20', shouldShowMobNav);
+      chatWrap.classList.toggle('bottom-4', !shouldShowMobNav);
+    }
+  }
+
   // Tab Navigation (WAI-ARIA tabs with strict Role-Based Access Control)
   function switchTab(tabName) {
     if (state.user) {
@@ -176,10 +212,7 @@
       });
       const activeSec = document.getElementById('portal-login');
       if (activeSec) activeSec.classList.remove('hidden');
-      const nav = document.getElementById('portalNav');
-      if (nav) nav.classList.add('hidden');
-      const mobNav = document.getElementById('mobileBottomNav');
-      if (mobNav) mobNav.classList.add('hidden');
+      syncChromeNav();
       return;
     } else if (tabName !== 'patient') {
       const roleTarget = tabName === 'analytics' ? 'admin' : tabName;
@@ -189,11 +222,7 @@
     }
 
     state.activeTab = tabName;
-    const nav = document.getElementById('portalNav');
-    if (nav) nav.classList.remove('hidden');
-
-    const mobNav = document.getElementById('mobileBottomNav');
-    if (mobNav) mobNav.classList.remove('hidden');
+    syncChromeNav();
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.setAttribute('aria-selected', String(btn.id === `tab-${tabName}`));
@@ -291,7 +320,6 @@
     const badge = document.getElementById('userProfileBadge');
     const nameEl = document.getElementById('currentUserName');
     const roleEl = document.getElementById('currentUserRole');
-    const logoutBtn = document.getElementById('logoutBtn');
 
     // Role-based portal tab visibility (Desktop & Mobile)
     const tabPatient = document.getElementById('tab-patient');
@@ -304,11 +332,7 @@
     const mobTabStaff = document.getElementById('mob-tab-staff');
     const mobTabAnalytics = document.getElementById('mob-tab-analytics');
 
-    const nav = document.getElementById('portalNav');
-    const mobNav = document.getElementById('mobileBottomNav');
-
     if (state.user) {
-      if (nav) nav.classList.remove('hidden');
       if (badge) {
         badge.className = 'hidden sm:flex items-center gap-2 bg-stone-100 py-1.5 px-3 rounded-full text-xs font-medium text-stone-700';
       }
@@ -324,7 +348,6 @@
         roleEl.className = 'uppercase px-2 py-0.5 rounded-full text-[10px] font-bold ' +
           (roleColors[state.user.role] || 'bg-stone-200 text-stone-800');
       }
-      if (logoutBtn) logoutBtn.classList.remove('hidden');
 
       // STRICT ROLE-BASED ACCESS CONTROL FOR TABS
       const showTab = (desktopEl, mobileEl, visible) => {
@@ -363,41 +386,8 @@
         showTab(tabStaff, mobTabStaff, true);
         showTab(tabAnalytics, mobTabAnalytics, true);
       }
-
-      // Sync mobile bottom nav: only show when user has >1 accessible tab on mobile
-      const visibleMobileTabs = [mobTabPatient, mobTabDoctor, mobTabStaff, mobTabAnalytics].filter(
-        (t) => t && !t.classList.contains('hidden')
-      );
-      const shouldShowMobNav = state.activeTab !== 'login' && visibleMobileTabs.length > 1;
-      if (mobNav) mobNav.classList.toggle('hidden', !shouldShowMobNav);
-
-      const chatWrap = document.getElementById('chatLauncherWrap');
-      if (chatWrap) {
-        if (shouldShowMobNav) {
-          chatWrap.classList.add('bottom-20');
-          chatWrap.classList.remove('bottom-4');
-        } else {
-          chatWrap.classList.add('bottom-4');
-          chatWrap.classList.remove('bottom-20');
-        }
-      }
     } else {
-      if (state.activeTab === 'login') {
-        if (nav) nav.classList.add('hidden');
-        if (mobNav) mobNav.classList.add('hidden');
-      } else {
-        if (nav) nav.classList.remove('hidden');
-        if (mobNav) mobNav.classList.remove('hidden');
-      }
-
-      const chatWrap = document.getElementById('chatLauncherWrap');
-      if (chatWrap) {
-        chatWrap.classList.add('bottom-4');
-        chatWrap.classList.remove('bottom-20');
-      }
-
       if (badge) badge.className = 'hidden';
-      if (logoutBtn) logoutBtn.classList.add('hidden');
 
       // Guest / unauthenticated: show Patient view, hide clinical staff tabs
       if (tabPatient) tabPatient.classList.remove('hidden');
@@ -410,6 +400,7 @@
       if (mobTabAnalytics) mobTabAnalytics.classList.add('hidden');
       renderGuestPatientProfile();
     }
+    syncChromeNav();
     updateChatGuestUI(state.user ? null : state.guestChatRemaining);
   }
 

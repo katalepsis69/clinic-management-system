@@ -133,6 +133,11 @@
             <span class="hidden md:inline text-xs font-semibold">TV Display</span>
           </a>
 
+          <button id="headerLoginBtn" type="button" onclick="window.ClinicApp.openLoginGateway('login', 'patient')" class="btn btn-primary btn-sm hidden inline-flex items-center gap-1.5" aria-label="Sign in">
+            <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-login"/></svg>
+            <span>Sign In</span>
+          </button>
+
           <button id="logoutBtn" onclick="window.ClinicApp.logout()" class="btn btn-ghost btn-sm !px-2.5 sm:!px-3 hidden text-rose-600 hover:bg-rose-50 hover:text-rose-700 inline-flex items-center gap-1.5" aria-label="Log out" title="Log out">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-logout"/></svg>
             <span class="hidden sm:inline text-xs font-semibold">Logout</span>
@@ -143,7 +148,7 @@
   </header>
 
   <!-- Sticky navigation tabs (Desktop & Tablet) -->
-  <nav id="portalNav" class="hidden sm:block bg-[#FAF8F5]/90 backdrop-blur border-b border-stone-200/80 sticky top-0 z-40" aria-label="Portal sections">
+  <nav id="portalNav" class="hidden bg-[#FAF8F5]/90 backdrop-blur border-b border-stone-200/80 sticky top-0 z-40" aria-label="Portal sections">
     <div class="container-page">
       <div class="flex gap-1 overflow-x-auto no-scrollbar" id="portalTabs" role="tablist">
         <button onclick="window.ClinicApp.switchTab('patient')" id="tab-patient" role="tab" aria-selected="true" aria-controls="portal-patient" class="tab-btn">
@@ -877,7 +882,7 @@
                     <svg class="icon w-3.5 h-3.5"><use href="#i-user"/></svg>
                     <span>Edit Profile</span>
                   </button>
-                  <button id="patientGuestAuthBtn" onclick="window.ClinicApp.openLoginGateway('register', 'patient')" class="btn btn-primary btn-sm !min-h-[28px] !py-0.5 !px-2.5 text-xs !rounded-full shadow-sm inline-flex items-center gap-1" title="Sign Up as Patient">
+                  <button id="patientGuestAuthBtn" onclick="window.ClinicApp.openLoginGateway('register', 'patient')" class="btn btn-primary btn-sm !py-1 !px-3 text-xs !rounded-full shadow-sm inline-flex items-center gap-1" title="Sign Up as Patient">
                     <svg class="icon w-3.5 h-3.5"><use href="#i-user-plus"/></svg>
                     <span>Create Account / Sign In</span>
                   </button>
@@ -2022,6 +2027,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.11.4"></script>
+  <script src="/static/app.js?v=2.11.5"></script>
 </body>
 </html>

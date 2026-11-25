@@ -113,4 +113,20 @@ def test_mobile_responsive_adaptations():
     assert "interactive-widget=resizes-content" in res.text
     assert "font-size: 16px !important" in res.text
     assert "grid grid-cols-2 sm:flex sm:flex-row gap-1.5" in res.text
-    assert "h-[100dvh] max-h-[100dvh]" in res.text
+    assert "h-[100dvh] max-h-[100dvh]" in res.text
+
+
+def test_guest_navigation_cannot_trap_user_on_login_or_patient():
+    res = client.get("/")
+    assert res.status_code == 200
+    # portalNav must start hidden without sm:block so desktop login hides the Patient tab
+    assert 'id="portalNav" class="hidden ' in res.text
+    assert 'id="portalNav" class="hidden sm:block' not in res.text
+    # Header provides a Sign In exit when viewing guest portals outside login
+    assert 'id="headerLoginBtn"' in res.text
+    assert "openLoginGateway('login', 'patient')" in res.text
+
+    res_app = client.get("/static/app.js")
+    assert res_app.status_code == 200
+    assert "syncChromeNav" in res_app.text
+    assert "nav.classList.toggle('sm:block', !isLogin)" in res_app.text
