@@ -45,6 +45,7 @@
       liveStatus: '/api/queue/live-status',
       issue: '/api/queue/issue',
       callNext: '/api/queue/call-next',
+      advance: '/api/queue/advance',
       ws: '/api/queue/ws',
     },
     appointments: {
@@ -78,6 +79,7 @@
     selectedRating: 5,
     selectedTags: [],
     myTicket: localStorage.getItem('my_ticket') || null,
+    currentServingTicketId: null,
     selectedEmrPatientId: null,
     // ponytail: fresh UUID per login; random session IDs prevent guest-session enumeration
     chatSessionId: localStorage.getItem('chat_session_id') || crypto.randomUUID(),
@@ -86,6 +88,11 @@
     queueWs: null,
   };
   localStorage.setItem('chat_session_id', state.chatSessionId);
+
+  // Clinic calendar date in UTC+8 (matches CLINIC_UTC_OFFSET on the backend)
+  function clinicTodayISO() {
+    return new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
+  }
 
   // Helper: Escape HTML to prevent DOM XSS vulnerabilities
   function escapeHTML(str) {
@@ -256,6 +263,7 @@
     } else if (tabName === 'staff') {
       loadDoctors();
       fetchQueueStatus();
+      loadBillingHistory();
     } else if (tabName === 'analytics') {
       loadAnalytics();
       loadAdminUsers();
@@ -672,22 +680,6 @@
     });
   }
 
-  function selectRegDepartment(val) {
-    const select = document.getElementById('portalRegDepartment');
-    if (select) select.value = val;
-    document.querySelectorAll('#regStaffDeptPills .spec-pill').forEach(btn => {
-      btn.setAttribute('aria-selected', btn.getAttribute('data-dept') === val ? 'true' : 'false');
-    });
-  }
-
-  function selectRegAdminTitle(val) {
-    const input = document.getElementById('portalRegAdminTitle');
-    if (input) input.value = val;
-    document.querySelectorAll('#regAdminTitleChips .spec-pill').forEach(btn => {
-      btn.setAttribute('aria-selected', btn.getAttribute('data-title') === val ? 'true' : 'false');
-    });
-  }
-
   function openLoginGateway(mode, role) {
     if (role) switchLoginRole(role);
     switchPortalMode(mode || 'login');
@@ -969,7 +961,7 @@
     if (phEl) phEl.value = state.user.phone || '';
     if (dobEl) {
       dobEl.value = prof.date_of_birth || '';
-      dobEl.max = new Date().toISOString().split('T')[0];
+      dobEl.max = clinicTodayISO();
     }
     if (emNameEl) emNameEl.value = prof.emergency_contact_name || '';
     if (emPhEl) emPhEl.value = prof.emergency_contact_phone || '';
@@ -1182,13 +1174,16 @@
     if (patEst) patEst.textContent = est + ' min';
 
     // Staff Portal
+    state.currentServingTicketId = data.currently_serving_id || null;
     const staffServing = document.getElementById('staffCurrentServing');
     const staffRoom = document.getElementById('staffCurrentRoom');
     const staffCount = document.getElementById('staffWaitingCount');
     const staffList = document.getElementById('staffWaitingList');
+    const staffActions = document.getElementById('staffServingActions');
     if (staffServing) staffServing.textContent = serving;
     if (staffRoom) staffRoom.textContent = room;
     if (staffCount) staffCount.textContent = count;
+    if (staffActions) staffActions.classList.toggle('hidden', !state.currentServingTicketId);
 
     if (staffList) {
       if (waiting.length === 0) {
@@ -1263,6 +1258,20 @@
       fetchQueueStatus();
     } catch (err) {
       showToast(`Call next failed: ${err.message}`, 'error');
+    }
+  }
+
+  async function advanceServingTicket(targetStatus) {
+    if (!state.currentServingTicketId) return;
+    try {
+      const data = await apiFetch(API.queue.advance, {
+        method: 'POST',
+        body: { ticket_id: state.currentServingTicketId, to: targetStatus },
+      });
+      showToast(`Ticket ${data.ticket_number} marked ${targetStatus}.`, 'success');
+      fetchQueueStatus();
+    } catch (err) {
+      showToast(`Queue update failed: ${err.message}`, 'error');
     }
   }
 
@@ -1397,6 +1406,8 @@
       });
       showToast(`Appointment confirmed! Booking ID: #${data.appointment_id}`, 'success');
       document.getElementById('appointmentForm').reset();
+      const appDate = document.getElementById('appointmentDate');
+      if (appDate) appDate.value = clinicTodayISO();
     } catch (err) {
       showToast(`Booking error: ${err.message}`, 'error');
     }
@@ -1411,7 +1422,7 @@
       if (list) list.innerHTML = '<p class="text-xs text-stone-400 py-6 text-center">Sign in as a doctor to view a schedule.</p>';
       return;
     }
-    const scheduleDate = dateInput && dateInput.value ? dateInput.value : new Date().toISOString().split('T')[0];
+    const scheduleDate = dateInput && dateInput.value ? dateInput.value : clinicTodayISO();
     if (dateInput && !dateInput.value) dateInput.value = scheduleDate;
 
     try {
@@ -1695,10 +1706,34 @@
         `;
       }
       showToast(`Invoice ${res.receipt_number} generated!`, 'success');
+      loadBillingHistory();
     } catch (err) {
       showToast(`Invoice generation failed: ${err.message}`, 'error');
     } finally {
       if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  async function loadBillingHistory() {
+    const list = document.getElementById('billingHistoryList');
+    if (!list || !state.user || (state.user.role !== 'staff' && state.user.role !== 'admin')) return;
+    try {
+      const rows = await apiFetch(API.billing.list);
+      if (!rows || rows.length === 0) {
+        list.innerHTML = '<p class="text-stone-400 py-3 text-center">No invoices recorded yet.</p>';
+        return;
+      }
+      list.innerHTML = rows.slice(0, 10).map(inv => `
+        <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200/80 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <span class="font-mono font-bold text-stone-900 block truncate">${escapeHTML(inv.receipt_number)}</span>
+            <span class="text-[11px] text-stone-500 block truncate">${escapeHTML(inv.patient_name)} &bull; ${escapeHTML((inv.payment_method || '').toUpperCase())}</span>
+          </div>
+          <span class="font-mono font-bold text-stone-900 shrink-0">$${Number(inv.total_amount || 0).toFixed(2)}</span>
+        </div>
+      `).join('');
+    } catch (err) {
+      list.innerHTML = `<p class="text-rose-600 py-3 text-center">${escapeHTML(err.message || 'Failed to load receipts')}</p>`;
     }
   }
   // Feedback & Sentiment Analytics
@@ -1914,9 +1949,9 @@
           <tr class="border-b border-stone-100 ${isPending ? 'bg-amber-50/40' : ''}">
             <td class="py-2.5 pr-3 font-semibold text-stone-900">${escapeHTML(u.full_name)}</td>
             <td class="py-2.5 pr-3 text-stone-600">${escapeHTML(u.email)}</td>
-            <td class="py-2.5 pr-3"><span class="pill ${badge} uppercase text-[10px] font-bold">${escapeHTML(u.role)}</span></td>
-            <td class="py-2.5 pr-3">${statusPill}</td>
-            <td class="py-2.5 text-right">${actions}</td>
+            <td class="py-2.5 pr-3 whitespace-nowrap"><span class="pill ${badge} uppercase text-[10px] font-bold">${escapeHTML(u.role)}</span></td>
+            <td class="py-2.5 pr-3 whitespace-nowrap">${statusPill}</td>
+            <td class="py-2.5 text-right whitespace-nowrap">${actions}</td>
           </tr>
         `;
       }).join('');
@@ -2572,9 +2607,9 @@
       chatLauncher.addEventListener('touchstart', initChatWebSocket, { once: true, passive: true });
     }
 
-    // Default appointment date to today
+    // Default appointment date to clinic today (UTC+8)
     const appDate = document.getElementById('appointmentDate');
-    if (appDate) appDate.value = new Date().toISOString().split('T')[0];
+    if (appDate) appDate.value = clinicTodayISO();
 
     // Restore persisted ticket card
     if (state.myTicket) {
@@ -2630,6 +2665,7 @@
     fetchQueueStatus,
     issueMyQueueTicket,
     callNextPatient,
+    advanceServingTicket,
     registerWalkin,
     submitAppointment,
     loadDoctorSchedule,
@@ -2639,6 +2675,7 @@
     generatePrescription,
     calculateBillPreview,
     createInvoice,
+    loadBillingHistory,
     setStarRating,
     toggleTag,
     submitFeedback,
@@ -2666,8 +2703,6 @@
     selectRegSpecialization,
     selectRegRoom,
     selectRegFee,
-    selectRegDepartment,
-    selectRegAdminTitle,
     installPWA,
     dismissPWABanner,
     dismissAppSkeleton,

@@ -53,6 +53,7 @@ def get_live_status(db: Session = Depends(get_db)):
 
     return {
         "currently_serving": called.ticket_number if called else "None",
+        "currently_serving_id": called.id if called else None,
         "currently_serving_room": called.doctor.room_number if called and called.doctor else "N/A",
         "waiting_count": len(waiting),
         "waiting_tickets": [t.ticket_number for t in waiting],

@@ -153,4 +153,7 @@ def test_signup_layout_and_pending_approval_ui():
     res_app = client.get("/static/app.js")
     assert res_app.status_code == 200
     assert "pending_approval" in res_app.text
-    assert "approveAdminUser" in res_app.text
+    assert "approveAdminUser" in res_app.text
+    assert "advanceServingTicket" in res_app.text
+    assert "loadBillingHistory" in res_app.text
+    assert "clinicTodayISO" in res_app.text

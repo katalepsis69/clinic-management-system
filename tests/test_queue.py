@@ -113,6 +113,7 @@ def test_get_live_status_empty(client):
     data = res.json()
     assert data == {
         "currently_serving": "None",
+        "currently_serving_id": None,
         "currently_serving_room": "N/A",
         "waiting_count": 0,
         "waiting_tickets": [],
