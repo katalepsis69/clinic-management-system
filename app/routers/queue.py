@@ -34,6 +34,31 @@ ADVANCE_FROM = {
 }
 
 
+@router.get("/patients")
+def search_patients(
+    q: str = "",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STAFF, UserRole.DOCTOR, UserRole.ADMIN])),
+):
+    """Lookup approved patient IDs by name or numeric ID for front-desk check-in, billing, and EMR."""
+    query = db.query(Patient).join(User).filter(User.is_approved == True)
+    term = q.strip()
+    if term:
+        if term.isdigit():
+            query = query.filter((Patient.id == int(term)) | (User.full_name.ilike(f"%{term}%")))
+        else:
+            query = query.filter(User.full_name.ilike(f"%{term}%"))
+    patients = query.order_by(Patient.id.asc()).limit(15).all()
+    return [
+        {
+            "id": p.id,
+            "full_name": p.user.full_name if p.user else f"Patient #{p.id}",
+            "phone": p.user.phone if p.user else None,
+        }
+        for p in patients
+    ]
+
+
 @router.get("/live-status")
 def get_live_status(db: Session = Depends(get_db)):
     # ponytail: intentionally public — the TV display polls it; response carries

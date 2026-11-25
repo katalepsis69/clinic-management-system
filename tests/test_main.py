@@ -156,4 +156,22 @@ def test_signup_layout_and_pending_approval_ui():
     assert "approveAdminUser" in res_app.text
     assert "advanceServingTicket" in res_app.text
     assert "loadBillingHistory" in res_app.text
-    assert "clinicTodayISO" in res_app.text
+    assert "clinicTodayISO" in res_app.text
+
+
+def test_philippine_currency_and_phone_formatting():
+    res = client.get("/")
+    assert res.status_code == 200
+    assert "Consultation Fee (PHP)" in res.text
+    assert "Itemized Fees (PHP)" in res.text
+    assert "Discount (PHP)" in res.text
+    assert "USD" not in res.text
+    assert "+1 555-" not in res.text
+
+    res_app = client.get("/static/app.js")
+    assert res_app.status_code == 200
+    assert "en-PH" in res_app.text
+    assert "formatPHP" in res_app.text
+    assert "formatPHPhone" in res_app.text
+    assert "loadMyAppointments" in res_app.text
+    assert "lookupPatients" in res_app.text

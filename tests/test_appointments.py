@@ -674,3 +674,30 @@ def test_cancel_appointment_by_staff_and_missing(db_session):
 
     res_anon = client.post(f"/api/appointments/{appt_id}/cancel")
     assert res_anon.status_code == 401
+
+
+def test_get_my_appointments_patient_only(db_session):
+    u_doc = User(email="dr.my@clinic.test", hashed_password="pw", full_name="Dr. My", role=UserRole.DOCTOR)
+    u_pat = User(email="pat.my@clinic.test", hashed_password="pw", full_name="Pat My", role=UserRole.PATIENT)
+    u_staff = User(email="staff.my@clinic.test", hashed_password="pw", full_name="Staff My", role=UserRole.STAFF)
+    db_session.add_all([u_doc, u_pat, u_staff])
+    db_session.commit()
+    doc = Doctor(user_id=u_doc.id, specialization="Pediatrics", license_number="L9", room_number="Room 202")
+    pat = Patient(user_id=u_pat.id)
+    db_session.add_all([doc, pat])
+    db_session.commit()
+
+    pat_token = create_access_token({"sub": u_pat.email, "role": "patient"})
+    staff_token = create_access_token({"sub": u_staff.email, "role": "staff"})
+    booked = _book(client, pat_token, doc.id)
+    assert booked.status_code == 200
+
+    res = client.get("/api/appointments/my", headers={"Authorization": f"Bearer {pat_token}"})
+    assert res.status_code == 200
+    rows = res.json()
+    assert len(rows) == 1
+    assert rows[0]["doctor_name"] == "Dr. My"
+    assert rows[0]["status"] == "confirmed"
+
+    assert client.get("/api/appointments/my", headers={"Authorization": f"Bearer {staff_token}"}).status_code == 403
+    assert client.get("/api/appointments/my").status_code == 401

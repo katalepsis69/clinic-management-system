@@ -20,7 +20,7 @@ class AdminCreateUserRequest(BaseModel):
     specialization: Optional[str] = None
     license_number: Optional[str] = None
     room_number: Optional[str] = None
-    consultation_fee: Optional[float] = 60.00
+    consultation_fee: Optional[float] = 500.00
 
 
 @router.get("/users")
@@ -78,7 +78,7 @@ def create_user(
             specialization=(payload.specialization or "").strip() or "General Medicine",
             license_number=(payload.license_number or "").strip() or f"MD-{user.id:04d}",
             room_number=(payload.room_number or "").strip() or f"Room {100 + user.id}",
-            consultation_fee=payload.consultation_fee if payload.consultation_fee is not None else 60.00,
+            consultation_fee=payload.consultation_fee if payload.consultation_fee is not None else 500.00,
             is_available=True,
         ))
     db.commit()

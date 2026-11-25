@@ -100,6 +100,36 @@ def book_appointment(
     return {"status": "success", "appointment_id": app.id}
 
 
+@router.get("/my")
+def get_my_appointments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.PATIENT])),
+):
+    patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+    if not patient:
+        return []
+    apps = (
+        db.query(Appointment)
+        .filter(Appointment.patient_id == patient.id)
+        .order_by(Appointment.appointment_date.desc(), Appointment.id.desc())
+        .limit(20)
+        .all()
+    )
+    return [
+        {
+            "id": a.id,
+            "doctor_name": a.doctor.user.full_name if a.doctor and a.doctor.user else "Clinic Physician",
+            "specialization": a.doctor.specialization if a.doctor else "",
+            "room_number": a.doctor.room_number if a.doctor else "N/A",
+            "appointment_date": str(a.appointment_date),
+            "time_slot": a.time_slot,
+            "status": a.status.value if hasattr(a.status, "value") else str(a.status),
+            "reason": a.reason_for_visit,
+        }
+        for a in apps
+    ]
+
+
 @router.get("/doctor-schedule/{doctor_id}")
 def get_doctor_schedule(
     doctor_id: int,

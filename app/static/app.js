@@ -46,11 +46,14 @@
       issue: '/api/queue/issue',
       callNext: '/api/queue/call-next',
       advance: '/api/queue/advance',
+      patients: '/api/queue/patients',
       ws: '/api/queue/ws',
     },
     appointments: {
       doctors: '/api/appointments/doctors',
       book: '/api/appointments/book',
+      my: '/api/appointments/my',
+      base: '/api/appointments',
       schedule: '/api/appointments/doctor-schedule',
     },
     emr: {
@@ -93,6 +96,66 @@
   function clinicTodayISO() {
     return new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
   }
+
+  // Philippine currency formatter (en-PH -> ₱1,250.00)
+  const phpFormatter = new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  function formatPHP(amount) {
+    const val = Number(amount);
+    return phpFormatter.format(Number.isFinite(val) ? val : 0);
+  }
+
+  // Auto-format Philippine mobile (09XX XXX XXXX / +63 9XX XXX XXXX) and Metro Manila landline ((02) XXXX XXXX)
+  function formatPHPhone(raw) {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return '';
+    const hasPlus = trimmed.startsWith('+');
+    let digits = trimmed.replace(/\D/g, '');
+    if (!digits) return '';
+
+    if (digits.startsWith('63') || (hasPlus && digits.startsWith('63'))) {
+      digits = digits.slice(0, 12);
+      const rest = digits.slice(2);
+      const parts = ['+63'];
+      if (rest.length > 0) parts.push(rest.slice(0, 3));
+      if (rest.length > 3) parts.push(rest.slice(3, 6));
+      if (rest.length > 6) parts.push(rest.slice(6, 10));
+      return parts.join(' ');
+    }
+
+    if (digits.startsWith('9') && digits.length >= 2) {
+      digits = '0' + digits;
+    }
+
+    if (digits.startsWith('09')) {
+      digits = digits.slice(0, 11);
+      if (digits.length <= 4) return digits;
+      if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+      return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+    }
+
+    if (digits.startsWith('02')) {
+      digits = digits.slice(0, 10);
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 6) return `(02) ${digits.slice(2)}`;
+      return `(02) ${digits.slice(2, 6)} ${digits.slice(6)}`;
+    }
+
+    return trimmed;
+  }
+
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (el && el.matches && el.matches('input[type="tel"]')) {
+      const formatted = formatPHPhone(el.value);
+      if (formatted !== el.value) el.value = formatted;
+    }
+  });
 
   // Helper: Escape HTML to prevent DOM XSS vulnerabilities
   function escapeHTML(str) {
@@ -272,6 +335,7 @@
       fetchQueueStatus();
       if (state.user && state.user.role === 'patient') {
         renderPatientProfile(state.user);
+        loadMyAppointments();
       } else {
         renderGuestPatientProfile();
       }
@@ -437,6 +501,8 @@
     if (editBtn) editBtn.classList.add('hidden');
     const guestAuthBtn = document.getElementById('patientGuestAuthBtn');
     if (guestAuthBtn) guestAuthBtn.classList.remove('hidden');
+    const apptList = document.getElementById('patientAppointmentsList');
+    if (apptList) apptList.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your appointments.</p>';
   }
 
   function renderPatientProfile(user) {
@@ -482,7 +548,7 @@
     if (historyEl) historyEl.textContent = prof.medical_history || 'None recorded';
     if (emergencyEl) {
       const name = prof.emergency_contact_name || '';
-      const phone = prof.emergency_contact_phone || '';
+      const phone = formatPHPhone(prof.emergency_contact_phone || '');
       emergencyEl.textContent = (name || phone) ? `${name} (${phone})`.trim() : 'None recorded';
     }
     if (editBtn) editBtn.classList.remove('hidden');
@@ -667,11 +733,6 @@
     });
   }
 
-  function selectRegRoom(val) {
-    const input = document.getElementById('portalRegRoom');
-    if (input) input.value = val;
-  }
-
   function selectRegFee(val) {
     const input = document.getElementById('portalRegFee');
     if (input) input.value = val;
@@ -808,7 +869,7 @@
       payload.specialization = document.getElementById('portalRegSpecialization')?.value.trim() || 'General Medicine';
       payload.license_number = document.getElementById('portalRegLicense')?.value.trim() || 'MD-REG';
       payload.room_number = document.getElementById('portalRegRoom')?.value.trim() || 'Room 101';
-      payload.consultation_fee = parseFloat(document.getElementById('portalRegFee')?.value) || 60.00;
+      payload.consultation_fee = parseFloat(document.getElementById('portalRegFee')?.value) || 500.00;
     }
 
     try {
@@ -958,13 +1019,13 @@
     const emPhEl = document.getElementById('editEmergencyPhone');
 
     if (fnEl) fnEl.value = state.user.full_name || '';
-    if (phEl) phEl.value = state.user.phone || '';
+    if (phEl) phEl.value = formatPHPhone(state.user.phone || '');
     if (dobEl) {
       dobEl.value = prof.date_of_birth || '';
       dobEl.max = clinicTodayISO();
     }
     if (emNameEl) emNameEl.value = prof.emergency_contact_name || '';
-    if (emPhEl) emPhEl.value = prof.emergency_contact_phone || '';
+    if (emPhEl) emPhEl.value = formatPHPhone(prof.emergency_contact_phone || '');
 
     // Select Gender & Blood Group pills
     selectProfileGender(prof.gender || '');
@@ -1167,10 +1228,12 @@
     const patServing = document.getElementById('patientServingTicket');
     const patRoom = document.getElementById('patientServingRoom');
     const patCount = document.getElementById('patientWaitingCount');
+    const patLabel = document.getElementById('patientWaitingLabel');
     const patEst = document.getElementById('patientEstWait');
     if (patServing) patServing.textContent = serving;
     if (patRoom) patRoom.textContent = room;
     if (patCount) patCount.textContent = count;
+    if (patLabel) patLabel.textContent = count === 1 ? 'patient' : 'patients';
     if (patEst) patEst.textContent = est + ' min';
 
     // Staff Portal
@@ -1187,7 +1250,7 @@
 
     if (staffList) {
       if (waiting.length === 0) {
-        staffList.innerHTML = '<span class="text-xs text-stone-400">No patients waiting</span>';
+        staffList.innerHTML = '<span class="text-xs text-stone-600">No patients waiting</span>';
       } else {
         staffList.innerHTML = waiting.map(t => `
           <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 font-mono font-bold text-xs">
@@ -1365,7 +1428,7 @@
         // Staff selects are narrow: native options clip silently, so the room
         // (the part staff dispatch on) gets the short label there. The patient
         // booking select is wide enough for specialization + room.
-        const optionFull = d => `<option value="${d.id}">${escapeHTML(d.name)} (${escapeHTML(d.specialization)}) - ${escapeHTML(String(d.room_number || 'Room 102'))}</option>`;
+        const optionFull = d => `<option value="${d.id}">${escapeHTML(d.name)} (${escapeHTML(d.specialization)}) - ${escapeHTML(String(d.room_number || 'Room 102'))} &bull; ${escapeHTML(formatPHP(d.fee ?? 500))}</option>`;
         const optionBrief = d => `<option value="${d.id}">${escapeHTML(d.name)} - ${escapeHTML(String(d.room_number || 'Room 102'))}</option>`;
 
         if (appSelect) appSelect.innerHTML = doctors.map(optionFull).join('');
@@ -1408,8 +1471,110 @@
       document.getElementById('appointmentForm').reset();
       const appDate = document.getElementById('appointmentDate');
       if (appDate) appDate.value = clinicTodayISO();
+      loadMyAppointments();
     } catch (err) {
       showToast(`Booking error: ${err.message}`, 'error');
+    }
+  }
+
+  async function loadMyAppointments() {
+    const list = document.getElementById('patientAppointmentsList');
+    if (!list) return;
+    if (!state.user || state.user.role !== 'patient') {
+      list.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your appointments.</p>';
+      return;
+    }
+    try {
+      const rows = await apiFetch(API.appointments.my);
+      if (!rows || rows.length === 0) {
+        list.innerHTML = '<p class="text-stone-600 py-3 text-center">No appointments booked yet.</p>';
+        return;
+      }
+      list.innerHTML = rows.map(a => {
+        const isCancelled = a.status === 'cancelled';
+        const isCompleted = a.status === 'completed';
+        const statusCls = isCancelled
+          ? 'bg-stone-100 text-stone-600'
+          : (isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-brand-50 text-brand-700');
+        const cancelBtn = (!isCancelled && !isCompleted)
+          ? `<button type="button" onclick="window.ClinicApp.cancelMyAppointment(${a.id})" class="btn btn-outline btn-sm text-rose-700 border-rose-200 hover:bg-rose-50 shrink-0">Cancel</button>`
+          : '';
+        return `
+          <div class="p-3 rounded-xl bg-stone-50 border border-stone-200/80 flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-stone-900 block truncate">${escapeHTML(a.appointment_date)} &bull; ${escapeHTML(a.time_slot)}</span>
+              <span class="text-[11px] text-stone-600 block truncate">${escapeHTML(a.doctor_name)} (${escapeHTML(a.room_number || 'Room N/A')})</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="pill ${statusCls} uppercase text-[10px] font-bold">${escapeHTML(a.status)}</span>
+              ${cancelBtn}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      list.innerHTML = `<p class="text-rose-600 py-3 text-center">${escapeHTML(err.message || 'Failed to load appointments')}</p>`;
+    }
+  }
+
+  async function cancelMyAppointment(appointmentId) {
+    try {
+      await apiFetch(`${API.appointments.base}/${appointmentId}/cancel`, { method: 'POST' });
+      showToast('Appointment cancelled.', 'info');
+      loadMyAppointments();
+    } catch (err) {
+      showToast(`Cancel failed: ${err.message}`, 'error');
+    }
+  }
+
+  // Shared patient name/ID search helper for Staff check-in/billing and Doctor EMR lookup
+  let patientLookupTimer = null;
+  function lookupPatients(query, containerId, targetMode) {
+    const box = document.getElementById(containerId);
+    if (!box) return;
+    const term = String(query || '').trim();
+    if (!term) {
+      box.innerHTML = '';
+      box.classList.add('hidden');
+      return;
+    }
+    clearTimeout(patientLookupTimer);
+    patientLookupTimer = setTimeout(async () => {
+      try {
+        const rows = await apiFetch(`${API.queue.patients}?q=${encodeURIComponent(term)}`);
+        if (!rows || rows.length === 0) {
+          box.innerHTML = '<span class="text-[11px] text-stone-600">No matching patients.</span>';
+          box.classList.remove('hidden');
+          return;
+        }
+        box.innerHTML = rows.map(p => `
+          <button type="button" onclick="window.ClinicApp.selectFoundPatient(${p.id}, '${targetMode}', '${containerId}')" class="chip text-xs">
+            ${escapeHTML(p.full_name)} (#${p.id})
+          </button>
+        `).join('');
+        box.classList.remove('hidden');
+      } catch (err) {
+        box.innerHTML = `<span class="text-[11px] text-rose-600">${escapeHTML(err.message || 'Lookup failed')}</span>`;
+        box.classList.remove('hidden');
+      }
+    }, 180);
+  }
+
+  function selectFoundPatient(patientId, targetMode, containerId) {
+    if (targetMode === 'emr') {
+      const emrInput = document.getElementById('emrPatientId');
+      if (emrInput) emrInput.value = patientId;
+      searchPatientEMR(patientId);
+    } else {
+      const walkInput = document.getElementById('walkinPatientId');
+      const billInput = document.getElementById('billPatientId');
+      if (walkInput) walkInput.value = patientId;
+      if (billInput) billInput.value = patientId;
+    }
+    const box = document.getElementById(containerId);
+    if (box) {
+      box.innerHTML = '';
+      box.classList.add('hidden');
     }
   }
 
@@ -1419,7 +1584,7 @@
     const dateInput = document.getElementById('scheduleFilterDate');
     if (!docId) {
       const list = document.getElementById('scheduleList');
-      if (list) list.innerHTML = '<p class="text-xs text-stone-400 py-6 text-center">Sign in as a doctor to view a schedule.</p>';
+      if (list) list.innerHTML = '<p class="text-xs text-stone-600 py-6 text-center">Sign in as a doctor to view a schedule.</p>';
       return;
     }
     const scheduleDate = dateInput && dateInput.value ? dateInput.value : clinicTodayISO();
@@ -1431,7 +1596,7 @@
       if (!list) return;
 
       if (!data || data.length === 0) {
-        list.innerHTML = '<p class="text-xs text-stone-400 py-6 text-center">No appointments scheduled for this date.</p>';
+        list.innerHTML = '<p class="text-xs text-stone-600 py-6 text-center">No appointments scheduled for this date.</p>';
         return;
       }
 
@@ -1502,7 +1667,7 @@
       allergyEl.className = 'text-xs font-semibold text-stone-600 bg-stone-100 border border-stone-200/80 px-2.5 py-0.5 rounded-lg';
     }
     if (historyEl) historyEl.textContent = '--';
-    if (rxList) rxList.innerHTML = '<p class="text-stone-400 py-2 text-center">Select a patient to view prescription history.</p>';
+    if (rxList) rxList.innerHTML = '<p class="text-stone-600 py-2 text-center">Select a patient to view prescription history.</p>';
     if (rxAlert) rxAlert.classList.add('hidden');
     if (rxPatientId) rxPatientId.value = '';
     if (emrInput) emrInput.value = '';
@@ -1552,13 +1717,13 @@
       const rxList = document.getElementById('emrPrescriptionsList');
       if (rxList) {
         if (!emr.prescriptions || emr.prescriptions.length === 0) {
-          rxList.innerHTML = '<p class="text-stone-400 py-2 text-center">No previous prescriptions on file.</p>';
+          rxList.innerHTML = '<p class="text-stone-600 py-2 text-center">No previous prescriptions on file.</p>';
         } else {
           rxList.innerHTML = emr.prescriptions.map(rx => `
             <div class="p-2.5 rounded-lg bg-white border border-stone-200 shadow-card">
               <div class="flex justify-between gap-2 font-semibold text-stone-800">
                 <span class="truncate">Dx: ${escapeHTML(rx.diagnosis)}</span>
-                <span class="text-[10px] text-stone-400 shrink-0">${escapeHTML(rx.created_at)}</span>
+                <span class="text-[10px] text-stone-600 shrink-0">${escapeHTML(rx.created_at)}</span>
               </div>
               <p class="text-stone-500 text-[11px] my-1">${escapeHTML(rx.notes || '')}</p>
               <div class="text-[10px] text-brand-700 bg-brand-50 p-1.5 rounded">
@@ -1663,7 +1828,7 @@
     const discount = parseFloat(document.getElementById('billDiscount').value) || 0;
     const total = Math.max(0, (cFee + mFee + oFee) - discount);
     const prev = document.getElementById('billTotalPreview');
-    if (prev) prev.textContent = `$${total.toFixed(2)}`;
+    if (prev) prev.textContent = formatPHP(total);
   }
 
   async function createInvoice(e) {
@@ -1700,7 +1865,7 @@
           <span class="text-xs font-bold text-stone-800 block">Receipt: ${escapeHTML(res.receipt_number)}</span>
           <div class="flex justify-between items-center my-1 text-stone-600">
             <span>Total Paid (${escapeHTML(method.toUpperCase())}):</span>
-            <span class="font-extrabold text-stone-900">$${res.total.toFixed(2)}</span>
+            <span class="font-extrabold text-stone-900 font-mono tabular-nums">${escapeHTML(formatPHP(res.total))}</span>
           </div>
           <span class="text-[10px] text-brand-600 font-semibold block">Transaction Finalized &amp; Paid</span>
         `;
@@ -1720,7 +1885,7 @@
     try {
       const rows = await apiFetch(API.billing.list);
       if (!rows || rows.length === 0) {
-        list.innerHTML = '<p class="text-stone-400 py-3 text-center">No invoices recorded yet.</p>';
+        list.innerHTML = '<p class="text-stone-600 py-3 text-center">No invoices recorded yet.</p>';
         return;
       }
       list.innerHTML = rows.slice(0, 10).map(inv => `
@@ -1729,7 +1894,7 @@
             <span class="font-mono font-bold text-stone-900 block truncate">${escapeHTML(inv.receipt_number)}</span>
             <span class="text-[11px] text-stone-500 block truncate">${escapeHTML(inv.patient_name)} &bull; ${escapeHTML((inv.payment_method || '').toUpperCase())}</span>
           </div>
-          <span class="font-mono font-bold text-stone-900 shrink-0">$${Number(inv.total_amount || 0).toFixed(2)}</span>
+          <span class="font-mono font-bold text-stone-900 tabular-nums shrink-0">${escapeHTML(formatPHP(inv.total_amount || 0))}</span>
         </div>
       `).join('');
     } catch (err) {
@@ -1884,7 +2049,7 @@
       const list = document.getElementById('criticalAlertsList');
       if (list) {
         if (rawAlerts.length === 0) {
-          list.innerHTML = '<p class="text-stone-400 py-6 text-center">No critical negative complaints detected.</p>';
+          list.innerHTML = '<p class="text-stone-600 py-6 text-center">No critical negative complaints detected.</p>';
         } else {
           list.innerHTML = rawAlerts.map(a => {
             const r = a.rating ?? 1;
@@ -1923,7 +2088,7 @@
     try {
       const users = await apiFetch(API.admin.users);
       if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-stone-400">No accounts found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-stone-600">No accounts found.</td></tr>';
         return;
       }
       const roleColors = {
@@ -1941,8 +2106,8 @@
         const profileTag = u.patient_id ? `Patient #${u.patient_id}` : (u.doctor_id ? `Doctor #${u.doctor_id}` : `User #${u.id}`);
         const actions = isPending
           ? `<div class="inline-flex items-center gap-1.5">
-              <button type="button" onclick="window.ClinicApp.approveAdminUser(${u.id})" class="btn btn-primary !min-h-[34px] !py-1 !px-2.5 text-[11px]">Approve</button>
-              <button type="button" onclick="window.ClinicApp.rejectAdminUser(${u.id})" class="btn btn-outline !min-h-[34px] !py-1 !px-2.5 text-[11px] text-rose-700 border-rose-200 hover:bg-rose-50">Reject</button>
+              <button type="button" onclick="window.ClinicApp.approveAdminUser(${u.id})" class="btn btn-primary btn-sm text-xs">Approve</button>
+              <button type="button" onclick="window.ClinicApp.rejectAdminUser(${u.id})" class="btn btn-outline btn-sm text-xs text-rose-700 border-rose-200 hover:bg-rose-50">Reject</button>
             </div>`
           : `<span class="font-mono text-[11px] text-stone-500">${escapeHTML(profileTag)}</span>`;
         return `
@@ -2668,6 +2833,10 @@
     advanceServingTicket,
     registerWalkin,
     submitAppointment,
+    loadMyAppointments,
+    cancelMyAppointment,
+    lookupPatients,
+    selectFoundPatient,
     loadDoctorSchedule,
     selectConsultationPatient,
     searchPatientEMR,
@@ -2701,7 +2870,6 @@
     toggleRegAllergyChip,
     toggleRegHistoryChip,
     selectRegSpecialization,
-    selectRegRoom,
     selectRegFee,
     installPWA,
     dismissPWABanner,

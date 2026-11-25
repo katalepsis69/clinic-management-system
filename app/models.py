@@ -61,7 +61,7 @@ class Doctor(Base):
     specialization = Column(String(100), nullable=False)
     license_number = Column(String(50), nullable=False)
     room_number = Column(String(20), nullable=False)
-    consultation_fee = Column(Numeric(10, 2), default=50.00)
+    consultation_fee = Column(Numeric(10, 2), default=500.00)
     is_available = Column(Boolean, default=True)
 
     user = relationship("User", back_populates="doctor")

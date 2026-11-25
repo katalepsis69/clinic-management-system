@@ -135,8 +135,8 @@ def _get_faq_response(message: str) -> str:
     # Ponytail: polite fallback if query neither matches FAQ nor succeeds with LLM
     msg_lower = str(message).lower()
     if any(k in msg_lower for k in ["salamat", "kamusta", "ano", "paano", "saan", "bakit"]):
-        return "Salamat po sa inyong mensahe. Natanggap na po ng aming front desk receptionist ang inyong inquiry at tutugon po kami agad. Kung emergency po, tumawag sa 555-0100 o 911."
-    return "Thank you for messaging. A clinic receptionist has received your inquiry and will reply shortly. If urgent, please call our front desk at 555-0100."
+        return "Salamat po sa inyong mensahe. Natanggap na po ng aming front desk receptionist ang inyong inquiry at tutugon po kami agad. Kung emergency po, tumawag sa (02) 8123 4567 o 911."
+    return "Thank you for messaging. A clinic receptionist has received your inquiry and will reply shortly. If urgent, please call our front desk at (02) 8123 4567 or 911."
 
 
 def get_bot_response(message: str) -> str:

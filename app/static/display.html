@@ -80,7 +80,7 @@
         <span class="text-xs font-bold uppercase tracking-wider text-stone-400 block mb-1">Total Waiting</span>
         <div class="flex items-baseline gap-2">
           <span id="displayWaitingCount" class="text-3xl sm:text-4xl font-black text-brand-400 font-mono tabular-nums">0</span>
-          <span class="text-xs text-stone-400">patients</span>
+          <span id="displayWaitingLabel" class="text-xs text-stone-400">patients</span>
         </div>
         <span class="text-[11px] text-stone-400 mt-1 block">Est. wait: <span id="displayEstWait" class="text-stone-200 font-semibold">0 mins</span></span>
       </div>
@@ -134,12 +134,15 @@
 
     ['log', 'debug', 'info', 'warn', 'error'].forEach((m) => { console[m] = () => {}; });
 
-    // Live Clock
+    // Live Clock (Philippine Standard Time UTC+8)
     function updateClock() {
       const now = new Date();
-      document.getElementById('tvClock').textContent = now.toLocaleTimeString();
+      document.getElementById('tvClock').textContent = now.toLocaleTimeString('en-PH', {
+        timeZone: 'Asia/Manila',
+      });
       const isNarrow = window.innerWidth < 640;
-      document.getElementById('tvDate').textContent = now.toLocaleDateString(undefined, {
+      document.getElementById('tvDate').textContent = now.toLocaleDateString('en-PH', {
+        timeZone: 'Asia/Manila',
         weekday: isNarrow ? 'short' : 'long',
         year: 'numeric',
         month: isNarrow ? 'short' : 'long',
@@ -264,6 +267,8 @@
       }
 
       if (countEl) countEl.textContent = waitCount;
+      const waitLabelEl = document.getElementById('displayWaitingLabel');
+      if (waitLabelEl) waitLabelEl.textContent = waitCount === 1 ? 'patient' : 'patients';
       if (estEl) estEl.textContent = waitMins + ' mins';
 
       // Chime once if new patient called (deduplicated via notifyNewServing)
@@ -274,13 +279,13 @@
 
       if (listEl) {
         if (waiting.length === 0) {
-          listEl.innerHTML = '<span class="text-xs text-slate-500">No patients waiting in queue.</span>';
+          listEl.innerHTML = '<span class="text-xs text-stone-300">No patients waiting in queue.</span>';
         } else {
           // ponytail: tickets are server-generated but escaped anyway — defense in depth
           const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
           listEl.innerHTML = waiting.map((t, idx) => `
-            <div class="px-3.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold font-mono text-brand-300 flex items-center gap-2">
-              <span class="text-[10px] text-slate-400 font-sans">#${idx + 1}</span>
+            <div class="px-3.5 py-1.5 rounded-xl bg-[#232c25] border border-[#344337] text-sm font-bold font-mono text-brand-300 flex items-center gap-2">
+              <span class="text-[10px] text-stone-300 font-sans">#${idx + 1}</span>
               <span>${esc(t)}</span>
             </div>
           `).join('');

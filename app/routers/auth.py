@@ -237,7 +237,7 @@ class RegisterUserPayload(BaseModel):
     specialization: Optional[str] = None
     license_number: Optional[str] = None
     room_number: Optional[str] = None
-    consultation_fee: Optional[float] = 60.00
+    consultation_fee: Optional[float] = 500.00
 
 
 
@@ -306,7 +306,7 @@ def register_user(
         spec = (payload.specialization or "").strip() or "General Medicine"
         lic = (payload.license_number or "").strip() or f"MD-{user.id:04d}"
         room = (payload.room_number or "").strip() or f"Room {100 + user.id}"
-        fee = payload.consultation_fee if payload.consultation_fee is not None else 60.00
+        fee = payload.consultation_fee if payload.consultation_fee is not None else 500.00
 
         doctor = Doctor(
             user_id=user.id,

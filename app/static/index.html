@@ -470,7 +470,7 @@
               </div>
               <div>
                 <label for="portalRegPhone" class="label !text-xs !mb-1">Phone Number *</label>
-                <input type="tel" id="portalRegPhone" required placeholder="+1 555-0142" class="input !text-sm !py-2 bg-white">
+                <input type="tel" id="portalRegPhone" required placeholder="0917 123 4567" class="input !text-sm !py-2 bg-white">
               </div>
             </div>
             <div>
@@ -498,7 +498,7 @@
                   <button type="button" onclick="window.ClinicApp.selectRegGender('Male')" data-gender="Male" class="segmented-pill" aria-selected="false">Male</button>
                   <button type="button" onclick="window.ClinicApp.selectRegGender('Female')" data-gender="Female" class="segmented-pill" aria-selected="false">Female</button>
                   <button type="button" onclick="window.ClinicApp.selectRegGender('Other')" data-gender="Other" class="segmented-pill" aria-selected="false">Other</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegGender('Prefer not to say')" data-gender="Prefer not to say" class="segmented-pill" aria-selected="false">Prefer not to say</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegGender('Prefer not to say')" data-gender="Prefer not to say" class="segmented-pill whitespace-nowrap" aria-selected="false">Unspecified</button>
                 </div>
                 <input type="hidden" id="portalRegGender" value="">
               </div>
@@ -561,7 +561,7 @@
                 </div>
                 <div>
                   <label for="portalRegEmergencyPhone" class="label !text-xs !mb-1">Contact Phone</label>
-                  <input type="tel" id="portalRegEmergencyPhone" placeholder="+1 555-9999" class="input !text-sm !py-2 bg-white">
+                  <input type="tel" id="portalRegEmergencyPhone" placeholder="0918 765 4321" class="input !text-sm !py-2 bg-white">
                 </div>
               </div>
             </div>
@@ -596,17 +596,17 @@
 
               <div>
                 <div class="flex items-center justify-between mb-1.5">
-                  <label for="portalRegFee" class="label !text-xs !mb-0">Consultation Fee ($ USD) *</label>
+                  <label for="portalRegFee" class="label !text-xs !mb-0">Consultation Fee (PHP) *</label>
                   <span class="text-[11px] font-medium text-stone-600">Quick Select:</span>
                 </div>
                 <div class="flex flex-wrap gap-1.5 mb-2" id="regDoctorFeeChips">
-                  <button type="button" onclick="window.ClinicApp.selectRegFee('40.00')" data-fee="40.00" class="spec-pill">$40.00</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegFee('60.00')" data-fee="60.00" class="spec-pill" aria-selected="true">$60.00</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegFee('75.00')" data-fee="75.00" class="spec-pill">$75.00</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegFee('100.00')" data-fee="100.00" class="spec-pill">$100.00</button>
-                  <button type="button" onclick="window.ClinicApp.selectRegFee('120.00')" data-fee="120.00" class="spec-pill">$120.00</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('300.00')" data-fee="300.00" class="spec-pill">&#8369;300</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('500.00')" data-fee="500.00" class="spec-pill" aria-selected="true">&#8369;500</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('700.00')" data-fee="700.00" class="spec-pill">&#8369;700</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('1000.00')" data-fee="1000.00" class="spec-pill">&#8369;1,000</button>
+                  <button type="button" onclick="window.ClinicApp.selectRegFee('1500.00')" data-fee="1500.00" class="spec-pill">&#8369;1,500</button>
                 </div>
-                <input type="number" id="portalRegFee" step="0.01" value="60.00" class="input !text-sm !py-2 bg-white">
+                <input type="number" id="portalRegFee" step="0.01" min="0" value="500.00" class="input !text-sm !py-2 bg-white">
               </div>
             </div>
           </div>
@@ -838,7 +838,7 @@
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 flex-wrap">
                   <h2 class="text-lg sm:text-xl font-bold text-stone-900 tracking-tight truncate" id="patientCardName">Guest Patient</h2>
-                  <button id="editProfileBtn" onclick="window.ClinicApp.showProfileModal()" class="btn btn-ghost btn-sm !min-h-[30px] !py-0.5 !px-2 text-xs text-brand-700 hover:bg-brand-50 rounded-lg inline-flex items-center gap-1" title="Edit Medical Profile">
+                  <button id="editProfileBtn" onclick="window.ClinicApp.showProfileModal()" class="btn btn-ghost btn-sm !py-1 !px-2.5 text-xs text-brand-700 hover:bg-brand-50 rounded-lg inline-flex items-center gap-1" title="Edit Medical Profile">
                     <svg class="icon w-3.5 h-3.5"><use href="#i-user"/></svg>
                     <span>Edit Profile</span>
                   </button>
@@ -854,15 +854,15 @@
             <!-- Clean Balanced 3-Column Demographic Strip -->
             <div class="grid grid-cols-3 gap-2 mt-4 pt-3.5 border-t border-stone-100 text-xs">
               <div class="p-2 sm:px-3 sm:py-2 rounded-xl bg-stone-50/90 border border-stone-200/60 text-center sm:text-left">
-                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400 block">Blood</span>
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-600 block">Blood</span>
                 <span class="font-bold text-stone-800 block text-xs sm:text-sm mt-0.5" id="patientCardBlood">--</span>
               </div>
               <div class="p-2 sm:px-3 sm:py-2 rounded-xl bg-stone-50/90 border border-stone-200/60 text-center sm:text-left">
-                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400 block">Allergies</span>
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-600 block">Allergies</span>
                 <span class="font-bold block text-xs sm:text-sm mt-0.5 truncate" id="patientCardAllergies">--</span>
               </div>
               <div class="p-2 sm:px-3 sm:py-2 rounded-xl bg-stone-50/90 border border-stone-200/60 text-center sm:text-left">
-                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-400 block">DOB</span>
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-stone-600 block">DOB</span>
                 <span class="font-semibold text-stone-700 block text-xs sm:text-sm mt-0.5 truncate" id="patientCardDob">--</span>
               </div>
               <!-- Preserved element anchors for existing DOM updates -->
@@ -901,7 +901,7 @@
               </div>
               <div class="text-right">
                 <span id="patientServingRoom" class="text-xs text-stone-300 font-medium block">Room N/A</span>
-                <span class="text-[11px] text-stone-400 block mt-0.5"><span id="patientWaitingCount" class="text-white font-bold">0</span> patients waiting</span>
+                <span class="text-[11px] text-stone-400 block mt-0.5"><span id="patientWaitingCount" class="text-white font-bold">0</span> <span id="patientWaitingLabel">patients</span> waiting</span>
               </div>
             </div>
           </div>
@@ -974,6 +974,23 @@
                 <span>Confirm Consultation Booking</span>
               </button>
             </form>
+          </div>
+
+          <!-- My Appointments List -->
+          <div id="myAppointmentsCard" class="card card-pad border-stone-200/80 shadow-sm">
+            <div class="flex items-center justify-between gap-2 pb-3 border-b border-stone-100">
+              <div>
+                <h3 class="card-title text-base font-bold text-stone-900">My Appointments</h3>
+                <p class="card-subtitle text-xs text-stone-600">Review or cancel your booked consultations.</p>
+              </div>
+              <button type="button" onclick="window.ClinicApp.loadMyAppointments()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh appointments">
+                <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
+                <span>Refresh</span>
+              </button>
+            </div>
+            <div id="patientAppointmentsList" class="space-y-2.5 mt-3 max-h-60 overflow-y-auto text-xs" aria-live="polite">
+              <p class="text-stone-600 py-3 text-center">Sign in to view your appointments.</p>
+            </div>
           </div>
 
           <!-- Quick FAQ / Assistant Prompt Card -->
@@ -1070,7 +1087,7 @@
         <!-- Date Filter & Quick Refresh -->
         <div class="flex items-center gap-2 w-full sm:w-auto">
           <input type="date" id="scheduleFilterDate" onchange="window.ClinicApp.loadDoctorSchedule()" class="input !py-1.5 !px-3 text-xs w-full sm:w-40 shrink-0" aria-label="Select schedule date">
-          <button onclick="window.ClinicApp.loadDoctorSchedule()" class="btn btn-outline btn-sm !min-h-[38px] shrink-0" aria-label="Refresh doctor schedule">
+          <button onclick="window.ClinicApp.loadDoctorSchedule()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh doctor schedule">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
             <span class="hidden sm:inline">Refresh</span>
           </button>
@@ -1097,15 +1114,17 @@
 
             <!-- Schedule List with interactive selection -->
             <div class="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="scheduleList" aria-live="polite">
-              <p class="text-xs text-stone-400 py-6 text-center">Loading scheduled appointments...</p>
+              <p class="text-xs text-stone-600 py-6 text-center">Loading scheduled appointments...</p>
             </div>
 
             <!-- Manual Chart Search Fallback -->
-            <div class="mt-4 pt-3 border-t border-stone-100">
-              <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider block mb-2">Look Up Chart by Patient ID</span>
+            <div class="mt-4 pt-3 border-t border-stone-100 space-y-2">
+              <label for="emrPatientSearch" class="text-[11px] font-bold text-stone-600 uppercase tracking-wider block">Find Patient Chart</label>
+              <input type="search" id="emrPatientSearch" placeholder="Type patient name to load chart..." oninput="window.ClinicApp.lookupPatients(this.value, 'emrPatientMatches', 'emr')" class="input !py-1.5 !px-3 text-xs">
+              <div id="emrPatientMatches" class="hidden flex flex-wrap gap-1.5"></div>
               <div class="flex gap-2">
                 <input type="number" id="emrPatientId" placeholder="ID #" aria-label="Patient ID lookup" class="input !py-1.5 !px-3 text-xs w-20 shrink-0">
-                <button type="button" onclick="window.ClinicApp.searchPatientEMR()" class="btn btn-outline btn-sm !min-h-[36px] flex-1 text-xs font-bold">
+                <button type="button" onclick="window.ClinicApp.searchPatientEMR()" class="btn btn-outline btn-sm flex-1 text-xs font-bold">
                   <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-search"/></svg>
                   <span>Search EMR</span>
                 </button>
@@ -1156,7 +1175,7 @@
                 <span>Recorded Prescription History</span>
               </h4>
               <div id="emrPrescriptionsList" class="space-y-2 max-h-36 overflow-y-auto pr-1 text-xs">
-                <p class="text-stone-400 py-2 text-center">No prescriptions recorded yet.</p>
+                <p class="text-stone-600 py-2 text-center">No prescriptions recorded yet.</p>
               </div>
             </div>
           </div>
@@ -1201,7 +1220,7 @@
               <div>
                 <div class="flex justify-between items-center mb-2">
                   <span class="text-xs font-bold text-stone-700 uppercase tracking-wider">Prescribed Medications</span>
-                  <button type="button" onclick="window.ClinicApp.addMedicationRow()" class="btn btn-outline btn-sm !min-h-[32px] !py-1 !px-2.5 text-xs text-brand-700 hover:bg-brand-50 font-bold">
+                  <button type="button" onclick="window.ClinicApp.addMedicationRow()" class="btn btn-outline btn-sm text-xs text-brand-700 hover:bg-brand-50 font-bold">
                     + Add Drug
                   </button>
                 </div>
@@ -1269,7 +1288,7 @@
           </div>
         </div>
 
-        <button onclick="window.ClinicApp.fetchQueueStatus()" class="btn btn-outline btn-sm !min-h-[38px] shrink-0" aria-label="Refresh desk status">
+        <button onclick="window.ClinicApp.fetchQueueStatus()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh desk status">
           <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
           <span>Refresh Queue</span>
         </button>
@@ -1306,11 +1325,11 @@
               <span id="staffCurrentServing" class="block text-3xl sm:text-4xl font-black text-amber-400 font-mono tracking-tight my-1">None</span>
               <span id="staffCurrentRoom" class="text-xs text-stone-300 font-medium block">Room N/A</span>
               <div id="staffServingActions" class="hidden mt-3 pt-3 border-t border-stone-800 flex items-center justify-center gap-2 flex-wrap">
-                <button type="button" onclick="window.ClinicApp.advanceServingTicket('completed')" class="btn btn-primary btn-sm !min-h-[38px] text-xs">
+                <button type="button" onclick="window.ClinicApp.advanceServingTicket('completed')" class="btn btn-primary btn-sm text-xs">
                   <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-check"/></svg>
                   <span>Mark Completed</span>
                 </button>
-                <button type="button" onclick="window.ClinicApp.advanceServingTicket('cancelled')" class="btn btn-outline btn-sm !min-h-[38px] text-xs bg-stone-800 border-stone-700 text-stone-200 hover:bg-stone-700 hover:text-white">
+                <button type="button" onclick="window.ClinicApp.advanceServingTicket('cancelled')" class="btn btn-outline btn-sm text-xs bg-stone-800 border-stone-700 text-stone-200 hover:bg-stone-700 hover:text-white">
                   <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-x"/></svg>
                   <span>No-Show / Cancel</span>
                 </button>
@@ -1354,9 +1373,14 @@
 
             <form id="walkinForm" onsubmit="window.ClinicApp.registerWalkin(event)" class="space-y-3.5 mt-4">
               <div>
+                <label for="staffPatientSearch" class="label">Find Patient by Name</label>
+                <input type="search" id="staffPatientSearch" placeholder="Type patient name (e.g. Sarah)..." oninput="window.ClinicApp.lookupPatients(this.value, 'staffPatientMatches', 'staff')" class="input !py-2 text-xs">
+                <div id="staffPatientMatches" class="hidden flex flex-wrap gap-1.5 mt-2"></div>
+              </div>
+              <div>
                 <label for="walkinPatientId" class="label">Patient ID *</label>
                 <input type="number" id="walkinPatientId" placeholder="e.g. 1" required class="input !py-2 text-xs">
-                <span class="hint">Enter the patient's numeric ID from registration or intake</span>
+                <span class="hint">Auto-filled when you pick a patient above (also fills Billing Patient ID)</span>
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1404,26 +1428,27 @@
                 <div>
                   <label for="billPatientId" class="label">Patient ID *</label>
                   <input type="number" id="billPatientId" placeholder="e.g. 1" required class="input !py-2 text-xs">
+                  <span class="hint">Auto-filled by Walk-in search or enter ID</span>
                 </div>
                 <div>
-                  <label for="billTicketId" class="label">Ticket ID <span class="font-normal text-stone-400">(optional)</span></label>
+                  <label for="billTicketId" class="label">Ticket ID <span class="font-normal text-stone-600">(optional)</span></label>
                   <input type="number" id="billTicketId" placeholder="Optional" class="input !py-2 text-xs">
                 </div>
               </div>
 
               <div>
-                <span class="label">Itemized Fees (USD)</span>
+                <span class="label">Itemized Fees (PHP)</span>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
-                    <label for="billConsultation" class="label !mb-1 !text-[11px] !font-medium text-stone-500">Consultation</label>
+                    <label for="billConsultation" class="label !mb-1 !text-[11px] !font-medium text-stone-600">Consultation</label>
                     <input type="number" step="0.01" id="billConsultation" placeholder="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-1.5 !px-2.5 text-xs">
                   </div>
                   <div>
-                    <label for="billMedication" class="label !mb-1 !text-[11px] !font-medium text-stone-500">Medication</label>
+                    <label for="billMedication" class="label !mb-1 !text-[11px] !font-medium text-stone-600">Medication</label>
                     <input type="number" step="0.01" id="billMedication" placeholder="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-1.5 !px-2.5 text-xs">
                   </div>
                   <div>
-                    <label for="billOther" class="label !mb-1 !text-[11px] !font-medium text-stone-500">Other / Lab</label>
+                    <label for="billOther" class="label !mb-1 !text-[11px] !font-medium text-stone-600">Other / Lab</label>
                     <input type="number" step="0.01" id="billOther" placeholder="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-1.5 !px-2.5 text-xs">
                   </div>
                 </div>
@@ -1431,15 +1456,15 @@
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label for="billDiscount" class="label">Discount (USD)</label>
-                  <input type="number" step="0.01" id="billDiscount" value="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-2 text-xs">
+                  <label for="billDiscount" class="label">Discount (PHP)</label>
+                  <input type="number" step="0.01" id="billDiscount" placeholder="0.00" oninput="window.ClinicApp.calculateBillPreview()" class="input !py-2 text-xs">
                 </div>
                 <div>
                   <label for="billPaymentMethod" class="label">Payment Method</label>
                   <select id="billPaymentMethod" class="select !py-2 text-xs">
                     <option value="cash">Cash Payment</option>
                     <option value="credit_card">Credit / Debit Card</option>
-                    <option value="qr_ewallet">QR E-Wallet</option>
+                    <option value="qr_ewallet">QR E-Wallet (GCash / Maya)</option>
                   </select>
                 </div>
               </div>
@@ -1447,7 +1472,7 @@
               <!-- Total Preview Box -->
               <div class="p-3.5 rounded-xl bg-stone-50 border border-stone-200/80 flex justify-between items-center">
                 <span class="text-xs font-semibold text-stone-600">Total Payable Amount</span>
-                <span id="billTotalPreview" class="text-xl font-black text-stone-900 font-mono">$0.00</span>
+                <span id="billTotalPreview" class="text-xl font-black text-stone-900 font-mono tabular-nums">&#8369;0.00</span>
               </div>
 
               <button type="submit" id="billingSubmitBtn" class="btn btn-dark w-full shadow-sm">
@@ -1462,13 +1487,13 @@
             <div class="mt-5 pt-4 border-t border-stone-100">
               <div class="flex items-center justify-between mb-2">
                 <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider">Recent Receipts</h4>
-                <button type="button" onclick="window.ClinicApp.loadBillingHistory()" class="btn btn-ghost btn-sm !min-h-[32px] !py-1 !px-2 text-[11px]">
+                <button type="button" onclick="window.ClinicApp.loadBillingHistory()" class="btn btn-ghost btn-sm text-xs">
                   <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-refresh"/></svg>
                   <span>Refresh</span>
                 </button>
               </div>
               <div id="billingHistoryList" class="space-y-2 max-h-48 overflow-y-auto text-xs" aria-live="polite">
-                <p class="text-stone-400 py-3 text-center">No invoices recorded yet.</p>
+                <p class="text-stone-600 py-3 text-center">No invoices recorded yet.</p>
               </div>
             </div>
           </div>
@@ -1496,7 +1521,7 @@
           </div>
         </div>
 
-        <button onclick="window.ClinicApp.loadAnalytics()" class="btn btn-outline btn-sm !min-h-[38px] shrink-0" aria-label="Refresh analytics data">
+        <button onclick="window.ClinicApp.loadAnalytics()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh analytics data">
           <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
           <span>Refresh Metrics</span>
         </button>
@@ -1592,7 +1617,7 @@
           </div>
 
           <div id="criticalAlertsList" class="space-y-2.5 max-h-60 overflow-y-auto pr-1 text-xs" aria-live="polite">
-            <p class="text-stone-400 py-6 text-center">No critical complaints flagged.</p>
+            <p class="text-stone-600 py-6 text-center">No critical complaints flagged.</p>
           </div>
         </div>
 
@@ -1627,7 +1652,7 @@
               </div>
               <div>
                 <label for="adminUserPhone" class="label !text-xs !mb-1">Phone</label>
-                <input type="tel" id="adminUserPhone" placeholder="+1 555-0199" class="input !py-2 text-xs">
+                <input type="tel" id="adminUserPhone" placeholder="0917 123 4567" class="input !py-2 text-xs">
               </div>
             </div>
 
@@ -1663,8 +1688,8 @@
                   <input type="text" id="adminUserRoom" placeholder="e.g. Room 101" class="input !py-2 text-xs bg-white">
                 </div>
                 <div>
-                  <label for="adminUserFee" class="label !text-xs !mb-1">Consultation Fee (USD)</label>
-                  <input type="number" id="adminUserFee" step="0.01" min="0" value="60.00" class="input !py-2 text-xs bg-white">
+                  <label for="adminUserFee" class="label !text-xs !mb-1">Consultation Fee (PHP)</label>
+                  <input type="number" id="adminUserFee" step="0.01" min="0" value="500.00" class="input !py-2 text-xs bg-white">
                 </div>
               </div>
             </div>
@@ -1683,7 +1708,7 @@
               <h3 class="card-title text-base font-bold text-stone-900">Clinic Accounts</h3>
               <p class="card-subtitle text-xs text-stone-500">All registered admins, doctors, staff, and patients.</p>
             </div>
-            <button type="button" onclick="window.ClinicApp.loadAdminUsers()" class="btn btn-outline btn-sm !min-h-[36px] shrink-0" aria-label="Refresh user directory">
+            <button type="button" onclick="window.ClinicApp.loadAdminUsers()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh user directory">
               <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
               <span>Refresh</span>
             </button>
@@ -1701,7 +1726,7 @@
                 </tr>
               </thead>
               <tbody id="adminUsersList">
-                <tr><td colspan="5" class="py-6 text-center text-stone-400">Loading accounts...</td></tr>
+                <tr><td colspan="5" class="py-6 text-center text-stone-600">Loading accounts...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1776,7 +1801,7 @@
     <!-- Guest limit warning banner -->
     <div id="chatGuestBanner" class="hidden px-3.5 py-2 bg-amber-50 border-t border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2 shrink-0">
       <span class="font-medium text-[11px] truncate">Guest limit reached (5/5 messages).</span>
-      <button type="button" onclick="window.ClinicApp.switchTab('login')" class="btn btn-primary !min-h-[28px] !h-7 !py-0.5 !px-2.5 !text-[11px] font-bold shrink-0">
+      <button type="button" onclick="window.ClinicApp.switchTab('login')" class="btn btn-primary btn-sm text-xs font-bold shrink-0">
         Sign In
       </button>
     </div>
@@ -1827,8 +1852,8 @@
             <input type="password" id="setupAdminPassword" required minlength="6" autocomplete="new-password" placeholder="••••••••" class="input">
           </div>
           <div>
-            <label for="setupAdminPhone" class="label">Phone <span class="font-normal text-stone-400">(optional)</span></label>
-            <input type="tel" id="setupAdminPhone" placeholder="+1 555-0100" class="input">
+            <label for="setupAdminPhone" class="label">Phone <span class="font-normal text-stone-500">(optional)</span></label>
+            <input type="tel" id="setupAdminPhone" placeholder="0917 123 4567" class="input">
           </div>
         </div>
 
@@ -1862,9 +1887,9 @@
       <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between shrink-0 bg-[#FAF8F5]/60">
         <div>
           <h3 id="profileModalTitle" class="text-base font-bold text-stone-900 tracking-tight">Edit Health Profile</h3>
-          <p class="text-xs text-stone-400 font-medium">Keep your medical identity & emergency contacts updated</p>
+          <p class="text-xs text-stone-600 font-medium">Keep your medical identity &amp; emergency contacts updated</p>
         </div>
-        <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-400 hover:text-stone-700 transition-colors flex items-center justify-center" aria-label="Close dialog">
+        <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="touch-target rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 transition-colors flex items-center justify-center" aria-label="Close dialog">
           <svg class="icon w-4 h-4"><use href="#i-x"/></svg>
         </button>
       </div>
@@ -1879,11 +1904,11 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label for="editFullName" class="label !text-xs !mb-1">Full Name <span class="text-red-500">*</span></label>
-                <input type="text" id="editFullName" required class="input !text-sm !py-2 bg-white" placeholder="Jane Doe">
+                <input type="text" id="editFullName" required class="input !text-sm !py-2 bg-white" placeholder="Your full name">
               </div>
               <div>
                 <label for="editPhone" class="label !text-xs !mb-1">Phone Number</label>
-                <input type="tel" id="editPhone" class="input !text-sm !py-2 bg-white" placeholder="+1 555-0199">
+                <input type="tel" id="editPhone" class="input !text-sm !py-2 bg-white" placeholder="0917 123 4567">
               </div>
               <div>
                 <label for="editDob" class="label !text-xs !mb-1">Date of Birth</label>
@@ -1964,7 +1989,7 @@
               </div>
               <div>
                 <label for="editEmergencyPhone" class="label !text-xs !mb-1">Contact Phone</label>
-                <input type="tel" id="editEmergencyPhone" class="input !text-sm !py-2 bg-white" placeholder="+1 555-0188">
+                <input type="tel" id="editEmergencyPhone" class="input !text-sm !py-2 bg-white" placeholder="0918 765 4321">
               </div>
             </div>
           </div>
@@ -2013,6 +2038,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.11.9"></script>
+  <script src="/static/app.js?v=2.12.2"></script>
 </body>
 </html>

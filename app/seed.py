@@ -13,28 +13,28 @@ def seed_demo_data(db: Session):
         hashed_password=get_password_hash("admin123"),
         full_name="Clinic Director",
         role=UserRole.ADMIN,
-        phone="555-0100",
+        phone="0917 100 0100",
     )
     staff = User(
         email="staff@demo.com",
         hashed_password=get_password_hash("staff123"),
         full_name="Reception Staff",
         role=UserRole.STAFF,
-        phone="555-0101",
+        phone="0917 100 0101",
     )
     doctor_u = User(
         email="doctor@demo.com",
         hashed_password=get_password_hash("doctor123"),
         full_name="Dr. Emily Stone",
         role=UserRole.DOCTOR,
-        phone="555-0102",
+        phone="0917 100 0102",
     )
     patient_u = User(
         email="patient@demo.com",
         hashed_password=get_password_hash("patient123"),
         full_name="Sarah Connor",
         role=UserRole.PATIENT,
-        phone="555-0103",
+        phone="0917 100 0103",
     )
 
     db.add_all([admin, staff, doctor_u, patient_u])
@@ -45,7 +45,7 @@ def seed_demo_data(db: Session):
         specialization="Cardiology & General Medicine",
         license_number="MD-98421",
         room_number="Room 102",
-        consultation_fee=60.00,
+        consultation_fee=500.00,
     )
     patient = Patient(
         user_id=patient_u.id,
@@ -53,7 +53,7 @@ def seed_demo_data(db: Session):
         gender="Female",
         blood_group="O+",
         emergency_contact_name="John Connor",
-        emergency_contact_phone="555-9999",
+        emergency_contact_phone="0917 100 9999",
         allergies="Penicillin",
         medical_history="Mild Asthma",
     )

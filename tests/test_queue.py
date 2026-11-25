@@ -357,3 +357,18 @@ def test_ticket_allocation_survives_restore_gap(client, db_session):
     res = client.post("/api/queue/issue", json={"doctor_id": doc.id, "patient_id": pat2.id}, headers=headers)
     assert res.status_code == 200
     assert res.json()["ticket_number"] == "Q-103"
+
+
+def test_search_patients_for_staff_and_doctor(client, db_session):
+    _, (pat1, pat2) = _make_doctor_and_patients(db_session, n_patients=2, tag="searchpat")
+    staff_headers = _staff_headers(db_session)
+
+    res = client.get(f"/api/queue/patients?q={pat1.id}", headers=staff_headers)
+    assert res.status_code == 200
+    ids = [r["id"] for r in res.json()]
+    assert pat1.id in ids
+
+    pat_user = db_session.query(User).filter(User.id == pat2.user_id).first()
+    pat_headers = {"Authorization": f"Bearer {create_access_token({'sub': pat_user.email, 'role': 'patient'})}"}
+    assert client.get("/api/queue/patients?q=Patient", headers=pat_headers).status_code == 403
+    assert client.get("/api/queue/patients?q=Patient").status_code == 401
