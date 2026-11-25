@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     DATABASE_URL: str = "sqlite:///./data/clinic.db"
-    DEMO_MODE: bool = False
+    DEMO_MODE: bool = True
     # ponytail: fixed PHT offset (Philippine clinics have no DST); switch to
     # zoneinfo only if the clinic ever moves to a DST timezone
     CLINIC_UTC_OFFSET: int = 8

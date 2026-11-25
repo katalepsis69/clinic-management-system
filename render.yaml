@@ -7,10 +7,10 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
-      # Production mode by default: first visitor initializes the primary admin
-      # via the browser First-Run Setup Wizard. Flip to "true" only for seeded demos.
+      # Demo mode enabled by default for fast one-click role sign-in and seeded data.
+      # Flip to "false" for production deployments using the First-Run Setup Wizard.
       - key: DEMO_MODE
-        value: "false"
+        value: "true"
       - key: SECRET_KEY
         generateValue: true
       - key: GEMINI_API_KEY

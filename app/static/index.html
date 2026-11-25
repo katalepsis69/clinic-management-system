@@ -909,14 +909,15 @@
           <!-- User's Ticket Display or Ticket Action -->
           <div class="mt-3">
             <div id="myTicketCard" class="hidden bg-white text-stone-900 rounded-xl p-3 text-center mb-2.5 border border-stone-200 shadow-sm">
-              <span class="text-[10px] text-stone-500 font-bold uppercase tracking-wider block">Your Walk-in Queue Ticket</span>
+              <span class="text-[10px] text-stone-500 font-bold uppercase tracking-wider block">Your Queue Ticket</span>
               <span id="myTicketNumber" class="text-2xl font-black text-brand-700 font-mono tracking-tight block">Q-101</span>
-              <span class="text-[11px] text-stone-500 block mt-0.5">Please wait for your ticket to appear on screen</span>
+              <span id="myTicketStatusLabel" class="text-[11px] text-stone-600 block mt-0.5">Please wait for your ticket to appear on screen</span>
             </div>
-            <button onclick="window.ClinicApp.issueMyQueueTicket()" class="btn btn-sm btn-primary w-full shadow-sm">
+            <button type="button" id="issueMyTicketBtn" onclick="window.ClinicApp.issueMyQueueTicket()" class="btn btn-sm btn-primary w-full shadow-sm">
               <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-ticket"/></svg>
-              <span>Take Walk-in Queue Ticket</span>
+              <span id="issueMyTicketLabel">Take Walk-in Queue Ticket</span>
             </button>
+            <p class="text-[11px] text-stone-300 mt-2 text-center">Appointments do not auto-issue tickets. Take one only upon arrival, or let staff check you in.</p>
           </div>
         </div>
 
@@ -1136,8 +1137,11 @@
 
             <!-- Manual Chart Search Fallback -->
             <div class="mt-4 pt-3 border-t border-stone-100 space-y-2">
-              <label for="emrPatientSearch" class="text-[11px] font-bold text-stone-600 uppercase tracking-wider block">Find Patient Chart</label>
-              <input type="search" id="emrPatientSearch" placeholder="Type patient name to load chart..." oninput="window.ClinicApp.lookupPatients(this.value, 'emrPatientMatches', 'emr')" class="input !py-1.5 !px-3 text-xs">
+              <label for="emrPatientSelect" class="text-[11px] font-bold text-stone-600 uppercase tracking-wider block">Find Patient Chart</label>
+              <select id="emrPatientSelect" onchange="window.ClinicApp.onSelectPatientDropdown(this.value, 'emr')" aria-label="Select patient from directory" class="select !py-2 text-xs">
+                <option value="">Select patient...</option>
+              </select>
+              <input type="search" id="emrPatientSearch" placeholder="Or type name to filter..." aria-label="Filter patient chart by name" oninput="window.ClinicApp.lookupPatients(this.value, 'emrPatientMatches', 'emr')" class="input !py-1.5 !px-3 text-xs">
               <div id="emrPatientMatches" class="hidden flex flex-wrap gap-1.5"></div>
               <div class="flex gap-2">
                 <input type="number" id="emrPatientId" placeholder="ID #" aria-label="Patient ID lookup" class="input !py-1.5 !px-3 text-xs w-20 shrink-0">
@@ -1414,7 +1418,13 @@
             <form id="walkinForm" onsubmit="window.ClinicApp.registerWalkin(event)" class="space-y-3.5 mt-4">
               <div id="walkinExistingFields" class="space-y-3.5">
                 <div>
-                  <label for="staffPatientSearch" class="label">Find Patient by Name</label>
+                  <label for="walkinPatientSelect" class="label">Select Registered Patient</label>
+                  <select id="walkinPatientSelect" onchange="window.ClinicApp.onSelectPatientDropdown(this.value, 'staff')" class="select !py-2 text-xs">
+                    <option value="">Select patient...</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="staffPatientSearch" class="label">Or Search by Name</label>
                   <input type="search" id="staffPatientSearch" placeholder="Type patient name (e.g. Sarah)..." oninput="window.ClinicApp.lookupPatients(this.value, 'staffPatientMatches', 'staff')" class="input !py-2 text-xs">
                   <div id="staffPatientMatches" class="hidden flex flex-wrap gap-1.5 mt-2"></div>
                 </div>
@@ -1494,9 +1504,12 @@
             <form id="billingForm" onsubmit="window.ClinicApp.createInvoice(event)" class="space-y-4 mt-4">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label for="billPatientId" class="label">Patient ID *</label>
-                  <input type="number" id="billPatientId" placeholder="e.g. 1" required class="input !py-2 text-xs">
-                  <span class="hint">Auto-filled by Walk-in search or enter ID</span>
+                  <label for="billPatientSelect" class="label">Patient *</label>
+                  <select id="billPatientSelect" onchange="window.ClinicApp.onSelectPatientDropdown(this.value, 'billing')" aria-label="Select patient to bill" class="select !py-2 text-xs mb-1.5">
+                    <option value="">Select patient...</option>
+                  </select>
+                  <input type="number" id="billPatientId" placeholder="ID e.g. 1" aria-label="Patient ID" required class="input !py-2 text-xs">
+                  <span class="hint">Pick patient above or enter ID</span>
                 </div>
                 <div>
                   <label for="billTicketId" class="label">Ticket ID <span class="font-normal text-stone-600">(optional)</span></label>
@@ -2106,6 +2119,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.13.0"></script>
+  <script src="/static/app.js?v=2.14.0"></script>
 </body>
 </html>

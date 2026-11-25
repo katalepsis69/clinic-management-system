@@ -337,7 +337,7 @@ def test_setup_admin_first_run_flow(db_session):
     res = client.get("/api/auth/setup-status")
     assert res.status_code == 200
     assert res.json()["initialized"] is False
-    assert res.json()["demo_mode"] is False
+    assert res.json()["demo_mode"] is True
 
     payload = {
         "full_name": "Clinic Director",

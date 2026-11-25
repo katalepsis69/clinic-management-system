@@ -410,3 +410,26 @@ def test_walkin_register_creates_patient_and_ticket(client, db_session):
         "/api/queue/walkin-register",
         json={"full_name": "Anon Walkin", "doctor_id": doc.id},
     ).status_code == 401
+
+
+def test_patient_my_active_ticket_endpoint(client, db_session):
+    doc, [pat] = _make_doctor_and_patients(db_session, n_patients=1, tag="myticket")
+    staff_headers = _staff_headers(db_session)
+    pat_user = db_session.query(User).filter(User.id == pat.user_id).first()
+    pat_headers = {"Authorization": f"Bearer {create_access_token({'sub': pat_user.email, 'role': 'patient'})}"}
+
+    assert client.get("/api/queue/my-ticket").status_code == 401
+    assert client.get("/api/queue/my-ticket", headers=staff_headers).status_code == 403
+    assert client.get("/api/queue/my-ticket", headers=pat_headers).json() == {"active_ticket": None}
+
+    # Staff issues ticket -> patient sees it on /my-ticket immediately
+    issued = client.post("/api/queue/issue", headers=staff_headers, json={"doctor_id": doc.id, "patient_id": pat.id}).json()
+    res = client.get("/api/queue/my-ticket", headers=pat_headers)
+    assert res.status_code == 200
+    assert res.json()["active_ticket"]["ticket_number"] == issued["ticket_number"]
+    assert res.json()["active_ticket"]["status"] == "waiting"
+
+    # Once completed, active_ticket returns None
+    client.post(f"/api/queue/call-next?doctor_id={doc.id}", headers=staff_headers)
+    client.post("/api/queue/advance", headers=staff_headers, json={"ticket_id": issued["id"], "to": "completed"})
+    assert client.get("/api/queue/my-ticket", headers=pat_headers).json() == {"active_ticket": None}

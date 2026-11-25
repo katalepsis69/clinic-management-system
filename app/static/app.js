@@ -43,6 +43,7 @@
     },
     queue: {
       liveStatus: '/api/queue/live-status',
+      myTicket: '/api/queue/my-ticket',
       issue: '/api/queue/issue',
       walkinRegister: '/api/queue/walkin-register',
       callNext: '/api/queue/call-next',
@@ -320,6 +321,7 @@
     if (activeSec) activeSec.classList.remove('hidden');
 
     if (tabName === 'doctor') {
+      loadPatientDirectory();
       loadDoctorSchedule();
       if (state.selectedEmrPatientId) {
         searchPatientEMR(state.selectedEmrPatientId);
@@ -328,6 +330,7 @@
       }
     } else if (tabName === 'staff') {
       loadDoctors();
+      loadPatientDirectory();
       fetchQueueStatus();
       loadStaffAppointments();
       loadBillingHistory();
@@ -510,6 +513,7 @@
     if (apptList) apptList.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your appointments.</p>';
     const rxList = document.getElementById('patientPrescriptionsList');
     if (rxList) rxList.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your prescriptions.</p>';
+    syncMyTicketCard(null);
   }
 
   function renderPatientProfile(user) {
@@ -1220,6 +1224,9 @@
     } catch (err) {
       console.warn('Failed to load queue status:', err);
     }
+    if (state.user && state.user.role === 'patient') {
+      loadMyActiveTicket();
+    }
   }
 
   function renderQueueData(data) {
@@ -1286,6 +1293,48 @@
     }
   }
 
+  function syncMyTicketCard(activeTicket) {
+    const ticketCard = document.getElementById('myTicketCard');
+    const ticketNum = document.getElementById('myTicketNumber');
+    const ticketStatusEl = document.getElementById('myTicketStatusLabel');
+    const btn = document.getElementById('issueMyTicketBtn');
+    const btnLabel = document.getElementById('issueMyTicketLabel');
+
+    if (activeTicket && activeTicket.ticket_number) {
+      state.myTicket = activeTicket.ticket_number;
+      localStorage.setItem('my_ticket', state.myTicket);
+      if (ticketCard) ticketCard.classList.remove('hidden');
+      if (ticketNum) ticketNum.textContent = activeTicket.ticket_number;
+      if (ticketStatusEl) {
+        const statusText = activeTicket.status === 'called'
+          ? `Called to ${activeTicket.room_number || 'Consultation Room'} (${activeTicket.doctor_name || ''})`
+          : activeTicket.status === 'in_consultation'
+            ? `In Consultation at ${activeTicket.room_number || 'Room'}`
+            : `Waiting for ${activeTicket.doctor_name || 'Physician'} (${activeTicket.room_number || 'Room'})`;
+        ticketStatusEl.textContent = statusText;
+      }
+      if (btn) btn.disabled = true;
+      if (btnLabel) btnLabel.textContent = `Active Queue Ticket: ${activeTicket.ticket_number}`;
+    } else {
+      state.myTicket = null;
+      localStorage.removeItem('my_ticket');
+      if (ticketCard) ticketCard.classList.add('hidden');
+      if (btn) btn.disabled = false;
+      if (btnLabel) btnLabel.textContent = 'Take Walk-in Queue Ticket';
+    }
+  }
+
+  async function loadMyActiveTicket() {
+    if (!state.user || state.user.role !== 'patient') {
+      syncMyTicketCard(null);
+      return;
+    }
+    try {
+      const res = await apiFetch(API.queue.myTicket);
+      syncMyTicketCard(res ? res.active_ticket : null);
+    } catch (_) {}
+  }
+
   async function issueMyQueueTicket() {
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to get a queue ticket', 'error');
@@ -1302,15 +1351,12 @@
         method: 'POST',
         body: { doctor_id: doctorId, priority: 'normal' },
       });
-      state.myTicket = res.ticket_number;
-      localStorage.setItem('my_ticket', state.myTicket);
-
-      const ticketCard = document.getElementById('myTicketCard');
-      const ticketNum = document.getElementById('myTicketNumber');
-      if (ticketCard && ticketNum) {
-        ticketNum.textContent = res.ticket_number;
-        ticketCard.classList.remove('hidden');
-      }
+      syncMyTicketCard({
+        ticket_number: res.ticket_number,
+        status: 'waiting',
+        doctor_name: '',
+        room_number: '',
+      });
       showToast(`Queue ticket ${res.ticket_number} issued successfully!`, 'success');
       fetchQueueStatus();
     } catch (err) {
@@ -1409,6 +1455,7 @@
         const billInput = document.getElementById('billPatientId');
         if (walkInput) walkInput.value = resolvedPatientId;
         if (billInput) billInput.value = resolvedPatientId;
+        loadPatientDirectory();
         ['walkinNewName', 'walkinNewPhone', 'walkinNewGender', 'walkinNewAllergies'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
@@ -1685,10 +1732,7 @@
         method: 'POST',
         body: { patient_id: patientId, doctor_id: doctorId, priority: 'normal' },
       });
-      const walkInput = document.getElementById('walkinPatientId');
-      const billInput = document.getElementById('billPatientId');
-      if (walkInput) walkInput.value = patientId;
-      if (billInput) billInput.value = patientId;
+      selectFoundPatient(patientId, 'staff', 'staffPatientMatches');
       showToast(`Checked in Patient #${patientId} — Ticket ${res.ticket_number}`, 'success');
       fetchQueueStatus();
     } catch (err) {
@@ -1707,6 +1751,33 @@
     } catch (err) {
       showToast(`Status update failed: ${err.message}`, 'error');
     }
+  }
+
+  async function loadPatientDirectory() {
+    if (!state.user || !['staff', 'doctor', 'admin'].includes(state.user.role)) return;
+    try {
+      const rows = await apiFetch(API.queue.patients);
+      const targets = ['walkinPatientSelect', 'billPatientSelect', 'emrPatientSelect'];
+      targets.forEach(selectId => {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">Select patient...</option>' + (rows || []).map(p =>
+          `<option value="${p.id}">${escapeHTML(p.full_name)} (#${p.id})</option>`
+        ).join('');
+        if (prev && (rows || []).some(p => String(p.id) === String(prev))) {
+          sel.value = prev;
+        }
+      });
+    } catch (err) {
+      console.warn('Failed to load patient directory:', err);
+    }
+  }
+
+  function onSelectPatientDropdown(val, targetMode) {
+    const pid = parseInt(val, 10);
+    if (!pid) return;
+    selectFoundPatient(pid, targetMode, targetMode === 'emr' ? 'emrPatientMatches' : 'staffPatientMatches');
   }
 
   // Shared patient name/ID search helper for Staff check-in/billing and Doctor EMR lookup
@@ -1745,13 +1816,19 @@
   function selectFoundPatient(patientId, targetMode, containerId) {
     if (targetMode === 'emr') {
       const emrInput = document.getElementById('emrPatientId');
+      const emrSel = document.getElementById('emrPatientSelect');
       if (emrInput) emrInput.value = patientId;
+      if (emrSel) emrSel.value = String(patientId);
       searchPatientEMR(patientId);
     } else {
       const walkInput = document.getElementById('walkinPatientId');
+      const walkSel = document.getElementById('walkinPatientSelect');
       const billInput = document.getElementById('billPatientId');
+      const billSel = document.getElementById('billPatientSelect');
       if (walkInput) walkInput.value = patientId;
+      if (walkSel) walkSel.value = String(patientId);
       if (billInput) billInput.value = patientId;
+      if (billSel) billSel.value = String(patientId);
     }
     const box = document.getElementById(containerId);
     if (box) {
@@ -3032,7 +3109,10 @@
     toggleProfileAllergyChip,
     toggleProfileHistoryChip,
     fetchQueueStatus,
+    loadMyActiveTicket,
     issueMyQueueTicket,
+    loadPatientDirectory,
+    onSelectPatientDropdown,
     callNextPatient,
     advanceServingTicket,
     formatPHPhone,

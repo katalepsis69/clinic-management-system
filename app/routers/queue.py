@@ -59,7 +59,7 @@ def search_patients(
             query = query.filter((Patient.id == int(term)) | (User.full_name.ilike(f"%{term}%")))
         else:
             query = query.filter(User.full_name.ilike(f"%{term}%"))
-    patients = query.order_by(Patient.id.asc()).limit(15).all()
+    patients = query.order_by(Patient.id.asc()).limit(15 if term else 100).all()
     return [
         {
             "id": p.id,
@@ -303,6 +303,37 @@ async def advance_ticket(
         "ticket_number": ticket.ticket_number,
         "ticket_status": data.to,
         "room_number": room_num,
+    }
+
+
+@router.get("/my-ticket")
+def get_my_active_ticket(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.PATIENT])),
+):
+    """Return the signed-in patient's active queue ticket (if any) so UI reflects staff check-ins and prevents duplicate clicks."""
+    patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+    if not patient:
+        return {"active_ticket": None}
+    active = (
+        db.query(QueueTicket)
+        .filter(
+            QueueTicket.patient_id == patient.id,
+            QueueTicket.status.in_([QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_CONSULTATION]),
+        )
+        .order_by(QueueTicket.id.desc())
+        .first()
+    )
+    if not active:
+        return {"active_ticket": None}
+    return {
+        "active_ticket": {
+            "id": active.id,
+            "ticket_number": active.ticket_number,
+            "status": active.status.value if hasattr(active.status, "value") else str(active.status),
+            "doctor_name": active.doctor.user.full_name if active.doctor and active.doctor.user else "Clinic Physician",
+            "room_number": active.doctor.room_number if active.doctor else "N/A",
+        }
     }
 
 

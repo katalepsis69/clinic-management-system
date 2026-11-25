@@ -188,10 +188,22 @@ def test_qr_generator_and_panel_feature_hooks():
     assert 'id="patientPrescriptionsList"' in res_html.text
     assert 'id="staffAppointmentsList"' in res_html.text
     assert 'id="walkinNewFields"' in res_html.text
+    assert 'id="walkinPatientSelect"' in res_html.text
+    assert 'id="billPatientSelect"' in res_html.text
+    assert 'id="emrPatientSelect"' in res_html.text
+    assert 'id="issueMyTicketBtn"' in res_html.text
 
     res_app = client.get("/static/app.js")
     assert res_app.status_code == 200
-    for symbol in ("loadMyPrescriptions", "loadStaffAppointments", "switchWalkinMode", "checkInAppointment"):
+    for symbol in (
+        "loadMyPrescriptions",
+        "loadStaffAppointments",
+        "switchWalkinMode",
+        "checkInAppointment",
+        "loadPatientDirectory",
+        "onSelectPatientDropdown",
+        "loadMyActiveTicket",
+    ):
         assert symbol in res_app.text
     assert "formatPHP" in res_app.text
     assert "formatPHPhone" in res_app.text
