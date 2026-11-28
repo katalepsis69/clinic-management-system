@@ -51,12 +51,19 @@ def submit_feedback(data: FeedbackCreate, user: User = Depends(get_current_user)
 
 
 def _serialize_feedback_item(f: PatientFeedback, doctor_names: dict[int, str]) -> dict:
+    try:
+        tags = json.loads(f.tags_json or "[]")
+        if not isinstance(tags, list):
+            tags = []
+    except (ValueError, TypeError):
+        tags = []
+
     return {
         "id": f.id,
-        "patient_id": f.patient_id,
         "doctor_id": f.doctor_id,
         "doctor_name": doctor_names.get(f.doctor_id) if f.doctor_id else None,
         "rating": f.rating,
+        "tags": tags,
         "comment": f.comment_text,
         "sentiment_label": f.sentiment_label,
         "sentiment_score": f.sentiment_score,
@@ -100,7 +107,7 @@ def get_feedback_analytics(
     recent = (
         db.query(PatientFeedback)
         .order_by(PatientFeedback.id.desc())
-        .limit(20)
+        .limit(50)
         .all()
     )
     critical_rows = (

@@ -1793,6 +1793,26 @@
 
       </div>
 
+      <!-- Written Patient Feedback (Anonymized) -->
+      <div class="card card-pad border-stone-200/80 bg-white shadow-sm">
+        <div class="flex flex-wrap justify-between items-center mb-4 pb-3 border-b border-stone-100 gap-3">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0 border border-brand-200/60" aria-hidden="true">
+              <svg class="icon w-4 h-4"><use href="#i-message"/></svg>
+            </span>
+            <div class="min-w-0">
+              <h3 class="card-title text-base font-bold text-stone-900">Written Patient Feedback</h3>
+              <p class="card-subtitle text-xs text-stone-600">Recent patient comments with patient identity hidden.</p>
+            </div>
+          </div>
+          <span id="writtenFeedbackCount" class="pill bg-stone-100 text-stone-700 border border-stone-200/80 text-[11px] font-bold tabular-nums shrink-0">0 Shown</span>
+        </div>
+
+        <div id="writtenFeedbackList" class="space-y-3 max-h-96 overflow-y-auto pr-1 text-xs" aria-live="polite">
+          <p class="text-stone-600 py-6 text-center">Loading written feedback...</p>
+        </div>
+      </div>
+
       <!-- Admin User Provisioning & Directory -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 

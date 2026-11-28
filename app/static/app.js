@@ -2687,6 +2687,14 @@
       document.getElementById('distNegativePercent').textContent = `${Math.round(negPct)}%`;
       document.getElementById('barNegative').style.width = `${Math.round(negPct)}%`;
 
+      const formatFeedbackDate = (raw) => {
+        if (!raw) return '';
+        const d = new Date(raw);
+        return Number.isNaN(d.getTime())
+          ? escapeHTML(raw)
+          : escapeHTML(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }));
+      };
+
       // Critical alerts: check data.critical_alerts or filter from data.items
       const rawAlerts = data.critical_alerts ||
         (data.items ? data.items.filter(i => i.flagged_critical) : []);
@@ -2704,23 +2712,78 @@
             const r = a.rating ?? 1;
             const score = a.sentiment_score !== undefined ? a.sentiment_score.toFixed(2) : '-';
             const comment = escapeHTML(a.comment ?? a.comment_text ?? '');
-            const pId = a.patient_id ? `Patient ID: #${a.patient_id} &bull; ` : '';
-            const dt = escapeHTML(a.created_at || '');
+            const docMeta = a.doctor_name ? ` &bull; ${escapeHTML(a.doctor_name)}` : '';
+            const dt = formatFeedbackDate(a.created_at);
             return `
               <div class="p-3 rounded-xl bg-red-50 border border-red-200">
                 <div class="flex justify-between items-center text-red-700 font-bold mb-1 gap-2">
-                  <span>Rating: ${r} / 5 &bull; Score: ${score}</span>
+                  <span class="tabular-nums">Rating: ${r} / 5 &bull; Score: ${score}</span>
                   <span class="pill bg-red-200 text-red-900 shrink-0">URGENT</span>
                 </div>
-                <p class="text-stone-800">"${comment}"</p>
-                <span class="text-[10px] text-stone-500 mt-1 block">${pId}${dt}</span>
+                <p class="text-stone-800 break-words leading-relaxed">"${comment}"</p>
+                <span class="text-[11px] text-stone-600 mt-1 block">Anonymous Patient${docMeta}${dt ? ` &bull; ${dt}` : ''}</span>
               </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // Written feedback list (anonymized patient identity)
+      const items = data.items || [];
+      const writtenCount = document.getElementById('writtenFeedbackCount');
+      if (writtenCount) writtenCount.textContent = `${items.length} Shown`;
+
+      const writtenList = document.getElementById('writtenFeedbackList');
+      if (writtenList) {
+        if (items.length === 0) {
+          writtenList.innerHTML = '<p class="text-stone-600 py-6 text-center">No written feedback submitted yet. Patient comments appear here without identifying details.</p>';
+        } else {
+          const sentimentMeta = {
+            positive: { label: 'Positive', cls: 'bg-brand-100 text-brand-800 border border-brand-200/70' },
+            negative: { label: 'Negative', cls: 'bg-rose-100 text-rose-800 border border-rose-200/70' },
+            neutral: { label: 'Neutral', cls: 'bg-stone-200 text-stone-800 border border-stone-300/70' },
+          };
+          writtenList.innerHTML = items.map(item => {
+            const r = item.rating ?? 0;
+            const sent = sentimentMeta[item.sentiment_label] || sentimentMeta.neutral;
+            const comment = escapeHTML(item.comment ?? item.comment_text ?? '');
+            const scopeLabel = item.doctor_name ? escapeHTML(item.doctor_name) : 'General Clinic';
+            const dt = formatFeedbackDate(item.created_at);
+            const tagsHtml = Array.isArray(item.tags) && item.tags.length > 0
+              ? `<div class="flex flex-wrap gap-1.5 mt-2">${item.tags.map(t => `<span class="px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[11px] font-medium">${escapeHTML(t)}</span>`).join('')}</div>`
+              : '';
+            const urgentBadge = item.flagged_critical
+              ? '<span class="pill bg-red-100 text-red-800 border border-red-200/80 uppercase text-[10px]">Urgent</span>'
+              : '';
+            return `
+              <article class="p-3.5 rounded-xl bg-stone-50/80 border border-stone-200/90">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-semibold text-stone-900">Anonymous Patient</span>
+                    <span class="text-stone-600 font-medium tabular-nums" aria-label="Rated ${r} out of 5"><span class="text-amber-600" aria-hidden="true">&#9733;</span> ${r}/5</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="pill ${sent.cls}">${sent.label}</span>
+                    ${urgentBadge}
+                  </div>
+                </div>
+                <p class="text-sm text-stone-800 leading-relaxed break-words mt-2">${comment}</p>
+                ${tagsHtml}
+                <div class="text-[11px] text-stone-600 mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span>${scopeLabel}</span>
+                  ${dt ? `<span aria-hidden="true">&bull;</span><span>${dt}</span>` : ''}
+                </div>
+              </article>
             `;
           }).join('');
         }
       }
     } catch (err) {
       console.warn('Failed to load analytics:', err);
+      const writtenList = document.getElementById('writtenFeedbackList');
+      if (writtenList) {
+        writtenList.innerHTML = '<p class="text-rose-700 py-6 text-center font-medium">Unable to load written feedback. Refresh metrics to try again.</p>';
+      }
     }
   }
 

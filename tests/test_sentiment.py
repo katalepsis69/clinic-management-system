@@ -269,6 +269,10 @@ def test_feedback_analytics_with_data(client, db_session):
     assert len(data["items"]) == 2
     assert data["items"][0]["rating"] in [1, 5]
     assert "created_at" in data["items"][0]
+    assert isinstance(data["items"][0]["tags"], list)
+    for item in [*data["items"], *data["critical_alerts"]]:
+        for forbidden_key in ("patient_id", "patient_name", "patient_email", "user_id"):
+            assert forbidden_key not in item
 
 
 def test_feedback_analytics_forbidden_for_doctor(client, db_session):
@@ -320,4 +324,4 @@ def test_critical_alerts_not_truncated_beyond_20_reviews(client, db_session):
     assert data["critical_count"] == 1
     assert len(data["critical_alerts"]) == 1
     assert data["critical_alerts"][0]["comment"] == "Terrible wait time"
-    assert data["critical_alerts"][0]["patient_id"] == pat.id
+    assert "patient_id" not in data["critical_alerts"][0]
