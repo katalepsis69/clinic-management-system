@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
+from app.config import get_settings
 from app.database import get_db
 from app.models import Invoice, Patient, QueueTicket, User, UserRole
 from app.auth import require_roles
@@ -52,7 +53,8 @@ def create_invoice(
 
     total = max(Decimal("0.00"), (data.consultation_fee + data.medication_fee + data.other_fees) - data.discount_amount)
     # ponytail: uuid suffix collision odds are negligible (~1e-7/day); add a retry if it ever fires
-    receipt_no = f"REC-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+    today_str = get_settings().clinic_today().strftime("%Y%m%d")
+    receipt_no = f"REC-{today_str}-{uuid.uuid4().hex[:6].upper()}"
 
     inv = Invoice(
         receipt_number=receipt_no,
@@ -114,6 +116,24 @@ def _serialize_invoice(inv: Invoice) -> dict:
         "paid_at": inv.paid_at.strftime("%Y-%m-%d %H:%M") if inv.paid_at else None,
         "qr_code_image": make_qr_data_uri(f"REC:{inv.receipt_number}|PHP:{float(inv.total_amount):.2f}"),
     }
+
+
+@router.get("/my")
+def get_my_invoices(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles([UserRole.PATIENT])),
+):
+    patient = db.query(Patient).filter(Patient.user_id == user.id).first()
+    if not patient:
+        return []
+    invoices = (
+        db.query(Invoice)
+        .filter(Invoice.patient_id == patient.id)
+        .order_by(Invoice.id.desc())
+        .limit(20)
+        .all()
+    )
+    return [_serialize_invoice(inv) for inv in invoices]
 
 
 @router.get("/receipt/{receipt_number}")

@@ -28,15 +28,6 @@
     html, body { overflow-x: hidden; max-width: 100vw; }
     /* 44px tap floor for the sign-in/sign-up toggle (utility not in compiled css) */
     #portalModeSignInBtn, #portalModeRegisterBtn { min-height: 44px; }
-    /* ponytail: compiled css/app.css predates the login split grid, so the lg:
-       utilities used in the markup (lg:grid-cols-5 / col-span / gap-8 / mr-0)
-       do not exist in it. Scoped replacements below; if the Tailwind pipeline
-       is ever restored, delete this block and the id hooks. */
-    @media (min-width: 1024px) {
-      #loginSplitGrid { grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: 2rem; }
-      #loginBrandPanel { grid-column: 1 / span 2; }
-      #loginGatewayCard { grid-column: 3 / span 3; margin-right: 0; }
-    }
   </style>
 </head>
 <body class="bg-[#FAF8F5] text-stone-800 antialiased min-h-[100dvh] flex flex-col font-sans">
@@ -913,6 +904,10 @@
               <span id="myTicketNumber" class="text-2xl font-black text-brand-700 font-mono tracking-tight block">Q-101</span>
               <span id="myTicketStatusLabel" class="text-[11px] text-stone-600 block mt-0.5">Please wait for your ticket to appear on screen</span>
             </div>
+            <label for="walkinTicketDoctorSelect" class="sr-only">Doctor for walk-in queue ticket</label>
+            <select id="walkinTicketDoctorSelect" class="select !py-1.5 text-xs mb-2 !bg-stone-800 !border-stone-700 !text-stone-100">
+              <option value="">Loading available doctors...</option>
+            </select>
             <button type="button" id="issueMyTicketBtn" onclick="window.ClinicApp.issueMyQueueTicket()" class="btn btn-sm btn-primary w-full shadow-sm">
               <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-ticket"/></svg>
               <span id="issueMyTicketLabel">Take Walk-in Queue Ticket</span>
@@ -1011,6 +1006,23 @@
             </div>
           </div>
 
+          <!-- My Billing Receipts List -->
+          <div id="myInvoicesCard" class="card card-pad border-stone-200/80 shadow-sm">
+            <div class="flex items-center justify-between gap-2 pb-3 border-b border-stone-100">
+              <div>
+                <h3 class="card-title text-base font-bold text-stone-900">My Billing Receipts</h3>
+                <p class="card-subtitle text-xs text-stone-600">View itemized payments and receipt verification QR codes.</p>
+              </div>
+              <button type="button" onclick="window.ClinicApp.loadMyInvoices()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh receipts">
+                <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
+                <span>Refresh</span>
+              </button>
+            </div>
+            <div id="patientInvoicesList" class="space-y-2.5 mt-3 max-h-60 overflow-y-auto text-xs" aria-live="polite">
+              <p class="text-stone-600 py-3 text-center">Sign in to view your receipts.</p>
+            </div>
+          </div>
+
           <!-- Quick FAQ / Assistant Prompt Card -->
           <div class="p-4 rounded-2xl bg-brand-50/60 border border-brand-200/70 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 min-w-0">
@@ -1066,6 +1078,13 @@
               </div>
 
               <div>
+                <label for="feedbackDoctorSelect" class="label">Consulting Physician <span class="font-normal text-stone-500">(optional)</span></label>
+                <select id="feedbackDoctorSelect" class="select text-xs">
+                  <option value="">General Clinic Experience</option>
+                </select>
+              </div>
+
+              <div>
                 <label for="feedbackComment" class="label">Patient Notes &amp; Observations</label>
                 <textarea id="feedbackComment" rows="3" required placeholder="Describe your consultation, physician communication, or facility experience..." class="input resize-y"></textarea>
               </div>
@@ -1102,8 +1121,14 @@
           </div>
         </div>
 
-        <!-- Date Filter & Quick Refresh -->
-        <div class="flex items-center gap-2 w-full sm:w-auto">
+        <!-- Date Filter, Availability & Quick Refresh -->
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <button type="button" id="doctorAvailabilityBtn" onclick="window.ClinicApp.toggleDoctorAvailability()" class="btn btn-outline btn-sm text-xs shrink-0">
+            <span id="doctorAvailabilityLabel">Accepting Patients</span>
+          </button>
+          <button type="button" onclick="window.ClinicApp.showDoctorProfileModal()" class="btn btn-outline btn-sm text-xs shrink-0">
+            <span>Edit Practice</span>
+          </button>
           <input type="date" id="scheduleFilterDate" onchange="window.ClinicApp.loadDoctorSchedule()" class="input !py-1.5 !px-3 text-xs w-full sm:w-40 shrink-0" aria-label="Select schedule date">
           <button onclick="window.ClinicApp.loadDoctorSchedule()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh doctor schedule">
             <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
@@ -1117,6 +1142,33 @@
 
         <!-- MASTER PANE: Today's Clinical Schedule (4 cols) -->
         <div class="lg:col-span-4 space-y-4">
+          <div id="doctorQueueCard" class="card card-pad border-stone-200/80 bg-white shadow-sm">
+            <div class="flex items-center justify-between gap-2 pb-2 mb-2.5 border-b border-stone-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-1.5">
+                <svg class="icon w-4 h-4 text-brand-600" aria-hidden="true"><use href="#i-bell"/></svg>
+                <span>My Active Queue</span>
+              </h3>
+              <button type="button" onclick="window.ClinicApp.callMyNextPatient()" class="btn btn-primary btn-sm text-xs shrink-0">
+                <span>Call Next</span>
+              </button>
+            </div>
+            <div id="doctorQueueList" class="space-y-2 max-h-48 overflow-y-auto text-xs" aria-live="polite">
+              <p class="text-stone-600 py-2 text-center">No active queue tickets.</p>
+            </div>
+          </div>
+
+          <div id="doctorPendingCard" class="hidden card card-pad border-amber-200/80 bg-amber-50/40 shadow-sm">
+            <div class="flex items-center justify-between gap-2 pb-2 mb-2.5 border-b border-amber-200/70">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-amber-900">
+                Pending Approvals (<span id="doctorPendingCount">0</span>)
+              </h3>
+              <button type="button" onclick="window.ClinicApp.loadDoctorPendingApprovals()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh pending approvals">
+                <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-refresh"/></svg>
+              </button>
+            </div>
+            <div id="doctorPendingList" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-xs" aria-live="polite"></div>
+          </div>
+
           <div class="card card-pad border-stone-200/80 shadow-sm">
             <div class="flex justify-between items-center mb-3 pb-2.5 border-b border-stone-100">
               <h3 class="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-1.5">
@@ -1222,9 +1274,8 @@
             </div>
 
             <form id="prescriptionForm" onsubmit="window.ClinicApp.generatePrescription(event)" class="space-y-4 mt-4 text-xs">
-              <!-- Hidden bound patient ID & doctor ID inputs -->
+              <!-- Hidden bound patient ID input -->
               <input type="hidden" id="rxPatientId" value="">
-              <input type="hidden" id="rxDoctorId" value="">
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1346,6 +1397,10 @@
               <span id="staffCurrentServing" class="block text-3xl sm:text-4xl font-black text-amber-400 font-mono tracking-tight my-1">None</span>
               <span id="staffCurrentRoom" class="text-xs text-stone-300 font-medium block">Room N/A</span>
               <div id="staffServingActions" class="hidden mt-3 pt-3 border-t border-stone-800 flex items-center justify-center gap-2 flex-wrap">
+                <button type="button" onclick="window.ClinicApp.advanceServingTicket('in_consultation')" class="btn btn-outline btn-sm text-xs bg-stone-800 border-brand-500/60 text-brand-300 hover:bg-brand-900 hover:text-white">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-stethoscope"/></svg>
+                  <span>Start Consultation</span>
+                </button>
                 <button type="button" onclick="window.ClinicApp.advanceServingTicket('completed')" class="btn btn-primary btn-sm text-xs">
                   <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-check"/></svg>
                   <span>Mark Completed</span>
@@ -1377,23 +1432,49 @@
                 <span class="text-[11px] font-medium text-stone-600">Updates live</span>
               </div>
               <div id="staffWaitingList" class="flex flex-wrap gap-1.5 min-h-[48px] max-h-40 overflow-y-auto p-2.5 bg-stone-50 rounded-xl border border-stone-200/80"></div>
+              <div id="staffActiveTicketsList" class="space-y-1.5 mt-3 max-h-48 overflow-y-auto text-xs" aria-live="polite"></div>
             </div>
           </div>
 
-          <!-- Today's Booked Appointments Console -->
+          <!-- Scheduled Appointments Console -->
           <div id="staffAppointmentsCard" class="card card-pad border-stone-200/80 shadow-sm bg-white">
-            <div class="flex items-center justify-between gap-2 pb-3 border-b border-stone-100">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
               <div>
-                <h3 class="card-title text-base font-bold text-stone-900">Today's Appointments</h3>
+                <h3 class="card-title text-base font-bold text-stone-900">Appointments Desk</h3>
                 <p class="card-subtitle text-xs text-stone-600">Check patients in or update appointment status.</p>
               </div>
-              <button type="button" onclick="window.ClinicApp.loadStaffAppointments()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh daily appointments">
+              <div class="flex items-center gap-2">
+                <input type="date" id="staffAppointmentsDate" onchange="window.ClinicApp.loadStaffAppointments()" class="input !py-1.5 !px-2.5 text-xs w-36" aria-label="Filter appointments date">
+                <button type="button" onclick="window.ClinicApp.loadStaffAppointments()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh daily appointments">
+                  <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
+                  <span class="hidden sm:inline">Refresh</span>
+                </button>
+              </div>
+            </div>
+            <div id="staffAppointmentsList" class="space-y-2.5 mt-3 max-h-72 overflow-y-auto text-xs" aria-live="polite">
+              <p class="text-stone-600 py-3 text-center">Loading appointments...</p>
+            </div>
+          </div>
+
+          <!-- Staff Chat Inbox -->
+          <div id="staffChatInboxCard" class="card card-pad border-stone-200/80 shadow-sm bg-white">
+            <div class="flex items-center justify-between gap-2 pb-3 border-b border-stone-100">
+              <div class="flex items-center gap-2.5">
+                <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0 border border-brand-200/60" aria-hidden="true">
+                  <svg class="icon w-4 h-4"><use href="#i-message"/></svg>
+                </span>
+                <div>
+                  <h3 class="card-title text-base font-bold text-stone-900">Patient Chat Inbox</h3>
+                  <p class="card-subtitle text-xs text-stone-600">Join live patient conversations to reply as reception staff.</p>
+                </div>
+              </div>
+              <button type="button" onclick="window.ClinicApp.loadStaffChatInbox()" class="btn btn-outline btn-sm shrink-0" aria-label="Refresh chat inbox">
                 <svg class="icon w-4 h-4" aria-hidden="true"><use href="#i-refresh"/></svg>
                 <span>Refresh</span>
               </button>
             </div>
-            <div id="staffAppointmentsList" class="space-y-2.5 mt-3 max-h-72 overflow-y-auto text-xs" aria-live="polite">
-              <p class="text-stone-600 py-3 text-center">Loading today's appointments...</p>
+            <div id="staffChatInboxList" class="space-y-2 mt-3 max-h-60 overflow-y-auto text-xs" aria-live="polite">
+              <p class="text-stone-600 py-3 text-center">No active chat conversations yet.</p>
             </div>
           </div>
 
@@ -1544,7 +1625,8 @@
                   <label for="billPaymentMethod" class="label">Payment Method</label>
                   <select id="billPaymentMethod" class="select !py-2 text-xs">
                     <option value="cash">Cash Payment</option>
-                    <option value="credit_card">Credit / Debit Card</option>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="debit_card">Debit Card</option>
                     <option value="qr_ewallet">QR E-Wallet (GCash / Maya)</option>
                   </select>
                 </div>
@@ -1564,13 +1646,20 @@
 
             <div id="billingResultCard" class="hidden mt-4 p-4 rounded-xl bg-stone-50 border border-stone-200 text-xs"></div>
 
-            <!-- Recent Invoices List -->
-            <div class="mt-5 pt-4 border-t border-stone-100">
-              <div class="flex items-center justify-between mb-2">
+            <!-- Recent Invoices List & Receipt Lookup -->
+            <div class="mt-5 pt-4 border-t border-stone-100 space-y-2.5">
+              <div class="flex items-center justify-between">
                 <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider">Recent Receipts</h4>
                 <button type="button" onclick="window.ClinicApp.loadBillingHistory()" class="btn btn-ghost btn-sm text-xs">
                   <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-refresh"/></svg>
                   <span>Refresh</span>
+                </button>
+              </div>
+              <div class="flex gap-2">
+                <input type="search" id="receiptLookupInput" placeholder="Lookup receipt (e.g. REC-2026...)" aria-label="Lookup receipt number" class="input !py-1.5 !px-3 text-xs flex-1">
+                <button type="button" onclick="window.ClinicApp.lookupReceipt()" class="btn btn-outline btn-sm shrink-0">
+                  <svg class="icon w-3.5 h-3.5" aria-hidden="true"><use href="#i-search"/></svg>
+                  <span>Find</span>
                 </button>
               </div>
               <div id="billingHistoryList" class="space-y-2 max-h-48 overflow-y-auto text-xs" aria-live="polite">
@@ -1613,19 +1702,19 @@
         <div class="card card-pad border-stone-200/80 bg-white shadow-sm">
           <span class="stat-label text-stone-500">Overall Sentiment</span>
           <div class="flex items-baseline gap-2 flex-wrap my-1">
-            <span id="statNSS" class="stat-value text-brand-600 font-mono tracking-tight">+100.0</span>
+            <span id="statNSS" class="stat-value text-stone-400 font-mono tracking-tight">--</span>
             <span class="text-xs text-stone-600 font-medium">(&minus;100 to +100)</span>
           </div>
-          <span id="statNSSStatus" class="pill bg-brand-50 text-brand-700 border border-brand-200/60 text-[11px] font-bold mt-1">Excellent Experience</span>
+          <span id="statNSSStatus" class="pill bg-stone-100 text-stone-700 border border-stone-200/60 text-[11px] font-bold mt-1">Loading metrics...</span>
         </div>
 
         <div class="card card-pad border-stone-200/80 bg-white shadow-sm">
           <span class="stat-label text-stone-500">Average Patient Rating</span>
           <div class="flex items-baseline gap-2 my-1">
-            <span id="statAvgRating" class="stat-value text-amber-500 font-mono tracking-tight">5.0</span>
+            <span id="statAvgRating" class="stat-value text-amber-500 font-mono tracking-tight">--</span>
             <span class="text-xs text-stone-600 font-medium">/ 5.0 Stars</span>
           </div>
-          <div id="statStarsVisual" class="text-amber-400 text-sm mt-1" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <div id="statStarsVisual" class="hidden text-amber-400 text-sm mt-1" aria-hidden="true"></div>
         </div>
 
         <div class="card card-pad border-stone-200/80 bg-white shadow-sm">
@@ -1882,7 +1971,7 @@
     <!-- Guest limit warning banner -->
     <div id="chatGuestBanner" class="hidden px-3.5 py-2 bg-amber-50 border-t border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2 shrink-0">
       <span class="font-medium text-[11px] truncate">Guest limit reached (5/5 messages).</span>
-      <button type="button" onclick="window.ClinicApp.switchTab('login')" class="btn btn-primary btn-sm text-xs font-bold shrink-0">
+      <button type="button" onclick="window.ClinicApp.openLoginFromChat()" class="btn btn-primary btn-sm text-xs font-bold shrink-0">
         Sign In
       </button>
     </div>
@@ -1946,22 +2035,7 @@
     </div>
   </div>
 
-  <!-- Edit Profile Modal (Hospitality Wellness / Linear-tier Architecture) -->
-  <style>
-    #profileModal .segmented-track { display:flex!important; align-items:center!important; gap:4px!important; padding:3px!important; background-color:#f5f4f0!important; border-radius:12px!important; width:100%!important; box-sizing:border-box!important; }
-    #profileModal .segmented-pill { flex:1!important; min-height:34px!important; display:inline-flex!important; align-items:center!important; justify-content:center!important; border-radius:9px!important; font-size:12px!important; font-weight:600!important; color:#78716c!important; background:transparent!important; border:none!important; cursor:pointer!important; transition:all .15s ease!important; user-select:none!important; padding:4px 8px!important; }
-    #profileModal .segmented-pill:hover { color:#1c1917!important; }
-    #profileModal .segmented-pill[aria-selected="true"] { background-color:#ffffff!important; color:#1c1917!important; font-weight:700!important; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)!important; }
-    #profileModal .blood-grid { display:grid!important; grid-template-columns:repeat(4, 1fr)!important; gap:6px!important; width:100%!important; box-sizing:border-box!important; }
-    @media (min-width: 640px) { #profileModal .blood-grid { grid-template-columns:repeat(8, 1fr)!important; } }
-    #profileModal .blood-tile { display:flex!important; align-items:center!important; justify-content:center!important; min-height:38px!important; border-radius:10px!important; border:1px solid #e7e5e4!important; background:#ffffff!important; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace!important; font-size:13px!important; font-weight:700!important; color:#44403c!important; cursor:pointer!important; transition:all .15s ease!important; user-select:none!important; width:100%!important; }
-    #profileModal .blood-tile:hover { border-color:#77ab84!important; background-color:#f4f8f5!important; color:#245432!important; }
-    #profileModal .blood-tile[aria-selected="true"] { background-color:#245432!important; border-color:#245432!important; color:#ffffff!important; box-shadow:0 2px 6px rgba(36,84,50,0.25)!important; }
-    #profileModal .tag-chip { display:inline-flex!important; align-items:center!important; gap:4px!important; padding:4px 12px!important; border-radius:9999px!important; font-size:12px!important; font-weight:500!important; background:#ffffff!important; border:1px solid #e7e5e4!important; color:#57534e!important; cursor:pointer!important; transition:all .15s ease!important; user-select:none!important; }
-    #profileModal .tag-chip:hover { background:#f5f5f4!important; color:#1c1917!important; border-color:#d6d3d1!important; }
-    #profileModal .tag-chip[aria-pressed="true"] { background:#f4f8f5!important; border-color:#77ab84!important; color:#245432!important; font-weight:700!important; box-shadow:0 1px 2px rgba(45,106,63,0.08)!important; }
-  </style>
-
+  <!-- Edit Profile Modal -->
   <div id="profileModal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" onclick="if(event.target===this)window.ClinicApp.hideProfileModal()">
     <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-stone-200/80 flex flex-col max-h-[88vh] overflow-hidden">
       <!-- Modal Header -->
@@ -2002,6 +2076,7 @@
                   <button type="button" onclick="window.ClinicApp.selectProfileGender('Male')" data-gender="Male" class="segmented-pill">Male</button>
                   <button type="button" onclick="window.ClinicApp.selectProfileGender('Female')" data-gender="Female" class="segmented-pill">Female</button>
                   <button type="button" onclick="window.ClinicApp.selectProfileGender('Other')" data-gender="Other" class="segmented-pill">Other</button>
+                  <button type="button" onclick="window.ClinicApp.selectProfileGender('Prefer not to say')" data-gender="Prefer not to say" class="segmented-pill whitespace-nowrap">Unspecified</button>
                 </div>
               </div>
             </div>
@@ -2079,7 +2154,7 @@
 
         <!-- Sticky Footer Action Bar -->
         <div class="px-6 py-3.5 bg-[#FAF8F5]/80 border-t border-stone-200/70 flex items-center justify-between shrink-0">
-          <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors px-3 py-2 rounded-xl">Cancel</button>
+          <button type="button" onclick="window.ClinicApp.hideProfileModal()" class="btn btn-ghost btn-sm text-xs font-semibold text-stone-600 hover:text-stone-900">Cancel</button>
           <button type="submit" id="saveProfileSubmitBtn" class="btn btn-primary btn-sm !rounded-full !px-5 !py-2 font-semibold shadow-sm inline-flex items-center gap-2">
             <span>Save Profile</span>
             <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
@@ -2088,6 +2163,62 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Doctor Practice Edit Modal -->
+  <div id="doctorProfileModal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="doctorProfileModalTitle" onclick="if(event.target===this)window.ClinicApp.hideDoctorProfileModal()">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-stone-200/80 flex flex-col overflow-hidden">
+      <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between bg-[#FAF8F5]/60">
+        <div>
+          <h3 id="doctorProfileModalTitle" class="text-base font-bold text-stone-900 tracking-tight">Edit Practice Profile</h3>
+          <p class="text-xs text-stone-600 font-medium">Update room assignment, specialization, and consultation fee</p>
+        </div>
+        <button type="button" onclick="window.ClinicApp.hideDoctorProfileModal()" class="touch-target rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 transition-colors flex items-center justify-center" aria-label="Close dialog">
+          <svg class="icon w-4 h-4"><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <form onsubmit="window.ClinicApp.handleDoctorProfileUpdate(event)" class="p-5 sm:p-6 space-y-3.5">
+        <div>
+          <label for="docEditFullName" class="label !text-xs !mb-1">Full Name *</label>
+          <input type="text" id="docEditFullName" required class="input !text-sm !py-2">
+        </div>
+        <div>
+          <label for="docEditPhone" class="label !text-xs !mb-1">Phone</label>
+          <input type="tel" id="docEditPhone" class="input !text-sm !py-2">
+        </div>
+        <div>
+          <label for="docEditSpec" class="label !text-xs !mb-1">Specialization *</label>
+          <input type="text" id="docEditSpec" required class="input !text-sm !py-2">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="docEditRoom" class="label !text-xs !mb-1">Consultation Room *</label>
+            <input type="text" id="docEditRoom" required class="input !text-sm !py-2">
+          </div>
+          <div>
+            <label for="docEditFee" class="label !text-xs !mb-1">Consultation Fee (PHP) *</label>
+            <input type="number" id="docEditFee" step="0.01" min="0" required class="input !text-sm !py-2">
+          </div>
+        </div>
+        <div class="pt-2 flex items-center justify-between">
+          <button type="button" onclick="window.ClinicApp.hideDoctorProfileModal()" class="btn btn-ghost btn-sm text-xs">Cancel</button>
+          <button type="submit" id="saveDoctorProfileBtn" class="btn btn-primary btn-sm">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Receipt Detail Modal -->
+  <div id="receiptModal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="receiptModalTitle" onclick="if(event.target===this)window.ClinicApp.hideReceiptModal()">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-stone-200/80 flex flex-col overflow-hidden">
+      <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between bg-[#FAF8F5]/60">
+        <h3 id="receiptModalTitle" class="text-base font-bold text-stone-900 tracking-tight">Itemized Official Receipt</h3>
+        <button type="button" onclick="window.ClinicApp.hideReceiptModal()" class="touch-target rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 transition-colors flex items-center justify-center" aria-label="Close receipt dialog">
+          <svg class="icon w-4 h-4"><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <div id="receiptModalBody" class="p-5 sm:p-6 text-xs space-y-3"></div>
     </div>
   </div>
 
@@ -2119,6 +2250,6 @@
     </div>
   </nav>
 
-  <script src="/static/app.js?v=2.14.0"></script>
+  <script src="/static/app.js?v=2.16.0"></script>
 </body>
 </html>

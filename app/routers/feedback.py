@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from app.database import get_db
-from app.models import PatientFeedback, Patient, User, UserRole
+from app.models import Doctor, PatientFeedback, Patient, User, UserRole
 from app.auth import get_current_user, require_roles
 from app.sentiment import analyze_sentiment
 
@@ -25,14 +25,21 @@ def submit_feedback(data: FeedbackCreate, user: User = Depends(get_current_user)
     if not patient:
         raise HTTPException(status_code=400, detail="Only patients can submit feedback")
 
-    sentiment = analyze_sentiment(data.comment_text, data.rating)
+    comment = (data.comment_text or "").strip()
+    if not comment:
+        raise HTTPException(status_code=400, detail="Feedback comment is required")
+    if data.doctor_id is not None:
+        if not db.query(Doctor.id).filter(Doctor.id == data.doctor_id).first():
+            raise HTTPException(status_code=404, detail="Doctor not found")
+
+    sentiment = analyze_sentiment(comment, data.rating)
 
     fb = PatientFeedback(
         patient_id=patient.id,
         doctor_id=data.doctor_id,
         rating=data.rating,
         tags_json=json.dumps(data.tags),
-        comment_text=data.comment_text,
+        comment_text=comment,
         sentiment_label=sentiment["sentiment_label"],
         sentiment_score=sentiment["sentiment_score"],
         flagged_critical=sentiment["flagged_critical"],
@@ -41,6 +48,21 @@ def submit_feedback(data: FeedbackCreate, user: User = Depends(get_current_user)
     db.commit()
     db.refresh(fb)
     return {"status": "success", "id": fb.id, "sentiment": sentiment}
+
+
+def _serialize_feedback_item(f: PatientFeedback, doctor_names: dict[int, str]) -> dict:
+    return {
+        "id": f.id,
+        "patient_id": f.patient_id,
+        "doctor_id": f.doctor_id,
+        "doctor_name": doctor_names.get(f.doctor_id) if f.doctor_id else None,
+        "rating": f.rating,
+        "comment": f.comment_text,
+        "sentiment_label": f.sentiment_label,
+        "sentiment_score": f.sentiment_score,
+        "flagged_critical": f.flagged_critical,
+        "created_at": f.created_at.isoformat() if f.created_at else None,
+    }
 
 
 @router.get("/analytics")
@@ -81,6 +103,19 @@ def get_feedback_analytics(
         .limit(20)
         .all()
     )
+    critical_rows = (
+        db.query(PatientFeedback)
+        .filter(PatientFeedback.flagged_critical == True)  # noqa: E712
+        .order_by(PatientFeedback.id.desc())
+        .limit(50)
+        .all()
+    )
+    doc_ids = {f.doctor_id for f in (*recent, *critical_rows) if f.doctor_id}
+    doctor_names = (
+        {d.id: (d.user.full_name if d.user else f"Doctor #{d.id}") for d in db.query(Doctor).filter(Doctor.id.in_(doc_ids)).all()}
+        if doc_ids
+        else {}
+    )
 
     return {
         "total": total,
@@ -88,16 +123,6 @@ def get_feedback_analytics(
         "positive_pct": round((pos_count / total) * 100, 1),
         "negative_pct": round((neg_count / total) * 100, 1),
         "critical_count": critical_count,
-        "items": [
-            {
-                "id": f.id,
-                "rating": f.rating,
-                "comment": f.comment_text,
-                "sentiment_label": f.sentiment_label,
-                "sentiment_score": f.sentiment_score,
-                "flagged_critical": f.flagged_critical,
-                "created_at": f.created_at.isoformat() if f.created_at else None,
-            }
-            for f in recent
-        ],
+        "critical_alerts": [_serialize_feedback_item(f, doctor_names) for f in critical_rows],
+        "items": [_serialize_feedback_item(f, doctor_names) for f in recent],
     }

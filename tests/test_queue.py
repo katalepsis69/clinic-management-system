@@ -433,3 +433,41 @@ def test_patient_my_active_ticket_endpoint(client, db_session):
     client.post(f"/api/queue/call-next?doctor_id={doc.id}", headers=staff_headers)
     client.post("/api/queue/advance", headers=staff_headers, json={"ticket_id": issued["id"], "to": "completed"})
     assert client.get("/api/queue/my-ticket", headers=pat_headers).json() == {"active_ticket": None}
+
+
+def test_issue_ticket_rejects_unavailable_doctor_and_lists_active_queue(client, db_session):
+    u_doc = User(email="doc-unavail@t.com", hashed_password="pw", full_name="Doc Unavail", role=UserRole.DOCTOR)
+    u_pat = User(email="pat-unavail@t.com", hashed_password="pw", full_name="Pat Unavail", role=UserRole.PATIENT)
+    db_session.add_all([u_doc, u_pat])
+    db_session.commit()
+
+    doc = Doctor(user_id=u_doc.id, specialization="Gen", license_number="L", room_number="R9", is_available=False)
+    pat = Patient(user_id=u_pat.id)
+    db_session.add_all([doc, pat])
+    db_session.commit()
+
+    staff_headers = _staff_headers(db_session)
+    res_unavail = client.post(
+        "/api/queue/issue",
+        headers=staff_headers,
+        json={"doctor_id": doc.id, "patient_id": pat.id},
+    )
+    assert res_unavail.status_code == 400
+
+    doc.is_available = True
+    db_session.commit()
+    issued = client.post(
+        "/api/queue/issue",
+        headers=staff_headers,
+        json={"doctor_id": doc.id, "patient_id": pat.id},
+    )
+    assert issued.status_code == 200
+
+    assert client.get("/api/queue/active").status_code == 401
+    active_res = client.get("/api/queue/active", headers=staff_headers)
+    assert active_res.status_code == 200
+    rows = active_res.json()
+    assert len(rows) == 1
+    assert rows[0]["ticket_number"] == issued.json()["ticket_number"]
+    assert rows[0]["doctor_id"] == doc.id
+    assert rows[0]["patient_name"] == "Pat Unavail"

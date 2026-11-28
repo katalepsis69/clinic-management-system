@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.database import get_db
-from app.models import Patient, Doctor, Prescription, User, UserRole
+from app.models import Appointment, Patient, Doctor, Prescription, User, UserRole
 from app.auth import require_roles
 from app.qr import make_qr_data_uri
 
@@ -23,6 +23,7 @@ class MedicationItem(BaseModel):
 class CreatePrescriptionRequest(BaseModel):
     patient_id: int
     doctor_id: Optional[int] = None
+    appointment_id: Optional[int] = None
     diagnosis: str
     clinical_notes: Optional[str] = ""
     medications: List[MedicationItem]
@@ -66,7 +67,7 @@ def get_patient_emr(
     return {
         "patient_id": patient.id,
         "name": patient.user.full_name,
-        "dob": str(patient.date_of_birth),
+        "dob": str(patient.date_of_birth) if patient.date_of_birth else None,
         "gender": patient.gender,
         "blood_group": patient.blood_group,
         "allergies": patient.allergies,
@@ -89,13 +90,35 @@ def create_prescription(
     if not doctor:
         raise HTTPException(status_code=403, detail="Current user is not registered as a doctor")
 
+    diagnosis = (data.diagnosis or "").strip()
+    if not diagnosis:
+        raise HTTPException(status_code=400, detail="Diagnosis is required")
+    if not data.medications:
+        raise HTTPException(status_code=400, detail="At least one medication is required")
+    if any(not (m.drug_name or "").strip() or not (m.dosage or "").strip() for m in data.medications):
+        raise HTTPException(status_code=400, detail="Medication drug name and dosage are required")
+
+    if data.appointment_id is not None:
+        appt = (
+            db.query(Appointment)
+            .filter(
+                Appointment.id == data.appointment_id,
+                Appointment.patient_id == patient.id,
+                Appointment.doctor_id == doctor.id,
+            )
+            .first()
+        )
+        if not appt:
+            raise HTTPException(status_code=400, detail="Appointment does not match patient and doctor")
+
     qr_hash = uuid.uuid4().hex[:16].upper()
     medications_data = [m.model_dump() for m in data.medications]
     rx = Prescription(
         patient_id=patient.id,
         doctor_id=doctor.id,
-        diagnosis=data.diagnosis,
-        clinical_notes=data.clinical_notes,
+        appointment_id=data.appointment_id,
+        diagnosis=diagnosis,
+        clinical_notes=(data.clinical_notes or "").strip(),
         medications_json=json.dumps(medications_data),
         qr_code_hash=qr_hash,
     )

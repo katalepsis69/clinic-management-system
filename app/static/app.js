@@ -43,6 +43,7 @@
     },
     queue: {
       liveStatus: '/api/queue/live-status',
+      active: '/api/queue/active',
       myTicket: '/api/queue/my-ticket',
       issue: '/api/queue/issue',
       walkinRegister: '/api/queue/walkin-register',
@@ -56,6 +57,7 @@
       book: '/api/appointments/book',
       my: '/api/appointments/my',
       daily: '/api/appointments/daily',
+      doctorPending: '/api/appointments/doctor-pending',
       base: '/api/appointments',
       schedule: '/api/appointments/doctor-schedule',
     },
@@ -67,6 +69,9 @@
     billing: {
       create: '/api/billing/create',
       list: '/api/billing/list',
+      my: '/api/billing/my',
+      receipt: '/api/billing/receipt',
+      base: '/api/billing',
     },
     feedback: {
       submit: '/api/feedback',
@@ -77,6 +82,7 @@
       send: '/api/chat/send',
       ws: '/api/chat/ws',
       status: '/api/chat/status',
+      sessionsSummary: '/api/chat/sessions/summary',
     },
   };
 
@@ -86,12 +92,15 @@
     selectedRating: 5,
     selectedTags: [],
     myTicket: localStorage.getItem('my_ticket') || null,
+    lastNotifiedTicket: null,
     currentServingTicketId: null,
     selectedEmrPatientId: null,
     // ponytail: fresh UUID per login; random session IDs prevent guest-session enumeration
     chatSessionId: localStorage.getItem('chat_session_id') || crypto.randomUUID(),
     guestChatRemaining: 5,
     chatWs: null,
+    chatWsRetryMs: 1000,
+    chatWsIntentionalClose: false,
     queueWs: null,
   };
   localStorage.setItem('chat_session_id', state.chatSessionId);
@@ -187,6 +196,7 @@
     const colors = {
       success: 'bg-brand-600 text-white',
       error: 'bg-red-600 text-white',
+      warning: 'bg-amber-600 text-white',
       info: 'bg-stone-900 text-white',
     };
 
@@ -322,7 +332,9 @@
 
     if (tabName === 'doctor') {
       loadPatientDirectory();
+      loadDoctorPendingApprovals();
       loadDoctorSchedule();
+      loadActiveQueue();
       if (state.selectedEmrPatientId) {
         searchPatientEMR(state.selectedEmrPatientId);
       } else {
@@ -334,6 +346,7 @@
       fetchQueueStatus();
       loadStaffAppointments();
       loadBillingHistory();
+      loadStaffChatInbox();
     } else if (tabName === 'analytics') {
       loadAnalytics();
       loadAdminUsers();
@@ -344,6 +357,7 @@
         renderPatientProfile(state.user);
         loadMyAppointments();
         loadMyPrescriptions();
+        loadMyInvoices();
       } else {
         renderGuestPatientProfile();
       }
@@ -386,8 +400,14 @@
       localStorage.removeItem('user_profile');
       localStorage.removeItem('my_ticket');
       state.myTicket = null;
+      state.lastNotifiedTicket = null;
       state.selectedEmrPatientId = null;
       resetDoctorEMRView();
+      if (state.chatWs) {
+        state.chatWsIntentionalClose = true;
+        try { state.chatWs.close(); } catch (_) {}
+        state.chatWs = null;
+      }
       state.chatSessionId = crypto.randomUUID();
       localStorage.setItem('chat_session_id', state.chatSessionId);
       updateUserUI();
@@ -454,6 +474,18 @@
           if (bannerRoom) bannerRoom.textContent = `${prof.room_number || 'Room N/A'}`;
           const bannerSpec = document.getElementById('doctorBannerSpec');
           if (bannerSpec) bannerSpec.textContent = `${prof.specialization || 'General Medicine'} \u2022 Clinical EMR`;
+          const availBtn = document.getElementById('doctorAvailabilityBtn');
+          const availLabel = document.getElementById('doctorAvailabilityLabel');
+          const isAvail = prof.is_available !== false;
+          if (availLabel) availLabel.textContent = isAvail ? 'Accepting Patients' : 'Paused / Unavailable';
+          if (availBtn) {
+            availBtn.classList.toggle('border-brand-300', isAvail);
+            availBtn.classList.toggle('text-brand-800', isAvail);
+            availBtn.classList.toggle('bg-brand-50', isAvail);
+            availBtn.classList.toggle('border-amber-300', !isAvail);
+            availBtn.classList.toggle('text-amber-800', !isAvail);
+            availBtn.classList.toggle('bg-amber-50', !isAvail);
+          }
         }
       } else if (state.user.role === 'staff') {
         showTab(tabPatient, mobTabPatient, false);
@@ -513,6 +545,8 @@
     if (apptList) apptList.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your appointments.</p>';
     const rxList = document.getElementById('patientPrescriptionsList');
     if (rxList) rxList.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your prescriptions.</p>';
+    const invList = document.getElementById('patientInvoicesList');
+    if (invList) invList.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your receipts.</p>';
     syncMyTicketCard(null);
   }
 
@@ -843,6 +877,16 @@
     }
   }
 
+  function resetRegisterFormState() {
+    document.getElementById('portalRegisterForm')?.reset();
+    selectedRegAllergyChips.clear();
+    selectedRegHistoryChips.clear();
+    updateRegAllergyChipsUI();
+    updateRegHistoryChipsUI();
+    selectRegGender('');
+    selectRegBlood('');
+  }
+
   async function handlePortalRegister(e) {
     e.preventDefault();
     const errEl = document.getElementById('portalLoginErrorMsg');
@@ -890,7 +934,7 @@
       });
 
       if (data.pending_approval) {
-        document.getElementById('portalRegisterForm')?.reset();
+        resetRegisterFormState();
         switchPortalMode('login');
         const msg = data.message || 'Account request submitted. An administrator must approve it before you can sign in.';
         if (infoEl) {
@@ -901,6 +945,7 @@
         return;
       }
 
+      resetRegisterFormState();
       state.user = data.user;
       localStorage.setItem('user_profile', JSON.stringify(state.user));
       state.chatSessionId = crypto.randomUUID();
@@ -1017,7 +1062,7 @@
 
   function showProfileModal() {
     if (!state.user) {
-      switchTab('login');
+      openLoginGateway('login', 'patient');
       return;
     }
     const modal = document.getElementById('profileModal');
@@ -1226,6 +1271,8 @@
     }
     if (state.user && state.user.role === 'patient') {
       loadMyActiveTicket();
+    } else if (state.user && ['staff', 'doctor', 'admin'].includes(state.user.role)) {
+      loadActiveQueue();
     }
   }
 
@@ -1274,9 +1321,14 @@
       }
     }
 
-    // Check if active ticket was served
+    // Check if active ticket was served (toast once per called ticket)
     if (state.myTicket && serving === state.myTicket) {
-      showToast(`Attention: Your ticket ${state.myTicket} is now being called to ${room || 'your consultation room'}!`, 'success');
+      if (state.lastNotifiedTicket !== serving) {
+        state.lastNotifiedTicket = serving;
+        showToast(`Attention: Your ticket ${state.myTicket} is now being called to ${room || 'your consultation room'}!`, 'success');
+      }
+    } else if (state.lastNotifiedTicket && serving !== state.lastNotifiedTicket) {
+      state.lastNotifiedTicket = null;
     }
 
     // Login-gateway preview box mirrors the same live queue state
@@ -1338,10 +1390,14 @@
   async function issueMyQueueTicket() {
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to get a queue ticket', 'error');
-      switchTab('login');
+      openLoginGateway('login', 'patient');
       return;
     }
-    const doctorId = parseInt(document.getElementById('appointmentDoctorSelect')?.value, 10);
+    const doctorId = parseInt(
+      document.getElementById('walkinTicketDoctorSelect')?.value ||
+      document.getElementById('appointmentDoctorSelect')?.value,
+      10
+    );
     if (!doctorId) {
       showToast('Please select a doctor before taking a queue ticket', 'error');
       return;
@@ -1364,8 +1420,98 @@
     }
   }
 
+  async function loadActiveQueue() {
+    if (!state.user || !['staff', 'doctor', 'admin'].includes(state.user.role)) return;
+    try {
+      const rows = await apiFetch(API.queue.active);
+      const staffList = document.getElementById('staffActiveTicketsList');
+      if (staffList) {
+        if (!rows || rows.length === 0) {
+          staffList.innerHTML = '';
+        } else {
+          staffList.innerHTML = rows.map(t => {
+            const isWaiting = t.status === 'waiting';
+            const isCalled = t.status === 'called';
+            const isConsult = t.status === 'in_consultation';
+            const statusCls = isConsult
+              ? 'bg-emerald-100 text-emerald-800'
+              : (isCalled ? 'bg-brand-100 text-brand-800' : 'bg-amber-100 text-amber-800');
+            const btns = isCalled ? `
+              <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'in_consultation')" class="btn btn-outline btn-sm text-xs">Start</button>
+              <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'completed')" class="btn btn-primary btn-sm text-xs">Complete</button>
+              <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'cancelled')" class="btn btn-outline btn-sm text-xs text-rose-700">Cancel</button>
+            ` : (isConsult ? `
+              <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'completed')" class="btn btn-primary btn-sm text-xs">Complete</button>
+            ` : `
+              <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'cancelled')" class="btn btn-outline btn-sm text-xs text-rose-700">Cancel</button>
+            `);
+            return `
+              <div class="p-2.5 rounded-xl bg-white border border-stone-200/80 flex flex-wrap items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <span class="font-mono font-bold text-stone-900">${escapeHTML(t.ticket_number)}</span>
+                  <span class="text-stone-700 font-medium"> ${escapeHTML(t.patient_name)}</span>
+                  <span class="text-[11px] text-stone-500 block truncate">${escapeHTML(t.doctor_name)} (${escapeHTML(t.room_number)})${t.priority === 'urgent' ? ' \u2022 URGENT' : ''}</span>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap shrink-0">
+                  <span class="pill ${statusCls} uppercase text-[10px] font-bold">${escapeHTML(t.status.replace('_', ' '))}</span>
+                  ${btns}
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      const docList = document.getElementById('doctorQueueList');
+      if (docList && state.user.role === 'doctor') {
+        const docId = state.user.doctor_id;
+        const mine = (rows || []).filter(t => t.doctor_id === docId);
+        if (mine.length === 0) {
+          docList.innerHTML = '<p class="text-stone-600 py-2 text-center">No active queue tickets.</p>';
+        } else {
+          docList.innerHTML = mine.map(t => {
+            const isCalled = t.status === 'called';
+            const isConsult = t.status === 'in_consultation';
+            const statusCls = isConsult
+              ? 'bg-emerald-100 text-emerald-800'
+              : (isCalled ? 'bg-brand-100 text-brand-800' : 'bg-amber-100 text-amber-800');
+            const actions = isCalled ? `
+              <div class="flex gap-1.5 mt-2">
+                <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'in_consultation')" class="btn btn-primary btn-sm flex-1 text-xs">Start Consultation</button>
+                <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'completed')" class="btn btn-outline btn-sm text-xs">Complete</button>
+                <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'cancelled')" class="btn btn-outline btn-sm text-xs text-rose-700">No-Show</button>
+              </div>
+            ` : (isConsult ? `
+              <div class="flex gap-1.5 mt-2">
+                <button type="button" onclick="window.ClinicApp.advanceTicketById(${t.id}, 'completed')" class="btn btn-primary btn-sm flex-1 text-xs">Mark Completed</button>
+              </div>
+            ` : '');
+            return `
+              <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200/80">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="min-w-0">
+                    <span class="font-mono font-bold text-stone-900">${escapeHTML(t.ticket_number)}</span>
+                    <span class="text-stone-700 font-medium"> ${escapeHTML(t.patient_name)}</span>
+                  </div>
+                  <span class="pill ${statusCls} uppercase text-[10px] font-bold shrink-0">${escapeHTML(t.status.replace('_', ' '))}</span>
+                </div>
+                ${actions}
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load active queue:', err);
+    }
+  }
+
   async function callNextPatient() {
-    const docId = document.getElementById('callDoctorId')?.value || 1;
+    const docId = parseInt(document.getElementById('callDoctorId')?.value, 10);
+    if (!Number.isFinite(docId) || docId <= 0) {
+      showToast('Please select an available doctor first.', 'error');
+      return;
+    }
     try {
       const data = await apiFetch(`${API.queue.callNext}?doctor_id=${docId}`, {
         method: 'POST',
@@ -1377,18 +1523,40 @@
     }
   }
 
-  async function advanceServingTicket(targetStatus) {
-    if (!state.currentServingTicketId) return;
+  async function callMyNextPatient() {
+    const docId = state.user?.doctor_id;
+    if (!docId) {
+      showToast('Doctor profile not found.', 'error');
+      return;
+    }
+    try {
+      const data = await apiFetch(`${API.queue.callNext}?doctor_id=${docId}`, {
+        method: 'POST',
+      });
+      showToast(`Called patient with ticket: ${data.called_ticket}`, 'success');
+      fetchQueueStatus();
+    } catch (err) {
+      showToast(`Call next failed: ${err.message}`, 'error');
+    }
+  }
+
+  async function advanceTicketById(ticketId, targetStatus) {
+    if (!ticketId) return;
     try {
       const data = await apiFetch(API.queue.advance, {
         method: 'POST',
-        body: { ticket_id: state.currentServingTicketId, to: targetStatus },
+        body: { ticket_id: ticketId, to: targetStatus },
       });
-      showToast(`Ticket ${data.ticket_number} marked ${targetStatus}.`, 'success');
+      showToast(`Ticket ${data.ticket_number} marked ${targetStatus.replace('_', ' ')}.`, 'success');
       fetchQueueStatus();
     } catch (err) {
       showToast(`Queue update failed: ${err.message}`, 'error');
     }
+  }
+
+  async function advanceServingTicket(targetStatus) {
+    if (!state.currentServingTicketId) return;
+    await advanceTicketById(state.currentServingTicketId, targetStatus);
   }
 
   let walkinMode = 'existing';
@@ -1421,7 +1589,11 @@
 
   async function registerWalkin(e) {
     e.preventDefault();
-    const doctorId = parseInt(document.getElementById('walkinDoctorSelect').value, 10) || 1;
+    const doctorId = parseInt(document.getElementById('walkinDoctorSelect').value, 10);
+    if (!Number.isFinite(doctorId) || doctorId <= 0) {
+      showToast('Please select an attending doctor.', 'error');
+      return;
+    }
     const priority = document.getElementById('walkinPriority').value || 'normal';
 
     try {
@@ -1453,19 +1625,27 @@
         resolvedName = res.patient_name || fullName;
         const walkInput = document.getElementById('walkinPatientId');
         const billInput = document.getElementById('billPatientId');
+        const billTicket = document.getElementById('billTicketId');
         if (walkInput) walkInput.value = resolvedPatientId;
         if (billInput) billInput.value = resolvedPatientId;
+        if (billTicket && res.id) billTicket.value = res.id;
         loadPatientDirectory();
         ['walkinNewName', 'walkinNewPhone', 'walkinNewGender', 'walkinNewAllergies'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
         });
       } else {
-        resolvedPatientId = parseInt(document.getElementById('walkinPatientId').value, 10) || 1;
+        resolvedPatientId = parseInt(document.getElementById('walkinPatientId').value, 10);
+        if (!Number.isFinite(resolvedPatientId) || resolvedPatientId <= 0) {
+          showToast('Please select a patient or enter a valid Patient ID.', 'error');
+          return;
+        }
         res = await apiFetch(API.queue.issue, {
           method: 'POST',
           body: { patient_id: resolvedPatientId, doctor_id: doctorId, priority },
         });
+        const billTicket = document.getElementById('billTicketId');
+        if (billTicket && res.id) billTicket.value = res.id;
       }
 
       const resultBox = document.getElementById('walkinTicketResult');
@@ -1540,8 +1720,10 @@
     try {
       const doctors = await apiFetch(API.appointments.doctors);
       const appSelect = document.getElementById('appointmentDoctorSelect');
+      const walkTicketSelect = document.getElementById('walkinTicketDoctorSelect');
       const walkSelect = document.getElementById('walkinDoctorSelect');
       const callSelect = document.getElementById('callDoctorId');
+      const fbSelect = document.getElementById('feedbackDoctorSelect');
 
       if (doctors && doctors.length > 0) {
         // Staff selects are narrow: native options clip silently, so the room
@@ -1551,13 +1733,19 @@
         const optionBrief = d => `<option value="${d.id}">${escapeHTML(d.name)} - ${escapeHTML(String(d.room_number || 'Room 102'))}</option>`;
 
         if (appSelect) appSelect.innerHTML = doctors.map(optionFull).join('');
+        if (walkTicketSelect) walkTicketSelect.innerHTML = doctors.map(optionBrief).join('');
         if (walkSelect) walkSelect.innerHTML = doctors.map(optionBrief).join('');
         if (callSelect) callSelect.innerHTML = doctors.map(optionBrief).join('');
+        if (fbSelect) {
+          fbSelect.innerHTML = '<option value="">General Clinic Experience</option>' + doctors.map(optionBrief).join('');
+        }
       } else {
         const emptyOpt = '<option value="">No doctors available yet</option>';
         if (appSelect) appSelect.innerHTML = emptyOpt;
+        if (walkTicketSelect) walkTicketSelect.innerHTML = emptyOpt;
         if (walkSelect) walkSelect.innerHTML = emptyOpt;
         if (callSelect) callSelect.innerHTML = emptyOpt;
+        if (fbSelect) fbSelect.innerHTML = '<option value="">General Clinic Experience</option>';
       }
     } catch (err) {
       console.warn('Failed to load doctors list:', err);
@@ -1568,7 +1756,7 @@
     e.preventDefault();
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to book an appointment', 'error');
-      switchTab('login');
+      openLoginGateway('login', 'patient');
       return;
     }
     const doctorId = parseInt(document.getElementById('appointmentDoctorSelect').value, 10);
@@ -1586,7 +1774,7 @@
           reason_for_visit: reason,
         },
       });
-      showToast(`Appointment confirmed! Booking ID: #${data.appointment_id}`, 'success');
+      showToast(`Appointment requested! Awaiting doctor approval (#${data.appointment_id})`, 'success');
       document.getElementById('appointmentForm').reset();
       const appDate = document.getElementById('appointmentDate');
       if (appDate) appDate.value = clinicTodayISO();
@@ -1612,9 +1800,12 @@
       list.innerHTML = rows.map(a => {
         const isCancelled = a.status === 'cancelled';
         const isCompleted = a.status === 'completed';
+        const isPending = a.status === 'pending';
         const statusCls = isCancelled
           ? 'bg-stone-100 text-stone-600'
-          : (isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-brand-50 text-brand-700');
+          : (isCompleted
+            ? 'bg-emerald-100 text-emerald-800'
+            : (isPending ? 'bg-amber-100 text-amber-800' : 'bg-brand-50 text-brand-700'));
         const cancelBtn = (!isCancelled && !isCompleted)
           ? `<button type="button" onclick="window.ClinicApp.cancelMyAppointment(${a.id})" class="btn btn-outline btn-sm text-rose-700 border-rose-200 hover:bg-rose-50 shrink-0">Cancel</button>`
           : '';
@@ -1687,27 +1878,70 @@
     }
   }
 
+  async function loadMyInvoices() {
+    const list = document.getElementById('patientInvoicesList');
+    if (!list) return;
+    if (!state.user || state.user.role !== 'patient') {
+      list.innerHTML = '<p class="text-stone-600 py-3 text-center">Sign in to view your receipts.</p>';
+      return;
+    }
+    try {
+      const rows = await apiFetch(API.billing.my);
+      if (!rows || rows.length === 0) {
+        list.innerHTML = '<p class="text-stone-600 py-3 text-center">No billing receipts recorded yet.</p>';
+        return;
+      }
+      list.innerHTML = rows.map(inv => {
+        const qrHtml = inv.qr_code_image && inv.qr_code_image.startsWith('data:image/')
+          ? `<img src="${inv.qr_code_image}" alt="Receipt QR code for ${escapeHTML(inv.receipt_number)}" class="w-14 h-14 rounded border border-stone-200 bg-white p-0.5 shrink-0">`
+          : '';
+        return `
+          <div class="p-3 rounded-xl bg-stone-50 border border-stone-200/80 flex items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <span class="font-mono font-bold text-stone-900 block truncate">${escapeHTML(inv.receipt_number)}</span>
+              <span class="text-[11px] text-stone-600 block">${escapeHTML(inv.paid_at || '')} &bull; ${escapeHTML((inv.payment_method || '').replace('_', ' ').toUpperCase())}</span>
+              <span class="text-xs font-extrabold text-brand-700 font-mono tabular-nums mt-0.5 block">${escapeHTML(formatPHP(inv.total_amount || 0))}</span>
+            </div>
+            ${qrHtml}
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      list.innerHTML = `<p class="text-rose-600 py-3 text-center">${escapeHTML(err.message || 'Failed to load receipts')}</p>`;
+    }
+  }
+
   async function loadStaffAppointments() {
     const list = document.getElementById('staffAppointmentsList');
     if (!list || !state.user || (state.user.role !== 'staff' && state.user.role !== 'admin')) return;
+    const dateEl = document.getElementById('staffAppointmentsDate');
+    const targetDate = (dateEl && dateEl.value) ? dateEl.value : clinicTodayISO();
+    if (dateEl && !dateEl.value) dateEl.value = targetDate;
     try {
-      const rows = await apiFetch(`${API.appointments.daily}?schedule_date=${clinicTodayISO()}`);
+      const rows = await apiFetch(`${API.appointments.daily}?schedule_date=${encodeURIComponent(targetDate)}`);
       if (!rows || rows.length === 0) {
-        list.innerHTML = '<p class="text-stone-600 py-3 text-center">No appointments scheduled for today.</p>';
+        list.innerHTML = `<p class="text-stone-600 py-3 text-center">No appointments scheduled for ${escapeHTML(targetDate)}.</p>`;
         return;
       }
       list.innerHTML = rows.map(a => {
         const isCancelled = a.status === 'cancelled';
         const isCompleted = a.status === 'completed';
+        const isPending = a.status === 'pending';
         const statusCls = isCancelled
           ? 'bg-rose-100 text-rose-800'
-          : (isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-brand-50 text-brand-700');
+          : (isCompleted
+            ? 'bg-emerald-100 text-emerald-800'
+            : (isPending ? 'bg-amber-100 text-amber-800' : 'bg-brand-50 text-brand-700'));
         const actions = a.status === 'confirmed' ? `
           <div class="flex flex-wrap gap-1.5 mt-2">
-            <button type="button" onclick="window.ClinicApp.checkInAppointment(${a.patient_id}, ${a.doctor_id})" class="btn btn-primary btn-sm">Check In</button>
+            <button type="button" onclick="window.ClinicApp.checkInAppointment(${a.patient_id}, ${a.doctor_id}, ${a.id})" class="btn btn-primary btn-sm">Check In</button>
             <button type="button" onclick="window.ClinicApp.updateAppointmentStatus(${a.id}, 'completed')" class="btn btn-outline btn-sm">Complete</button>
             <button type="button" onclick="window.ClinicApp.updateAppointmentStatus(${a.id}, 'cancelled')" class="btn btn-outline btn-sm text-rose-700 border-rose-200 hover:bg-rose-50">Cancel</button>
-          </div>` : '';
+          </div>` : (isPending ? `
+          <div class="flex flex-wrap items-center justify-between gap-1.5 mt-2">
+            <span class="text-[11px] text-amber-800 font-medium">Awaiting doctor approval</span>
+            <button type="button" onclick="window.ClinicApp.updateAppointmentStatus(${a.id}, 'cancelled')" class="btn btn-outline btn-sm text-rose-700 border-rose-200 hover:bg-rose-50">Cancel</button>
+          </div>` : '');
         return `
           <div class="p-3 rounded-xl bg-stone-50 border border-stone-200/80">
             <div class="flex items-start justify-between gap-2">
@@ -1726,14 +1960,18 @@
     }
   }
 
-  async function checkInAppointment(patientId, doctorId) {
+  async function checkInAppointment(patientId, doctorId, appointmentId = null) {
     try {
+      const payload = { patient_id: patientId, doctor_id: doctorId, priority: 'normal' };
+      if (appointmentId) payload.appointment_id = appointmentId;
       const res = await apiFetch(API.queue.issue, {
         method: 'POST',
-        body: { patient_id: patientId, doctor_id: doctorId, priority: 'normal' },
+        body: payload,
       });
       selectFoundPatient(patientId, 'staff', 'staffPatientMatches');
-      showToast(`Checked in Patient #${patientId} — Ticket ${res.ticket_number}`, 'success');
+      const billTicket = document.getElementById('billTicketId');
+      if (billTicket && res.id) billTicket.value = res.id;
+      showToast(`Checked in Patient #${patientId} (Ticket ${res.ticket_number})`, 'success');
       fetchQueueStatus();
     } catch (err) {
       showToast(`Check-in failed: ${err.message}`, 'error');
@@ -1837,6 +2075,57 @@
     }
   }
 
+  async function loadDoctorPendingApprovals() {
+    const card = document.getElementById('doctorPendingCard');
+    const list = document.getElementById('doctorPendingList');
+    const countEl = document.getElementById('doctorPendingCount');
+    if (!card || !list) return;
+    if (!state.user || state.user.role !== 'doctor') {
+      card.classList.add('hidden');
+      return;
+    }
+    try {
+      const rows = await apiFetch(API.appointments.doctorPending);
+      if (!rows || rows.length === 0) {
+        card.classList.add('hidden');
+        list.innerHTML = '';
+        if (countEl) countEl.textContent = '0';
+        return;
+      }
+      if (countEl) countEl.textContent = String(rows.length);
+      card.classList.remove('hidden');
+      list.innerHTML = rows.map(a => `
+        <div class="p-2.5 rounded-xl bg-white border border-amber-200 space-y-2">
+          <div class="min-w-0">
+            <span class="font-bold text-stone-900 block truncate">${escapeHTML(a.patient_name)} (#${a.patient_id})</span>
+            <span class="text-[11px] text-stone-600 block">${escapeHTML(a.appointment_date)} &bull; ${escapeHTML(a.time_slot)}</span>
+            ${a.reason ? `<span class="text-[11px] text-stone-600 block truncate">${escapeHTML(a.reason)}</span>` : ''}
+          </div>
+          <div class="flex gap-1.5">
+            <button type="button" onclick="window.ClinicApp.updateDoctorAppointmentStatus(${a.id}, 'confirmed')" class="btn btn-primary btn-sm flex-1">Approve</button>
+            <button type="button" onclick="window.ClinicApp.updateDoctorAppointmentStatus(${a.id}, 'cancelled')" class="btn btn-outline btn-sm text-rose-700 border-rose-200 hover:bg-rose-50">Decline</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.warn('Failed to load pending approvals:', err);
+    }
+  }
+
+  async function updateDoctorAppointmentStatus(appointmentId, targetStatus) {
+    try {
+      await apiFetch(`${API.appointments.base}/${appointmentId}/status`, {
+        method: 'POST',
+        body: { status: targetStatus },
+      });
+      showToast(targetStatus === 'confirmed' ? 'Appointment approved.' : 'Appointment declined.', 'success');
+      loadDoctorPendingApprovals();
+      loadDoctorSchedule();
+    } catch (err) {
+      showToast(`Action failed: ${err.message}`, 'error');
+    }
+  }
+
   // Doctor Schedule
   async function loadDoctorSchedule() {
     const docId = state.user?.doctor_id;
@@ -1861,26 +2150,35 @@
 
       list.innerHTML = data.map(app => {
         const isWalkin = app.entry_type === 'walk_in';
+        const isPending = !isWalkin && app.status === 'pending';
         const statusCls = app.status === 'cancelled'
           ? 'bg-rose-100 text-rose-800 border-rose-200'
           : (app.status === 'completed'
             ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-            : (isWalkin ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200/60'));
+            : ((isWalkin || isPending) ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200/60'));
         const typeBadge = isWalkin
           ? '<span class="pill bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold uppercase shrink-0">Walk-In</span>'
           : '';
+        const pendingActions = isPending ? `
+          <div class="flex gap-1.5 mt-2">
+            <button type="button" onclick="window.ClinicApp.updateDoctorAppointmentStatus(${app.id}, 'confirmed')" class="btn btn-primary btn-sm flex-1">Approve</button>
+            <button type="button" onclick="window.ClinicApp.updateDoctorAppointmentStatus(${app.id}, 'cancelled')" class="btn btn-outline btn-sm text-rose-700 border-rose-200 hover:bg-rose-50">Decline</button>
+          </div>` : '';
         return `
-        <div class="schedule-patient-item p-3 rounded-xl bg-white hover:bg-brand-50/70 border border-stone-200/80 text-xs flex justify-between items-center gap-2 cursor-pointer transition-all shadow-sm hover:border-brand-300"
+        <div class="schedule-patient-item p-3 rounded-xl bg-white hover:bg-brand-50/70 border border-stone-200/80 text-xs cursor-pointer transition-all shadow-sm hover:border-brand-300"
              data-patient-id="${parseInt(app.patient_id, 10) || ''}"
              data-patient-name="${escapeHTML(app.patient_name || 'Patient')}">
-          <div class="min-w-0">
-            <span class="font-bold text-stone-900 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
-            <span class="text-stone-600 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
+          <div class="flex justify-between items-center gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-stone-900 block truncate">${escapeHTML(app.time_slot)} - ${escapeHTML(app.patient_name)}</span>
+              <span class="text-stone-600 text-[11px] block truncate">${escapeHTML(app.reason || 'General Consultation')}</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${typeBadge}
+              <span class="pill ${statusCls} uppercase border text-[10px] font-bold">${escapeHTML(app.status)}</span>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 shrink-0">
-            ${typeBadge}
-            <span class="pill ${statusCls} uppercase border text-[10px] font-bold">${escapeHTML(app.status)}</span>
-          </div>
+          ${pendingActions}
         </div>
       `;
       }).join('');
@@ -1913,6 +2211,7 @@
   // One delegated handler for schedule rows: no dynamic inline JS, so patient
   // controlled text can never reach a JS execution context (XSS fix).
   document.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
     const row = e.target.closest('.schedule-patient-item');
     if (!row) return;
     const pid = parseInt(row.getAttribute('data-patient-id'), 10);
@@ -2021,7 +2320,7 @@
     row.innerHTML = `
       <div class="flex justify-between items-center">
         <span class="text-[10px] font-bold text-stone-500 uppercase">Medication Item</span>
-        <button type="button" onclick="this.closest('.med-row').remove()" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1">Remove</button>
+        <button type="button" onclick="this.closest('.med-row').remove()" class="btn btn-ghost btn-sm text-rose-600 hover:bg-rose-50 text-xs font-bold">Remove</button>
       </div>
       <div class="grid grid-cols-2 gap-1.5">
         <input type="text" placeholder="Drug Name" aria-label="Drug name" class="med-name input !px-2.5 !py-2" required>
@@ -2087,6 +2386,16 @@
         `;
       }
       showToast('Digital prescription generated with verification hash!', 'success');
+      const rxForm = document.getElementById('prescriptionForm');
+      if (rxForm) rxForm.reset();
+      const medsBox = document.getElementById('medicationsContainer');
+      if (medsBox) {
+        medsBox.querySelectorAll('.med-row').forEach((row, idx) => {
+          if (idx > 0) row.remove();
+        });
+      }
+      const rxInputAfter = document.getElementById('rxPatientId');
+      if (rxInputAfter) rxInputAfter.value = patientId;
       searchPatientEMR(patientId);
     } catch (err) {
       showToast(`Prescription creation failed: ${err.message}`, 'error');
@@ -2170,16 +2479,72 @@
         return;
       }
       list.innerHTML = rows.slice(0, 10).map(inv => `
-        <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200/80 flex items-center justify-between gap-2">
+        <button type="button" onclick="window.ClinicApp.viewReceiptDetail(${inv.id})" class="w-full text-left p-2.5 rounded-xl bg-stone-50 hover:bg-brand-50/60 border border-stone-200/80 hover:border-brand-300 flex items-center justify-between gap-2 transition-colors min-h-[44px]">
           <div class="min-w-0">
             <span class="font-mono font-bold text-stone-900 block truncate">${escapeHTML(inv.receipt_number)}</span>
-            <span class="text-[11px] text-stone-500 block truncate">${escapeHTML(inv.patient_name)} &bull; ${escapeHTML((inv.payment_method || '').toUpperCase())}</span>
+            <span class="text-[11px] text-stone-500 block truncate">${escapeHTML(inv.patient_name)} &bull; ${escapeHTML((inv.payment_method || '').replace('_', ' ').toUpperCase())}</span>
           </div>
           <span class="font-mono font-bold text-stone-900 tabular-nums shrink-0">${escapeHTML(formatPHP(inv.total_amount || 0))}</span>
-        </div>
+        </button>
       `).join('');
     } catch (err) {
       list.innerHTML = `<p class="text-rose-600 py-3 text-center">${escapeHTML(err.message || 'Failed to load receipts')}</p>`;
+    }
+  }
+
+  function showReceiptModal(inv) {
+    const modal = document.getElementById('receiptModal');
+    const body = document.getElementById('receiptModalBody');
+    if (!modal || !body || !inv) return;
+    const qrHtml = inv.qr_code_image && inv.qr_code_image.startsWith('data:image/')
+      ? `<img src="${inv.qr_code_image}" alt="Receipt QR code for ${escapeHTML(inv.receipt_number)}" class="w-24 h-24 rounded-xl border border-stone-200 bg-white p-1 mx-auto">`
+      : '';
+    body.innerHTML = `
+      <div class="text-center space-y-2 pb-3 border-b border-stone-100">
+        ${qrHtml}
+        <span class="font-mono font-bold text-sm text-stone-900 block">${escapeHTML(inv.receipt_number)}</span>
+        <span class="text-[11px] text-stone-500 block">${escapeHTML(inv.patient_name)} &bull; ${escapeHTML(inv.paid_at || '')}</span>
+      </div>
+      <div class="space-y-1.5 text-stone-700">
+        <div class="flex justify-between"><span>Consultation Fee</span><span class="font-mono tabular-nums">${escapeHTML(formatPHP(inv.consultation_fee || 0))}</span></div>
+        <div class="flex justify-between"><span>Medication Fee</span><span class="font-mono tabular-nums">${escapeHTML(formatPHP(inv.medication_fee || 0))}</span></div>
+        <div class="flex justify-between"><span>Other / Lab Fees</span><span class="font-mono tabular-nums">${escapeHTML(formatPHP(inv.other_fees || 0))}</span></div>
+        <div class="flex justify-between text-rose-700"><span>Discount</span><span class="font-mono tabular-nums">-${escapeHTML(formatPHP(inv.discount_amount || 0))}</span></div>
+      </div>
+      <div class="pt-3 border-t border-stone-200 flex justify-between items-center font-bold text-stone-900 text-sm">
+        <span>Total Paid (${escapeHTML((inv.payment_method || '').replace('_', ' ').toUpperCase())})</span>
+        <span class="font-mono tabular-nums text-brand-700">${escapeHTML(formatPHP(inv.total_amount || 0))}</span>
+      </div>
+    `;
+    modal.classList.remove('hidden');
+  }
+
+  function hideReceiptModal() {
+    const modal = document.getElementById('receiptModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  async function viewReceiptDetail(invoiceId) {
+    try {
+      const inv = await apiFetch(`${API.billing.base}/${invoiceId}`);
+      showReceiptModal(inv);
+    } catch (err) {
+      showToast(err.message || 'Could not load receipt', 'error');
+    }
+  }
+
+  async function lookupReceipt() {
+    const input = document.getElementById('receiptLookupInput');
+    const code = (input?.value || '').trim();
+    if (!code) {
+      showToast('Enter a receipt number to search.', 'info');
+      return;
+    }
+    try {
+      const inv = await apiFetch(`${API.billing.receipt}/${encodeURIComponent(code)}`);
+      showReceiptModal(inv);
+    } catch (err) {
+      showToast(err.message || 'Receipt not found', 'error');
     }
   }
   // Feedback & Sentiment Analytics
@@ -2213,12 +2578,14 @@
     e.preventDefault();
     if (!state.user || state.user.role !== 'patient') {
       showToast('Please sign in as a patient to submit feedback', 'error');
-      switchTab('login');
+      openLoginGateway('login', 'patient');
       return;
     }
     const comment = document.getElementById('feedbackComment').value;
     const rating = state.selectedRating;
     const tags = state.selectedTags;
+    const docVal = document.getElementById('feedbackDoctorSelect')?.value;
+    const doctorId = docVal ? parseInt(docVal, 10) : null;
 
     try {
       const data = await apiFetch(API.feedback.submit, {
@@ -2227,6 +2594,7 @@
           rating: rating,
           comment_text: comment,
           tags: tags,
+          doctor_id: Number.isFinite(doctorId) ? doctorId : null,
         },
       });
 
@@ -2390,7 +2758,10 @@
               <button type="button" onclick="window.ClinicApp.approveAdminUser(${u.id})" class="btn btn-primary btn-sm text-xs">Approve</button>
               <button type="button" onclick="window.ClinicApp.rejectAdminUser(${u.id})" class="btn btn-outline btn-sm text-xs text-rose-700 border-rose-200 hover:bg-rose-50">Reject</button>
             </div>`
-          : `<span class="font-mono text-[11px] text-stone-500">${escapeHTML(profileTag)}</span>`;
+          : `<div class="inline-flex items-center gap-2">
+              <span class="font-mono text-[11px] text-stone-500">${escapeHTML(profileTag)}</span>
+              ${state.user && u.id !== state.user.id ? `<button type="button" onclick="window.ClinicApp.toggleAdminUserActive(${u.id})" class="btn btn-outline btn-sm text-xs text-rose-700 border-rose-200 hover:bg-rose-50">Deactivate</button>` : ''}
+            </div>`;
         return `
           <tr class="border-b border-stone-100 ${isPending ? 'bg-amber-50/40' : ''}">
             <td class="py-2.5 pr-3 font-semibold text-stone-900">${escapeHTML(u.full_name)}</td>
@@ -2424,6 +2795,87 @@
       loadAdminUsers();
     } catch (err) {
       showToast(err.message || 'Failed to reject request', 'error');
+    }
+  }
+
+  async function toggleAdminUserActive(userId) {
+    try {
+      const res = await apiFetch(`${API.admin.users}/${userId}/toggle-active`, { method: 'POST' });
+      const active = res.user && res.user.is_approved;
+      showToast(`${res.user.full_name} ${active ? 'activated' : 'deactivated'}`, 'info');
+      loadAdminUsers();
+      if (res.user && res.user.role === 'doctor') loadDoctors();
+    } catch (err) {
+      showToast(err.message || 'Failed to update account status', 'error');
+    }
+  }
+
+  async function toggleDoctorAvailability() {
+    if (!state.user || state.user.role !== 'doctor' || !state.user.doctor_profile) return;
+    const nextAvail = state.user.doctor_profile.is_available === false;
+    try {
+      const updated = await apiFetch(API.auth.profile, {
+        method: 'PUT',
+        body: { is_available: nextAvail },
+      });
+      state.user = updated;
+      localStorage.setItem('user_profile', JSON.stringify(updated));
+      updateUserUI();
+      loadDoctors();
+      showToast(nextAvail ? 'You are now listed as accepting patients.' : 'You are now paused from new bookings.', 'info');
+    } catch (err) {
+      showToast(err.message || 'Failed to update availability', 'error');
+    }
+  }
+
+  function showDoctorProfileModal() {
+    if (!state.user || state.user.role !== 'doctor') return;
+    const modal = document.getElementById('doctorProfileModal');
+    if (!modal) return;
+    const prof = state.user.doctor_profile || {};
+    const nameEl = document.getElementById('docEditFullName');
+    const phoneEl = document.getElementById('docEditPhone');
+    const specEl = document.getElementById('docEditSpec');
+    const roomEl = document.getElementById('docEditRoom');
+    const feeEl = document.getElementById('docEditFee');
+    if (nameEl) nameEl.value = state.user.full_name || '';
+    if (phoneEl) phoneEl.value = formatPHPhone(state.user.phone || '');
+    if (specEl) specEl.value = prof.specialization || '';
+    if (roomEl) roomEl.value = prof.room_number || '';
+    if (feeEl) feeEl.value = prof.consultation_fee != null ? String(prof.consultation_fee) : '500.00';
+    modal.classList.remove('hidden');
+  }
+
+  function hideDoctorProfileModal() {
+    const modal = document.getElementById('doctorProfileModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  async function handleDoctorProfileUpdate(e) {
+    e.preventDefault();
+    const btn = document.getElementById('saveDoctorProfileBtn');
+    if (btn) btn.disabled = true;
+    try {
+      const updated = await apiFetch(API.auth.profile, {
+        method: 'PUT',
+        body: {
+          full_name: document.getElementById('docEditFullName').value.trim(),
+          phone: document.getElementById('docEditPhone').value.trim() || null,
+          specialization: document.getElementById('docEditSpec').value.trim(),
+          room_number: document.getElementById('docEditRoom').value.trim(),
+          consultation_fee: parseFloat(document.getElementById('docEditFee').value) || 0,
+        },
+      });
+      state.user = updated;
+      localStorage.setItem('user_profile', JSON.stringify(updated));
+      hideDoctorProfileModal();
+      updateUserUI();
+      loadDoctors();
+      showToast('Practice profile updated', 'success');
+    } catch (err) {
+      showToast(err.message || 'Update failed', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -2578,15 +3030,71 @@
     } catch (_) { /* no history or not authenticated — keep static greeting */ }
   }
 
+  async function loadStaffChatInbox() {
+    const list = document.getElementById('staffChatInboxList');
+    if (!list || !state.user || (state.user.role !== 'staff' && state.user.role !== 'admin')) return;
+    try {
+      const rows = await apiFetch(API.chat.sessionsSummary);
+      if (!rows || rows.length === 0) {
+        list.innerHTML = '<p class="text-stone-600 py-3 text-center">No active chat conversations yet.</p>';
+        return;
+      }
+      list.innerHTML = rows.map(s => `
+        <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200/80 flex items-center justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <span class="font-bold text-stone-900 block truncate">${escapeHTML(s.sender_name || 'Guest')} (${s.message_count})</span>
+            <span class="text-[11px] text-stone-600 block truncate">${escapeHTML(s.last_message || '')}</span>
+          </div>
+          <button type="button" onclick="window.ClinicApp.openStaffChatSession('${escapeHTML(s.session_id)}')" class="btn btn-outline btn-sm shrink-0 text-xs">Join Chat</button>
+        </div>
+      `).join('');
+    } catch (err) {
+      list.innerHTML = `<p class="text-rose-600 py-3 text-center">${escapeHTML(err.message || 'Failed to load inbox')}</p>`;
+    }
+  }
+
+  function openStaffChatSession(sessionId) {
+    if (!sessionId) return;
+    state.chatSessionId = sessionId;
+    localStorage.setItem('chat_session_id', sessionId);
+    const box = document.getElementById('chatMessages');
+    if (box) box.innerHTML = '';
+    if (state.chatWs) {
+      state.chatWsIntentionalClose = true;
+      try { state.chatWs.close(); } catch (_) {}
+      state.chatWs = null;
+    }
+    const win = document.getElementById('chatWindow');
+    if (win && win.classList.contains('hidden')) {
+      toggleChat();
+    } else {
+      loadChatHistory();
+      initChatWebSocket();
+    }
+  }
+
+  function openLoginFromChat() {
+    const win = document.getElementById('chatWindow');
+    if (win && !win.classList.contains('hidden')) {
+      toggleChat();
+    }
+    openLoginGateway('login', 'patient');
+  }
+
   function initChatWebSocket() {
     if (state.chatWs && (state.chatWs.readyState === WebSocket.OPEN || state.chatWs.readyState === WebSocket.CONNECTING)) {
       return;
     }
+    state.chatWsIntentionalClose = false;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}${API.chat.ws}/${state.chatSessionId}`;
 
     try {
       state.chatWs = new WebSocket(wsUrl);
+
+      state.chatWs.onopen = () => {
+        state.chatWsRetryMs = 1000;
+      };
 
       state.chatWs.onmessage = (event) => {
         try {
@@ -2613,7 +3121,12 @@
 
       state.chatWs.onclose = () => {
         hideTypingIndicator();
-        console.log('Chat WebSocket closed');
+        if (state.chatWsIntentionalClose) return;
+        const win = document.getElementById('chatWindow');
+        if (win && !win.classList.contains('hidden')) {
+          setTimeout(initChatWebSocket, state.chatWsRetryMs);
+          state.chatWsRetryMs = Math.min(state.chatWsRetryMs * 2, 15000);
+        }
       };
     } catch (err) {
       console.warn('WebSocket init failed:', err);
@@ -2674,7 +3187,11 @@
     if (!box) return;
 
     const isBot = msg.is_bot_reply || msg.role === 'bot' || msg.sender === 'Clinic Assistant Bot';
-    const isMe = !isBot && (msg.is_optimistic || (state.user && (msg.sender === state.user.full_name || msg.sender_name === state.user.full_name)));
+    const isMe = !isBot && (
+      msg.is_optimistic ||
+      (!state.user && (msg.sender === 'Guest' || msg.sender_name === 'Guest')) ||
+      (state.user && (msg.sender === state.user.full_name || msg.sender_name === state.user.full_name))
+    );
 
     // Deduplicate optimistic echo
     const textKey = msg.message || msg.message_text || '';
@@ -2785,6 +3302,8 @@
 
     // 1. Optimistic rendering: Render user bubble immediately
     pendingOptimisticMessages.add(msg);
+    const box = document.getElementById('chatMessages');
+    const prevCount = box ? box.children.length : 0;
     appendChatMessage({
       sender: state.user ? state.user.full_name : 'You',
       sender_name: state.user ? state.user.full_name : 'You',
@@ -2795,6 +3314,7 @@
       is_optimistic: true,
       created_at: null,
     });
+    const optimisticBubble = (box && box.children.length > prevCount) ? box.lastElementChild : null;
 
     // 2. Show in-stream typing indicator
     showTypingIndicator();
@@ -2814,6 +3334,7 @@
           method: 'POST',
           body: payload,
         });
+        pendingOptimisticMessages.delete(msg);
         hideTypingIndicator();
         if (res.bot_reply) {
           appendChatMessage({
@@ -2831,6 +3352,8 @@
           updateChatGuestUI(res.guest_remaining);
         }
       } catch (err) {
+        pendingOptimisticMessages.delete(msg);
+        if (optimisticBubble) optimisticBubble.remove();
         hideTypingIndicator();
         if (err.message && (err.message.includes('Guest chat limit') || err.message.includes('429'))) {
           updateChatGuestUI(0);
@@ -2860,6 +3383,16 @@
   // Close overlays with the Escape key
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    const receiptModal = document.getElementById('receiptModal');
+    if (receiptModal && !receiptModal.classList.contains('hidden')) {
+      hideReceiptModal();
+      return;
+    }
+    const doctorModal = document.getElementById('doctorProfileModal');
+    if (doctorModal && !doctorModal.classList.contains('hidden')) {
+      hideDoctorProfileModal();
+      return;
+    }
     const profileModal = document.getElementById('profileModal');
     if (profileModal && !profileModal.classList.contains('hidden')) {
       hideProfileModal();
@@ -2873,7 +3406,7 @@
 
   // PWA Support & Service Worker Registration
   let deferredInstallPrompt = null;
-  const APP_BUILD_VERSION = '2.11.4';
+  const APP_BUILD_VERSION = '2.16.0';
 
   function initPWA() {
     // 0. Automatically purge outdated CacheStorage when build version bumps
@@ -3113,7 +3646,10 @@
     issueMyQueueTicket,
     loadPatientDirectory,
     onSelectPatientDropdown,
+    loadActiveQueue,
     callNextPatient,
+    callMyNextPatient,
+    advanceTicketById,
     advanceServingTicket,
     formatPHPhone,
     switchWalkinMode,
@@ -3122,11 +3658,14 @@
     loadMyAppointments,
     cancelMyAppointment,
     loadMyPrescriptions,
+    loadMyInvoices,
     loadStaffAppointments,
     checkInAppointment,
     updateAppointmentStatus,
     lookupPatients,
     selectFoundPatient,
+    loadDoctorPendingApprovals,
+    updateDoctorAppointmentStatus,
     loadDoctorSchedule,
     selectConsultationPatient,
     searchPatientEMR,
@@ -3135,6 +3674,9 @@
     calculateBillPreview,
     createInvoice,
     loadBillingHistory,
+    viewReceiptDetail,
+    lookupReceipt,
+    hideReceiptModal,
     setStarRating,
     toggleTag,
     submitFeedback,
@@ -3142,6 +3684,11 @@
     loadAdminUsers,
     approveAdminUser,
     rejectAdminUser,
+    toggleAdminUserActive,
+    toggleDoctorAvailability,
+    showDoctorProfileModal,
+    hideDoctorProfileModal,
+    handleDoctorProfileUpdate,
     toggleAdminUserRoleFields,
     createAdminUser,
     handleSetupAdmin,
@@ -3151,6 +3698,9 @@
     sendChatMessage,
     sendChatInput,
     sendQuickFaq,
+    loadStaffChatInbox,
+    openStaffChatSession,
+    openLoginFromChat,
     showcaseSelectRole,
     showcaseOpenChat,
     demoLogin,

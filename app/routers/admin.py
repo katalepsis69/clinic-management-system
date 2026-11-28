@@ -51,6 +51,11 @@ def create_user(
     current_user: User = Depends(require_roles([UserRole.ADMIN])),
 ):
     email = payload.email.strip().lower()
+    full_name = payload.full_name.strip()
+    if not full_name:
+        raise HTTPException(status_code=400, detail="Full name is required")
+    if not payload.password.strip():
+        raise HTTPException(status_code=400, detail="Password cannot be blank")
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="A valid email address is required")
     if db.query(User).filter(User.email == email).first():
@@ -65,7 +70,7 @@ def create_user(
     user = User(
         email=email,
         hashed_password=get_password_hash(payload.password),
-        full_name=payload.full_name.strip(),
+        full_name=full_name,
         phone=payload.phone.strip() if payload.phone else None,
         role=role,
         is_approved=True,
@@ -121,3 +126,20 @@ def delete_user(
     db.delete(user)
     db.commit()
     return {"status": "success"}
+
+
+@router.post("/users/{user_id}/toggle-active")
+def toggle_user_active(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.ADMIN])),
+):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot deactivate your own account")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_approved = not bool(user.is_approved)
+    db.commit()
+    db.refresh(user)
+    return {"status": "success", "user": _user_profile(user)}

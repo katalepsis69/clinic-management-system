@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import get_db
 from app.models import Base, User, UserRole, Patient, PatientFeedback
 from app.auth import create_access_token
-from app.sentiment import analyze_sentiment
+from app.sentiment import analyze_sentiment, get_cross_reference
 from app.routers.feedback import router as feedback_router
 
 
@@ -79,6 +79,41 @@ def test_critical_due_to_strongly_negative_compound():
     result = analyze_sentiment("Horrible, terrible, painful and dreadful experience.", rating=3)
     assert result["sentiment_score"] < -0.3
     assert result["flagged_critical"] is True
+
+
+def test_tagalog_positive_sentiment():
+    result = analyze_sentiment("Napakabait at napakahusay ni Dok, napakabilis din ng tawag sa pila.", rating=5)
+    assert result["sentiment_label"] == "positive"
+    assert result["sentiment_score"] > 0.4
+    assert result["flagged_critical"] is False
+
+
+def test_tagalog_critical_negative_sentiment():
+    result = analyze_sentiment("Napakasungit ng staff at napakabagal ng pila, napakarumi pa ng kwarto.", rating=1)
+    assert result["sentiment_label"] == "negative"
+    assert result["sentiment_score"] < -0.3
+    assert result["flagged_critical"] is True
+
+
+def test_taglish_code_switching_sentiment():
+    result = analyze_sentiment("The doctor was super mabait and very accommodating, pero medyo matagal lang sa billing.", rating=4)
+    # 2 positive signals ('mabait', rating 4) vs 1 negative signal ('matagal')
+    assert result["sentiment_label"] == "positive"
+    assert result["sentiment_score"] > 0.0
+
+
+def test_cross_reference_lookup():
+    kind_ref = get_cross_reference("mabait")
+    assert kind_ref is not None
+    assert kind_ref["vader_anchor"] == "kind"
+    assert kind_ref["vader_valence"] > 2.0
+    assert kind_ref["polarity"] == "positive"
+
+    rude_ref = get_cross_reference("masungit")
+    assert rude_ref is not None
+    assert rude_ref["vader_anchor"] == "rude"
+    assert rude_ref["vader_valence"] < -2.0
+    assert rude_ref["polarity"] == "negative"
 
 
 # --- Integration tests for /api/feedback endpoints ---
@@ -247,3 +282,42 @@ def test_feedback_analytics_forbidden_for_doctor(client, db_session):
         "Authorization": f"Bearer {create_access_token({'sub': u_doc.email, 'role': 'doctor'})}"
     })
     assert res.status_code == 403
+
+
+def test_critical_alerts_not_truncated_beyond_20_reviews(client, db_session):
+    u_pat = User(email="pat.crit@demo.com", full_name="Pat Crit", role=UserRole.PATIENT, hashed_password="pw")
+    u_staff = User(email="staff.crit@demo.com", full_name="Staff Crit", role=UserRole.STAFF, hashed_password="pw")
+    db_session.add_all([u_pat, u_staff])
+    db_session.commit()
+    pat = Patient(user_id=u_pat.id)
+    db_session.add(pat)
+    db_session.commit()
+
+    # Old critical complaint followed by 25 positive reviews
+    db_session.add(PatientFeedback(
+        patient_id=pat.id,
+        rating=1,
+        comment_text="Terrible wait time",
+        sentiment_label="negative",
+        sentiment_score=-0.5,
+        flagged_critical=True,
+    ))
+    for i in range(25):
+        db_session.add(PatientFeedback(
+            patient_id=pat.id,
+            rating=5,
+            comment_text=f"Great visit {i}",
+            sentiment_label="positive",
+            sentiment_score=0.55,
+            flagged_critical=False,
+        ))
+    db_session.commit()
+
+    staff_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_staff.email, 'role': 'staff'})}"}
+    res = client.get("/api/feedback/analytics", headers=staff_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["critical_count"] == 1
+    assert len(data["critical_alerts"]) == 1
+    assert data["critical_alerts"][0]["comment"] == "Terrible wait time"
+    assert data["critical_alerts"][0]["patient_id"] == pat.id

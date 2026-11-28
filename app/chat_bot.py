@@ -16,7 +16,8 @@ FAQ_RULES = [
         "For severe life-threatening emergencies, please call 911 or proceed immediately to the nearest hospital Emergency Room. / Para sa malulubhang emergency, tumawag agad sa 911 o pumunta sa pinakamalapit na Emergency Room."
     ),
     (
-        ["hours", "opening", "open", "time", "schedule", "close", "closing", "oras", "bukas", "sarado", "kailan bukas", "anong oras"],
+        ["hours", "opening", "are you open", "open today", "open on", "what time do you open", "what time do you close",
+         "schedule", "closing", "close at", "oras", "bukas", "sarado", "kailan bukas", "anong oras"],
         "Our clinic is open Monday to Saturday from 8:00 AM to 6:00 PM. Emergency walk-ins are accepted anytime during open hours. (Bukas po kami Lunes hanggang Sabado, 8:00 AM - 6:00 PM)."
     ),
     (
@@ -24,7 +25,8 @@ FAQ_RULES = [
         "You can book an appointment in the Patient Portal under 'Book Appointment'. Choose your doctor and preferred time slot! (Maaari po kayong mag-book sa Patient Portal sa ilalim ng 'Book Appointment'.)"
     ),
     (
-        ["location", "address", "where", "directions", "find", "map", "saan", "lugar", "direksyon", "nasaan", "paano pumunta"],
+        ["location", "address", "where is the clinic", "where are you", "directions", "find the clinic", "find you",
+         "map", "saan", "lugar", "direksyon", "nasaan", "paano pumunta"],
         "We are located at 123 Healthcare Blvd, Suite 400, Medical Arts Tower. Parking is available on Level B1. (Matatagpuan po kami sa 123 Healthcare Blvd, Suite 400, Medical Arts Tower.)"
     ),
     (
@@ -88,10 +90,14 @@ def _get_client(api_key: str):
     return client
 
 
+def _contains_keyword(msg_lower: str, keyword: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(keyword)}(?!\w)", msg_lower) is not None
+
+
 def _get_matching_faq(message: str):
     msg_lower = str(message).lower()
     for keywords, response in FAQ_RULES:
-        if any(k in msg_lower for k in keywords):
+        if any(_contains_keyword(msg_lower, k) for k in keywords):
             return response
     return None
 
@@ -121,7 +127,7 @@ def classify_query_intent(message: str) -> str:
         "mabibili ba", "saan mabibili", "available ba", "out of stock", "meron ba sa", "may tinda",
         "outbreak", "doh advisory", "epidemic", "balita ngayon", "alert", "fda warning", "recall"
     ]
-    if any(trigger in msg_lower for trigger in web_search_triggers):
+    if any(_contains_keyword(msg_lower, trigger) for trigger in web_search_triggers):
         return "WEB_SEARCH"
 
     # 3. Default for medical definitions, pathology, symptoms, OTC recommendations & home remedies
@@ -134,7 +140,7 @@ def _get_faq_response(message: str) -> str:
         return match
     # Ponytail: polite fallback if query neither matches FAQ nor succeeds with LLM
     msg_lower = str(message).lower()
-    if any(k in msg_lower for k in ["salamat", "kamusta", "ano", "paano", "saan", "bakit"]):
+    if any(_contains_keyword(msg_lower, k) for k in ["salamat", "kamusta", "ano", "paano", "saan", "bakit"]):
         return "Salamat po sa inyong mensahe. Natanggap na po ng aming front desk receptionist ang inyong inquiry at tutugon po kami agad. Kung emergency po, tumawag sa (02) 8123 4567 o 911."
     return "Thank you for messaging. A clinic receptionist has received your inquiry and will reply shortly. If urgent, please call our front desk at (02) 8123 4567 or 911."
 

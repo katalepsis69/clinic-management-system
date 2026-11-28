@@ -211,7 +211,7 @@ def test_book_appointment_success(db_session):
     assert appt.appointment_date == CLINIC
     assert appt.time_slot == "10:00 - 10:30"
     assert appt.reason_for_visit == "Fever and cough"
-    assert appt.status == AppointmentStatus.CONFIRMED
+    assert appt.status == AppointmentStatus.PENDING
 
 
 def test_book_appointment_slot_conflict(db_session):
@@ -697,7 +697,7 @@ def test_get_my_appointments_patient_only(db_session):
     rows = res.json()
     assert len(rows) == 1
     assert rows[0]["doctor_name"] == "Dr. My"
-    assert rows[0]["status"] == "confirmed"
+    assert rows[0]["status"] == "pending"
 
     assert client.get("/api/appointments/my", headers={"Authorization": f"Bearer {staff_token}"}).status_code == 403
     assert client.get("/api/appointments/my").status_code == 401
@@ -763,7 +763,27 @@ def test_staff_daily_appointments_status_and_doctor_schedule_walkins(db_session)
     assert {e["entry_type"] for e in entries} == {"appointment", "walk_in"}
     assert any(e["patient_name"] == "Pat Walkin" and "Q-901" in e["time_slot"] for e in entries)
 
-    # Other doctor cannot update status; staff can mark completed
+    # Doctor sees pending appointment on /doctor-pending; staff cannot confirm on doctor's behalf
+    pend_res = client.get("/api/appointments/doctor-pending", headers=doc_headers)
+    assert pend_res.status_code == 200
+    assert len(pend_res.json()) == 1
+    assert pend_res.json()[0]["id"] == appt_id
+    assert client.post(
+        f"/api/appointments/{appt_id}/status",
+        headers=staff_headers,
+        json={"status": "confirmed"},
+    ).status_code == 403
+
+    # Attending doctor approves -> confirmed; other doctor cannot update status; staff can mark completed
+    doc_approve = client.post(
+        f"/api/appointments/{appt_id}/status",
+        headers=doc_headers,
+        json={"status": "confirmed"},
+    )
+    assert doc_approve.status_code == 200
+    assert doc_approve.json()["appointment_status"] == "confirmed"
+    assert client.get("/api/appointments/doctor-pending", headers=doc_headers).json() == []
+
     assert client.post(
         f"/api/appointments/{appt_id}/status",
         headers=other_doc_headers,
@@ -786,5 +806,5 @@ def test_staff_daily_appointments_status_and_doctor_schedule_walkins(db_session)
         json={"doctor_id": doc.id, "appointment_date": today_str, "time_slot": "09:00 AM", "reason": "Rebook"},
     )
     assert rebook_res.status_code == 200
-    conflict_res = client.post(f"/api/appointments/{appt_id}/status", headers=staff_headers, json={"status": "confirmed"})
+    conflict_res = client.post(f"/api/appointments/{appt_id}/status", headers=doc_headers, json={"status": "confirmed"})
     assert conflict_res.status_code == 409

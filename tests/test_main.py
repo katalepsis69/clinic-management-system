@@ -192,6 +192,7 @@ def test_qr_generator_and_panel_feature_hooks():
     assert 'id="billPatientSelect"' in res_html.text
     assert 'id="emrPatientSelect"' in res_html.text
     assert 'id="issueMyTicketBtn"' in res_html.text
+    assert 'id="doctorPendingList"' in res_html.text
 
     res_app = client.get("/static/app.js")
     assert res_app.status_code == 200
@@ -203,9 +204,33 @@ def test_qr_generator_and_panel_feature_hooks():
         "loadPatientDirectory",
         "onSelectPatientDropdown",
         "loadMyActiveTicket",
+        "loadDoctorPendingApprovals",
+        "updateDoctorAppointmentStatus",
     ):
         assert symbol in res_app.text
     assert "formatPHP" in res_app.text
     assert "formatPHPhone" in res_app.text
     assert "loadMyAppointments" in res_app.text
-    assert "lookupPatients" in res_app.text
+    assert "lookupPatients" in res_app.text
+    for symbol in (
+        "loadActiveQueue",
+        "callMyNextPatient",
+        "advanceTicketById",
+        "loadMyInvoices",
+        "viewReceiptDetail",
+        "lookupReceipt",
+        "toggleDoctorAvailability",
+        "showDoctorProfileModal",
+        "toggleAdminUserActive",
+        "loadStaffChatInbox",
+        "openStaffChatSession",
+        "openLoginFromChat",
+    ):
+        assert symbol in res_app.text
+    assert 'id="staffChatInboxList"' in res_html.text
+    assert 'id="patientInvoicesList"' in res_html.text
+    assert 'id="feedbackDoctorSelect"' in res_html.text
+    assert 'id="walkinTicketDoctorSelect"' in res_html.text
+    assert 'id="doctorQueueList"' in res_html.text
+    assert 'id="receiptModal"' in res_html.text
+    assert 'id="doctorProfileModal"' in res_html.text

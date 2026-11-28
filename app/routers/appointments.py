@@ -86,8 +86,8 @@ def book_appointment(
         doctor_id=data.doctor_id,
         appointment_date=app_date,
         time_slot=data.time_slot,
-        reason_for_visit=data.reason_for_visit,
-        status=AppointmentStatus.CONFIRMED,
+        reason_for_visit=data.reason_for_visit.strip() if data.reason_for_visit else None,
+        status=AppointmentStatus.PENDING,
     )
     db.add(app)
     try:
@@ -97,7 +97,7 @@ def book_appointment(
         db.rollback()
         raise HTTPException(status_code=409, detail="This time slot is already booked")
     db.refresh(app)
-    return {"status": "success", "appointment_id": app.id}
+    return {"status": "success", "appointment_id": app.id, "appointment_status": app.status.value}
 
 
 @router.get("/my")
@@ -171,6 +171,38 @@ def get_daily_appointments(
     ]
 
 
+@router.get("/doctor-pending")
+def get_doctor_pending_appointments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.DOCTOR])),
+):
+    """List all pending appointment requests awaiting this doctor's approval."""
+    doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+    if not doctor:
+        return []
+    pending = (
+        db.query(Appointment)
+        .filter(
+            Appointment.doctor_id == doctor.id,
+            Appointment.status == AppointmentStatus.PENDING,
+        )
+        .order_by(Appointment.appointment_date.asc(), Appointment.time_slot.asc(), Appointment.id.asc())
+        .all()
+    )
+    return [
+        {
+            "id": a.id,
+            "patient_id": a.patient_id,
+            "patient_name": a.patient.user.full_name if a.patient and a.patient.user else "Unknown",
+            "appointment_date": str(a.appointment_date),
+            "time_slot": a.time_slot,
+            "status": a.status.value if hasattr(a.status, "value") else str(a.status),
+            "reason": a.reason_for_visit,
+        }
+        for a in pending
+    ]
+
+
 @router.post("/{appointment_id}/status")
 def update_appointment_status(
     appointment_id: int,
@@ -181,6 +213,8 @@ def update_appointment_status(
     appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
+    if data.status == "confirmed" and current_user.role == UserRole.STAFF:
+        raise HTTPException(status_code=403, detail="Only the attending doctor can confirm appointments")
     if current_user.role == UserRole.DOCTOR:
         own = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
         if not own or appointment.doctor_id != own.id:

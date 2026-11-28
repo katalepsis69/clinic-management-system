@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.models import QueueTicket, QueueStatus, Patient, Doctor, User, UserRole
+from app.models import Appointment, QueueTicket, QueueStatus, Patient, Doctor, User, UserRole
 from app.auth import get_current_user, get_password_hash, require_roles
 from app.websocket_manager import queue_manager
 
@@ -20,6 +20,7 @@ class IssueTicketRequest(BaseModel):
     doctor_id: int
     # ponytail: staff may issue walk-ins for another patient; patients are always self-issued
     patient_id: Optional[int] = None
+    appointment_id: Optional[int] = None
     priority: Literal["normal", "urgent"] = "normal"
 
 
@@ -97,7 +98,13 @@ def get_live_status(db: Session = Depends(get_db)):
     }
 
 
-def _allocate_queue_ticket(db: Session, patient_id: int, doctor_id: int, priority: str) -> QueueTicket:
+def _allocate_queue_ticket(
+    db: Session,
+    patient_id: int,
+    doctor_id: int,
+    priority: str,
+    appointment_id: Optional[int] = None,
+) -> QueueTicket:
     active = (
         db.query(QueueTicket)
         .filter(
@@ -123,6 +130,7 @@ def _allocate_queue_ticket(db: Session, patient_id: int, doctor_id: int, priorit
             ticket_number=f"Q-{max_num + 1}",
             patient_id=patient_id,
             doctor_id=doctor_id,
+            appointment_id=appointment_id,
             status=QueueStatus.WAITING,
             priority=priority,
             issued_at=datetime.now(timezone.utc),
@@ -150,15 +158,48 @@ def _allocate_queue_ticket(db: Session, patient_id: int, doctor_id: int, priorit
     return ticket
 
 
+@router.get("/active")
+def get_active_queue(
+    doctor_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STAFF, UserRole.DOCTOR, UserRole.ADMIN])),
+):
+    """Authenticated active queue tickets with patient/doctor/room details for staff & doctor consoles."""
+    query = (
+        db.query(QueueTicket)
+        .filter(QueueTicket.status.in_([QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_CONSULTATION]))
+    )
+    if doctor_id is not None:
+        query = query.filter(QueueTicket.doctor_id == doctor_id)
+    tickets = query.order_by((QueueTicket.priority == "urgent").desc(), QueueTicket.id.asc()).all()
+    return [
+        {
+            "id": t.id,
+            "ticket_number": t.ticket_number,
+            "status": t.status.value if hasattr(t.status, "value") else str(t.status),
+            "priority": t.priority or "normal",
+            "doctor_id": t.doctor_id,
+            "doctor_name": t.doctor.user.full_name if t.doctor and t.doctor.user else "Clinic Physician",
+            "room_number": t.doctor.room_number if t.doctor else "N/A",
+            "patient_id": t.patient_id,
+            "patient_name": t.patient.user.full_name if t.patient and t.patient.user else f"Patient #{t.patient_id}",
+            "appointment_id": t.appointment_id,
+        }
+        for t in tickets
+    ]
+
+
 @router.post("/issue")
 async def issue_ticket(
     data: IssueTicketRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    doctor = db.query(Doctor).filter(Doctor.id == data.doctor_id).first()
+    doctor = db.query(Doctor).join(User).filter(Doctor.id == data.doctor_id).first()
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
+    if not doctor.user or not doctor.user.is_approved or not doctor.is_available:
+        raise HTTPException(status_code=400, detail="Doctor is currently unavailable")
 
     if current_user.role == UserRole.PATIENT:
         patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
@@ -171,7 +212,20 @@ async def issue_ticket(
         if not patient:
             raise HTTPException(status_code=404, detail="Patient not found")
 
-    ticket = _allocate_queue_ticket(db, patient.id, data.doctor_id, data.priority)
+    if data.appointment_id is not None:
+        appt = (
+            db.query(Appointment)
+            .filter(
+                Appointment.id == data.appointment_id,
+                Appointment.patient_id == patient.id,
+                Appointment.doctor_id == doctor.id,
+            )
+            .first()
+        )
+        if not appt:
+            raise HTTPException(status_code=400, detail="Appointment does not match patient and doctor")
+
+    ticket = _allocate_queue_ticket(db, patient.id, data.doctor_id, data.priority, data.appointment_id)
     await queue_manager.broadcast({"event": "QUEUE_UPDATED", "ticket": ticket.ticket_number, "status": "issued"})
     return {"status": "success", "ticket_number": ticket.ticket_number, "id": ticket.id}
 
@@ -186,11 +240,11 @@ async def register_walkin_patient(
     doctor = (
         db.query(Doctor)
         .join(User)
-        .filter(Doctor.id == data.doctor_id, User.is_approved == True)
+        .filter(Doctor.id == data.doctor_id, User.is_approved == True, Doctor.is_available == True)
         .first()
     )
     if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor not found")
+        raise HTTPException(status_code=404, detail="Doctor not found or unavailable")
 
     name = data.full_name.strip()
     if not name:
@@ -216,7 +270,13 @@ async def register_walkin_patient(
     db.commit()
     db.refresh(patient)
 
-    ticket = _allocate_queue_ticket(db, patient.id, data.doctor_id, data.priority)
+    try:
+        ticket = _allocate_queue_ticket(db, patient.id, data.doctor_id, data.priority)
+    except Exception:
+        db.delete(patient)
+        db.delete(user)
+        db.commit()
+        raise
     await queue_manager.broadcast({"event": "QUEUE_UPDATED", "ticket": ticket.ticket_number, "status": "issued"})
     return {
         "status": "success",

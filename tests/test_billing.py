@@ -523,3 +523,29 @@ def test_get_invoice_by_id(client, db_session):
     )
     assert resp_404.status_code == 404
     assert resp_404.json()["detail"] == "Invoice not found"
+
+
+def test_patient_my_invoices_endpoint(client, db_session):
+    u_pat1 = User(email="pat.inv1@clinic.test", hashed_password="pw", full_name="Pat One", role=UserRole.PATIENT)
+    u_pat2 = User(email="pat.inv2@clinic.test", hashed_password="pw", full_name="Pat Two", role=UserRole.PATIENT)
+    db_session.add_all([u_pat1, u_pat2])
+    db_session.commit()
+    p1 = Patient(user_id=u_pat1.id)
+    p2 = Patient(user_id=u_pat2.id)
+    db_session.add_all([p1, p2])
+    db_session.commit()
+
+    db_session.add_all([
+        Invoice(receipt_number="REC-20261128-PAT001", patient_id=p1.id, consultation_fee=500, total_amount=500, payment_method="cash"),
+        Invoice(receipt_number="REC-20261128-PAT002", patient_id=p2.id, consultation_fee=300, total_amount=300, payment_method="cash"),
+    ])
+    db_session.commit()
+
+    p1_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_pat1.email, 'role': 'patient'})}"}
+    assert client.get("/api/billing/my").status_code == 401
+    res = client.get("/api/billing/my", headers=p1_headers)
+    assert res.status_code == 200
+    rows = res.json()
+    assert len(rows) == 1
+    assert rows[0]["receipt_number"] == "REC-20261128-PAT001"
+    assert rows[0]["qr_code_image"].startswith("data:image/svg+xml;base64,")

@@ -32,7 +32,8 @@ def _user_from_websocket(websocket: WebSocket, db: Session) -> Optional[User]:
     email = payload.get("sub")
     if not email:
         return None
-    return db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == email).first()
+    return user if (user and user.is_approved) else None
 
 
 class ChatConnectionHub:
@@ -246,6 +247,59 @@ def list_chat_sessions(
     """Retrieve all unique active chat session IDs (staff inbox only)."""
     sessions = db.query(ChatMessage.session_id).distinct().all()
     return [s[0] for s in sessions]
+
+
+@router.get("/sessions/summary")
+def list_chat_sessions_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STAFF, UserRole.ADMIN])),
+):
+    """Retrieve active chat sessions with latest message preview for the staff chat inbox."""
+    from sqlalchemy import func
+
+    agg = (
+        db.query(
+            ChatMessage.session_id,
+            func.count(ChatMessage.id).label("cnt"),
+            func.max(ChatMessage.id).label("last_id"),
+        )
+        .group_by(ChatMessage.session_id)
+        .order_by(func.max(ChatMessage.id).desc())
+        .limit(30)
+        .all()
+    )
+    if not agg:
+        return []
+    last_ids = [row.last_id for row in agg]
+    last_msgs = {m.id: m for m in db.query(ChatMessage).filter(ChatMessage.id.in_(last_ids)).all()}
+
+    # Prefer the first non-bot sender's name as the session owner label
+    session_ids = [row.session_id for row in agg]
+    human_msgs = (
+        db.query(ChatMessage)
+        .filter(
+            ChatMessage.session_id.in_(session_ids),
+            ChatMessage.is_bot_reply == False,  # noqa: E712
+            ChatMessage.sender_role == "patient",
+        )
+        .order_by(ChatMessage.id.asc())
+        .all()
+    )
+    sender_by_session = {}
+    for hm in human_msgs:
+        sender_by_session.setdefault(hm.session_id, hm.sender_name)
+
+    results = []
+    for row in agg:
+        last_m = last_msgs.get(row.last_id)
+        results.append({
+            "session_id": row.session_id,
+            "sender_name": sender_by_session.get(row.session_id) or (last_m.sender_name if last_m else "Guest"),
+            "last_message": last_m.message_text if last_m else "",
+            "message_count": row.cnt,
+            "last_at": last_m.created_at.strftime("%Y-%m-%d %H:%M") if (last_m and last_m.created_at) else None,
+        })
+    return results
 
 
 @router.post("/send")

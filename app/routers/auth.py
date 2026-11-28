@@ -66,8 +66,10 @@ def _user_profile(user: User) -> dict:
     if user.doctor:
         data["doctor_profile"] = {
             "specialization": user.doctor.specialization,
+            "license_number": user.doctor.license_number,
             "room_number": user.doctor.room_number,
             "consultation_fee": float(user.doctor.consultation_fee) if user.doctor.consultation_fee is not None else None,
+            "is_available": bool(user.doctor.is_available),
         }
     return data
 
@@ -110,6 +112,7 @@ async def login(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email/username and password are required",
         )
+    email = email.strip().lower()
 
     if _rate_limited(email):
         raise HTTPException(
@@ -194,7 +197,7 @@ def setup_admin(
     email = payload.email.strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="A valid email address is required")
-    if not payload.password or len(payload.password) < 6:
+    if not payload.password or not payload.password.strip() or len(payload.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     if not payload.full_name or not payload.full_name.strip():
         raise HTTPException(status_code=400, detail="Full name is required")
@@ -251,7 +254,7 @@ def register_user(
     email = payload.email.strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="A valid email address is required")
-    if not payload.password or len(payload.password) < 6:
+    if not payload.password or not payload.password.strip() or len(payload.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     if not payload.full_name or not payload.full_name.strip():
         raise HTTPException(status_code=400, detail="Full name is required")
@@ -267,7 +270,9 @@ def register_user(
         "staff": UserRole.STAFF,
         "admin": UserRole.ADMIN,
     }
-    user_role = role_map.get(target_role_str, UserRole.PATIENT)
+    if target_role_str not in role_map:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    user_role = role_map[target_role_str]
     # Patients activate immediately; doctor, staff, and admin sign-ups require admin approval
     is_approved = user_role == UserRole.PATIENT
 
@@ -350,6 +355,11 @@ class UpdatePatientProfilePayload(BaseModel):
     emergency_contact_phone: Optional[str] = None
     allergies: Optional[str] = None
     medical_history: Optional[str] = None
+    # Doctor fields
+    specialization: Optional[str] = None
+    room_number: Optional[str] = None
+    consultation_fee: Optional[float] = None
+    is_available: Optional[bool] = None
 
 
 @router.put("/profile")
@@ -361,27 +371,43 @@ def update_profile(
     if payload.full_name is not None and payload.full_name.strip():
         current_user.full_name = payload.full_name.strip()
     if payload.phone is not None:
-        current_user.phone = payload.phone.strip() if payload.phone else None
+        current_user.phone = payload.phone.strip() if payload.phone.strip() else None
 
     if current_user.patient:
         patient = current_user.patient
         if payload.date_of_birth is not None:
-            if payload.date_of_birth:
-                patient.date_of_birth = date.fromisoformat(payload.date_of_birth)
+            if payload.date_of_birth.strip():
+                try:
+                    patient.date_of_birth = date.fromisoformat(payload.date_of_birth.strip())
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Date of birth must be in YYYY-MM-DD format")
             else:
                 patient.date_of_birth = None
         if payload.gender is not None:
-            patient.gender = payload.gender
+            patient.gender = payload.gender.strip() or None
         if payload.blood_group is not None:
-            patient.blood_group = payload.blood_group
+            patient.blood_group = payload.blood_group.strip() or None
         if payload.emergency_contact_name is not None:
-            patient.emergency_contact_name = payload.emergency_contact_name
+            patient.emergency_contact_name = payload.emergency_contact_name.strip() or None
         if payload.emergency_contact_phone is not None:
-            patient.emergency_contact_phone = payload.emergency_contact_phone
+            patient.emergency_contact_phone = payload.emergency_contact_phone.strip() or None
         if payload.allergies is not None:
-            patient.allergies = payload.allergies
+            patient.allergies = payload.allergies.strip() or None
         if payload.medical_history is not None:
-            patient.medical_history = payload.medical_history
+            patient.medical_history = payload.medical_history.strip() or None
+
+    if current_user.doctor:
+        doc = current_user.doctor
+        if payload.specialization is not None and payload.specialization.strip():
+            doc.specialization = payload.specialization.strip()
+        if payload.room_number is not None and payload.room_number.strip():
+            doc.room_number = payload.room_number.strip()
+        if payload.consultation_fee is not None:
+            if payload.consultation_fee < 0:
+                raise HTTPException(status_code=400, detail="Consultation fee cannot be negative")
+            doc.consultation_fee = payload.consultation_fee
+        if payload.is_available is not None:
+            doc.is_available = bool(payload.is_available)
 
     db.commit()
     db.refresh(current_user)

@@ -507,3 +507,31 @@ def test_staff_replies_do_not_consume_guest_limit(client, db_session):
     res2 = client.post("/api/chat/send", json={"session_id": session_id, "message": "What are your hours?"})
     assert res2.status_code == 200
     assert res2.json()["guest_remaining"] == 3
+
+
+def test_faq_word_boundaries_do_not_hijack_medical_queries():
+    assert classify_query_intent("Sometimes I have a fever and chills") == "INTERNAL_LLM"
+    assert classify_query_intent("Maputla po ako at nahihilo") == "INTERNAL_LLM"
+    assert classify_query_intent("My eyes won't open properly after waking up") == "INTERNAL_LLM"
+
+
+def test_chat_sessions_summary_staff_inbox(client, db_session):
+    s1 = f"inbox-{uuid.uuid4().hex[:8]}"
+    u_staff = User(email="inbox2@chat.test", hashed_password="pw", full_name="Inbox Staff", role=UserRole.STAFF)
+    u_pat = User(email="inboxpat@chat.test", hashed_password="pw", full_name="Patient Inbox", role=UserRole.PATIENT)
+    db_session.add_all([u_staff, u_pat])
+    db_session.commit()
+
+    db_session.add(ChatMessage(session_id=s1, sender_id=u_pat.id, sender_name="Patient Inbox", sender_role="patient", message_text="Need help with my booking"))
+    db_session.commit()
+
+    assert client.get("/api/chat/sessions/summary").status_code == 401
+    assert client.get("/api/chat/sessions/summary", headers=_auth_cookie(u_pat)).status_code == 403
+    res = client.get("/api/chat/sessions/summary", headers=_auth_cookie(u_staff))
+    assert res.status_code == 200
+    rows = res.json()
+    match = next((r for r in rows if r["session_id"] == s1), None)
+    assert match is not None
+    assert match["sender_name"] == "Patient Inbox"
+    assert "Need help" in match["last_message"]
+    assert match["message_count"] == 1

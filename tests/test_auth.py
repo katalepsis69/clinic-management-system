@@ -403,7 +403,7 @@ def test_admin_user_management_endpoints(db_session):
     assert res_doc.json()["user"]["role"] == "doctor"
     assert res_doc.json()["user"]["doctor_id"] is not None
 
-    # Duplicate email rejected; staff/admin roles rejected from the wire
+    # Duplicate email rejected
     assert client.post("/api/admin/users", headers=admin_headers, json={
         "full_name": "Dup", "email": "vance@clinic.test", "password": "password123", "role": "staff",
     }).status_code == 400
@@ -483,3 +483,58 @@ def test_auth_cookie_secure_flag_matches_request_scheme(db_session, monkeypatch)
     })
     assert reg_https.status_code == 201
     assert "Secure" in reg_https.headers.get("set-cookie", "")
+
+
+def test_login_normalizes_email_and_profile_rejects_bad_dob(db_session):
+    seed_demo_data(db_session)
+    client = _client_with_routers(db_session, include_admin=True)
+
+    # Case-insensitive + whitespace-trimmed login succeeds
+    res = client.post("/api/auth/login", json={"email": "  Patient@Demo.COM ", "password": "patient123"})
+    assert res.status_code == 200
+    pat_token = res.json()["access_token"]
+
+    # Invalid DOB returns 400 instead of 500
+    bad_dob = client.put(
+        "/api/auth/profile",
+        headers={"Authorization": f"Bearer {pat_token}"},
+        json={"date_of_birth": "not-a-date"},
+    )
+    assert bad_dob.status_code == 400
+
+    # Invalid role on registration returns 400
+    bad_role = client.post("/api/auth/register", json={
+        "email": "badrole@clinic.test",
+        "password": "password123",
+        "full_name": "Bad Role",
+        "role": "superuser",
+    })
+    assert bad_role.status_code == 400
+
+    # Doctor can update own doctor profile fields (availability, room, fee)
+    doc_login = client.post("/api/auth/login", json={"email": "doctor@demo.com", "password": "doctor123"})
+    assert doc_login.status_code == 200
+    doc_token = doc_login.json()["access_token"]
+    doc_upd = client.put(
+        "/api/auth/profile",
+        headers={"Authorization": f"Bearer {doc_token}"},
+        json={"room_number": "Room 305", "consultation_fee": 750.00, "is_available": False},
+    )
+    assert doc_upd.status_code == 200
+    assert doc_upd.json()["doctor_profile"]["room_number"] == "Room 305"
+    assert doc_upd.json()["doctor_profile"]["is_available"] is False
+
+    # Admin can deactivate and reactivate another approved user, but not self
+    admin_token = create_access_token({"sub": "admin@demo.com", "role": "admin"})
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    staff_u = db_session.query(User).filter(User.email == "staff@demo.com").first()
+    admin_u = db_session.query(User).filter(User.email == "admin@demo.com").first()
+
+    assert client.post(f"/api/admin/users/{admin_u.id}/toggle-active", headers=admin_headers).status_code == 400
+    tog_off = client.post(f"/api/admin/users/{staff_u.id}/toggle-active", headers=admin_headers)
+    assert tog_off.status_code == 200
+    assert tog_off.json()["user"]["is_approved"] is False
+    assert client.post("/api/auth/login", json={"email": "staff@demo.com", "password": "staff123"}).status_code == 403
+    tog_on = client.post(f"/api/admin/users/{staff_u.id}/toggle-active", headers=admin_headers)
+    assert tog_on.status_code == 200
+    assert tog_on.json()["user"]["is_approved"] is True

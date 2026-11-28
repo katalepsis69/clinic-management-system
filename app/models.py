@@ -75,7 +75,7 @@ class Appointment(Base):
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False)
     appointment_date = Column(Date, nullable=False)
     time_slot = Column(String(30), nullable=False)
-    status = Column(SQLEnum(AppointmentStatus), default=AppointmentStatus.CONFIRMED)
+    status = Column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PENDING)
     reason_for_visit = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

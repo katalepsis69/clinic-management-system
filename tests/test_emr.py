@@ -600,3 +600,26 @@ def test_patient_my_prescriptions_with_qr_image(client, db_session):
     assert client.get("/api/emr/my-prescriptions", headers=other_headers).json() == []
     assert client.get("/api/emr/my-prescriptions", headers=doc_headers).status_code == 403
     assert client.get("/api/emr/my-prescriptions").status_code == 401
+
+
+def test_emr_null_dob_is_none_and_empty_rx_rejected(client, db_session):
+    u_doc = User(email="dr.null@clinic.test", hashed_password="pw", full_name="Dr. Null", role=UserRole.DOCTOR)
+    u_pat = User(email="pat.null@clinic.test", hashed_password="pw", full_name="Pat Null", role=UserRole.PATIENT)
+    db_session.add_all([u_doc, u_pat])
+    db_session.commit()
+    doc = Doctor(user_id=u_doc.id, specialization="Gen", license_number="L", room_number="R")
+    pat = Patient(user_id=u_pat.id, date_of_birth=None)
+    db_session.add_all([doc, pat])
+    db_session.commit()
+
+    doc_headers = {"Authorization": f"Bearer {create_access_token({'sub': u_doc.email, 'role': 'doctor'})}"}
+    emr = client.get(f"/api/emr/patient/{pat.id}", headers=doc_headers)
+    assert emr.status_code == 200
+    assert emr.json()["dob"] is None
+
+    bad_rx = client.post(
+        "/api/emr/prescription/create",
+        headers=doc_headers,
+        json={"patient_id": pat.id, "diagnosis": "   ", "medications": []},
+    )
+    assert bad_rx.status_code == 400
