@@ -69,6 +69,8 @@ async def security_headers(request, call_next):
         "img-src 'self' data:; "
         "connect-src 'self' ws: wss:;"
     )
+    if request.url.path.startswith("/static/") and "Cache-Control" not in response.headers:
+        response.headers["Cache-Control"] = "no-cache"
     return response
 
 # Mount API Routers

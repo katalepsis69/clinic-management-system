@@ -238,4 +238,6 @@ def test_qr_generator_and_panel_feature_hooks():
     assert 'id="writtenFeedbackCount"' in res_html.text
     assert "writtenFeedbackList" in res_app.text
     assert "Anonymous Patient" in res_app.text
-    assert "Patient ID: #" not in res_app.text
+    assert "Patient ID: #" not in res_app.text
+    assert res_app.headers.get("Cache-Control") == "no-cache"
+    assert '/static/app.js?v=2.17.0' in res_html.text

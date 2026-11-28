@@ -2710,7 +2710,7 @@
         } else {
           list.innerHTML = rawAlerts.map(a => {
             const r = a.rating ?? 1;
-            const score = a.sentiment_score !== undefined ? a.sentiment_score.toFixed(2) : '-';
+            const score = typeof a.sentiment_score === 'number' ? a.sentiment_score.toFixed(2) : '-';
             const comment = escapeHTML(a.comment ?? a.comment_text ?? '');
             const docMeta = a.doctor_name ? ` &bull; ${escapeHTML(a.doctor_name)}` : '';
             const dt = formatFeedbackDate(a.created_at);
