@@ -1,4 +1,4 @@
-// Clinic Management System Client Controller
+// One Stop Dental Clinic Client Controller
 (function () {
   'use strict';
 
@@ -611,28 +611,28 @@
       btnText: 'Sign In as Patient',
       regBtnText: 'Create Patient Account',
       icon: '#i-user',
-      emailPlaceholder: 'patient@clinic.com',
+      emailPlaceholder: 'patient@onestopdental.com',
     },
     doctor: {
       title: 'Doctor Clinical Console',
       btnText: 'Sign In as Doctor',
       regBtnText: 'Register Doctor Account',
       icon: '#i-stethoscope',
-      emailPlaceholder: 'doctor@clinic.com',
+      emailPlaceholder: 'doctor@onestopdental.com',
     },
     staff: {
       title: 'Staff & Billing Desk',
       btnText: 'Sign In as Staff',
       regBtnText: 'Request Staff Account',
       icon: '#i-clipboard',
-      emailPlaceholder: 'staff@clinic.com',
+      emailPlaceholder: 'staff@onestopdental.com',
     },
     admin: {
       title: 'Administrator Console',
       btnText: 'Sign In as Administrator',
       regBtnText: 'Request Admin Account',
       icon: '#i-chart',
-      emailPlaceholder: 'admin@clinic.com',
+      emailPlaceholder: 'admin@onestopdental.com',
     },
   };
 
@@ -3345,7 +3345,7 @@
         <div class="flex items-start gap-2">
           ${ICONS.bot}
           <div class="bg-stone-100 text-stone-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
-            Welcome to City Health Clinic. I am your virtual assistant. Ask me about opening hours, booking appointments, specialists, general health facts, or our location. (Pwede rin po kayong magtanong sa Tagalog!)
+            Welcome to One Stop Dental Clinic. I am your virtual assistant. Ask me about opening hours, booking appointments, specialists, general health facts, or our location. (Pwede rin po kayong magtanong sa Tagalog!)
           </div>
         </div>
       `;
@@ -3536,7 +3536,7 @@
       const headerBtn = document.getElementById('headerInstallBtn');
       if (banner) banner.classList.add('hidden');
       if (headerBtn) headerBtn.classList.add('hidden');
-      showToast('ClinicCare successfully installed on your device!', 'success');
+      showToast('One Stop Dental Clinic successfully installed on your device!', 'success');
     });
 
     // 4. Offline & Online connectivity monitor
@@ -3576,7 +3576,7 @@
     deferredInstallPrompt.prompt();
     deferredInstallPrompt.userChoice.then((choiceResult) => {
       if (choiceResult && choiceResult.outcome === 'accepted') {
-        showToast('Installing ClinicCare...', 'info');
+        showToast('Installing One Stop Dental Clinic...', 'info');
       }
       deferredInstallPrompt = null;
       const banner = document.getElementById('pwaInstallBanner');

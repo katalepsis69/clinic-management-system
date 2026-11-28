@@ -35,7 +35,7 @@ FAQ_RULES = [
     ),
 ]
 
-SYSTEM_PROMPT = """You are the AI Front Desk & Healthcare Assistant for Clinic Management System.
+SYSTEM_PROMPT = """You are the AI Front Desk & Dental Assistant for One Stop Dental Clinic.
 - Opening Hours: Monday to Saturday, 8:00 AM to 6:00 PM.
 - Location: 123 Healthcare Blvd, Suite 400, Medical Arts Tower. Parking on Level B1.
 - Specialties: Cardiology, Pediatrics, General Medicine, and Orthopedics.

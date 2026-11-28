@@ -108,7 +108,7 @@ def test_complete_e2e_clinical_workflow():
     assert health_res.status_code == 200
     health_json = health_res.json()
     assert health_json["status"] == "healthy"
-    assert "Clinic Management System" in health_json["service"]
+    assert "One Stop Dental Clinic" in health_json["service"]
 
     # -----------------------------------------------------------------------
     # Step 2: Doctor Directory Listing

@@ -7,7 +7,7 @@ client = TestClient(app)
 def test_root_serves_html():
     res = client.get("/")
     assert res.status_code == 200
-    assert "Clinic Management System" in res.text
+    assert "One Stop Dental Clinic" in res.text
 
 
 def test_api_health():
@@ -66,7 +66,8 @@ def test_pwa_manifest_and_sw_endpoints():
     assert res_m.status_code == 200
     assert "application/manifest+json" in res_m.headers.get("content-type", "")
     manifest_data = res_m.json()
-    assert manifest_data["short_name"] == "ClinicCare"
+    assert manifest_data["name"] == "One Stop Dental Clinic"
+    assert manifest_data["short_name"] == "One Stop Dental"
     assert manifest_data["display"] == "standalone"
     assert len(manifest_data["icons"]) >= 3
 
@@ -240,4 +241,4 @@ def test_qr_generator_and_panel_feature_hooks():
     assert "Anonymous Patient" in res_app.text
     assert "Patient ID: #" not in res_app.text
     assert res_app.headers.get("Cache-Control") == "no-cache"
-    assert '/static/app.js?v=2.17.0' in res_html.text
+    assert '/static/app.js?v=2.18.0' in res_html.text

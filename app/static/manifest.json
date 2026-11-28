@@ -1,7 +1,7 @@
 {
-  "name": "ClinicCare - Clinic Management System",
-  "short_name": "ClinicCare",
-  "description": "Real-time clinic operations portal: appointments, live queue tracking, EMR, e-prescriptions, and bilingual AI medical assistant.",
+  "name": "One Stop Dental Clinic",
+  "short_name": "One Stop Dental",
+  "description": "One Stop Dental Clinic operations portal: appointments, live queue tracking, EMR, e-prescriptions, and bilingual AI assistant.",
   "start_url": "/",
   "id": "/",
   "scope": "/",

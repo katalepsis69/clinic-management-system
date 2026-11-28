@@ -27,7 +27,7 @@ def test_render_yaml_syntax_and_structure():
         content = f.read()
     assert "services:" in content
     assert "type: web" in content
-    assert "name: clinic-management-system" in content
+    assert "name: one-stop-dental-clinic" in content
     assert "env: python" in content
     assert "plan: free" in content
     assert "pip install -r requirements.txt" in content

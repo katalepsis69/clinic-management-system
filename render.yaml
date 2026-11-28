@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: clinic-management-system
+    name: one-stop-dental-clinic
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
